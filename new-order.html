@@ -82,6 +82,8 @@
 </head>
 <body>
 
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
     <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
         <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
     </div>
@@ -183,8 +185,8 @@
 
     <script>
         // Supabase Initialization
-        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
@@ -195,6 +197,75 @@
         // Voice Timer Variables
         let voiceTimerInterval;
         let voiceSeconds = 0;
+
+        // Current User Identity
+        const userPhone = localStorage.getItem('faster_phone');
+        
+        // --- AUDIO & RINGTONE LOGIC ---
+        const sound = document.getElementById('notifSound');
+        function ring() { 
+            if(!sound) return;
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => { console.warn("Auto-play strict block:", error); });
+            }
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+        }
+
+        // Unlock audio for Webview
+        function unlockAudio() {
+            if(sound) {
+                sound.muted = true;
+                sound.play().then(() => {
+                    sound.pause(); sound.currentTime = 0; sound.muted = false;
+                    document.removeEventListener('touchstart', unlockAudio);
+                    document.removeEventListener('click', unlockAudio);
+                }).catch(e => console.warn(e));
+            }
+        }
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
+
+        // --- MEDIAN (GONATIVE) NOTIFICATION CLICK HANDLER ---
+        // Jab push notification par click hoga toh yeh function automatically chalega
+        function gonative_onesignal_notification_opened(jsonData) {
+            try {
+                if(jsonData && jsonData.additionalData) {
+                    // Agar message ka notification hai
+                    if (jsonData.additionalData.type === 'chat' && jsonData.additionalData.order_id) {
+                        window.location.href = 'chat.html?order_id=' + jsonData.additionalData.order_id;
+                    } 
+                    // Agar koi custom URL bheja hai
+                    else if (jsonData.additionalData.target_url) {
+                        window.location.href = jsonData.additionalData.target_url;
+                    } 
+                    // Default fallback (Status change waghera)
+                    else {
+                        window.location.href = 'active-orders.html';
+                    }
+                } else {
+                    window.location.href = 'active-orders.html';
+                }
+            } catch(e) { console.error("Deep Link Error:", e); }
+        }
+
+        // --- REALTIME LISTENER FOR NEW MESSAGES/STATUS (While typing order) ---
+        function setupRealtime() {
+            if(!userPhone) return;
+            _supabase.removeAllChannels(); 
+            _supabase.channel('new-order-live')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
+                    if(payload.new && payload.new.sender_phone !== userPhone) ring(); 
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
+                    if(payload.new && payload.new.customer_phone === userPhone) ring(); 
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
+                    if(payload.new && payload.new.receiver_id === userPhone) ring(); 
+                })
+                .subscribe();
+        }
 
         // Custom Dialog Manager
         const Dialog = {
@@ -252,31 +323,40 @@
 
         // Initialize Page Data
         async function initPage() {
-            const userPhone = localStorage.getItem('faster_phone');
-            if(!userPhone) return;
+            if(!userPhone) {
+                window.location.replace('index.html');
+                return;
+            }
 
             document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
             document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
+
+            // Setup real-time listener for incoming events
+            setupRealtime();
 
             try {
                 if(navigator.onLine) {
                     const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
                     if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
 
-                    const { data: customerData } = await _supabase
-                        .from('customers')
-                        .select('name, address')
-                        .eq('phone', userPhone)
-                        .single();
-                        
-                    if (customerData) {
-                        if (customerData.name) {
-                            document.getElementById('editName').value = customerData.name;
-                            localStorage.setItem('faster_name', customerData.name);
-                        }
-                        if (customerData.address) {
-                            document.getElementById('editAddress').value = customerData.address;
-                            localStorage.setItem('faster_address', customerData.address);
+                    // Fetch Latest Details securely
+                    const { data: { session } } = await _supabase.auth.getSession();
+                    if(session) {
+                        const { data: customerData } = await _supabase
+                            .from('customers')
+                            .select('name, address')
+                            .eq('email', session.user.email)
+                            .single();
+                            
+                        if (customerData) {
+                            if (customerData.name) {
+                                document.getElementById('editName').value = customerData.name;
+                                localStorage.setItem('faster_name', customerData.name);
+                            }
+                            if (customerData.address) {
+                                document.getElementById('editAddress').value = customerData.address;
+                                localStorage.setItem('faster_address', customerData.address);
+                            }
                         }
                     }
                 }
@@ -546,11 +626,21 @@
                 Dialog.show("No Internet", "Please connect to the internet to submit your order.", "alert");
                 return;
             }
+            
+            // Check session security before confirming
+            const { data: { session } } = await _supabase.auth.getSession();
+            if(!session) {
+                Dialog.show("Session Expired", "Your login session expired. Please login again.", "alert").then(() => {
+                    window.location.replace("index.html");
+                });
+                return;
+            }
+
             const confirmAction = await Dialog.show("Confirm Order", `The Delivery Charges will be Rs. ${deliveryCharges}. Do you want to proceed and confirm your order?`, "confirm");
-            if (confirmAction) finalSubmitOrder();
+            if (confirmAction) finalSubmitOrder(session.user.email);
         }
 
-        async function finalSubmitOrder() {
+        async function finalSubmitOrder(userEmail) {
             const btn = document.getElementById('finalSubmitBtn');
             const name = document.getElementById('editName').value.trim();
             const addr = document.getElementById('editAddress').value.trim();
@@ -565,9 +655,9 @@
             btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
             try {
-                const userPhone = localStorage.getItem('faster_phone');
-                if (userPhone) {
-                     await _supabase.from('customers').update({ name: name, address: addr }).eq('phone', userPhone);
+                // Securely update address if changed
+                if (userEmail) {
+                     await _supabase.from('customers').update({ name: name, address: addr }).eq('email', userEmail);
                 }
 
                 const uploadAll = async (items, prefix, defaultExt) => {
@@ -596,10 +686,17 @@
                     ...draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption)
                 ].join(" | ");
 
+                // Insert new order into Database
                 const { error } = await _supabase.from('orders').insert([{
-                    customer_phone: userPhone || 'Guest',
-                    customer_name: name, delivery_address: addr, order_details: combinedDetails,
-                    image_url: imgURLs, video_url: vidURLs, voice_url: vceURLs, doc_url: docURLs, status: 'pending'
+                    customer_phone: userPhone,
+                    customer_name: name, 
+                    delivery_address: addr, 
+                    order_details: combinedDetails,
+                    image_url: imgURLs, 
+                    video_url: vidURLs, 
+                    voice_url: vceURLs, 
+                    doc_url: docURLs, 
+                    status: 'pending'
                 }]);
                 
                 if(error) throw error;
