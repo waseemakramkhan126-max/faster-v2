@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Faster - Completed Orders</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -11,12 +11,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         
-        /* WebView specific fixes */
+        /* Strict Mobile WebView & iOS Optimization */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             overscroll-behavior-y: none; /* Prevents pull-to-refresh */
             -webkit-tap-highlight-color: transparent; 
             user-select: none; /* Prevents text selection */
+            -webkit-user-select: none;
+            padding-top: env(safe-area-inset-top); /* iPhone Notch Fix */
         }
 
         /* Animations */
@@ -35,10 +37,10 @@
         #offlineBanner { transition: top 0.3s ease-in-out; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen pb-10">
+<body class="bg-gray-50 min-h-screen pb-10 flex flex-col">
 
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
-        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
     </div>
 
     <div id="toast" class="toast-leave fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[100000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap">
@@ -60,7 +62,7 @@
         </div>
     </header>
 
-    <main id="completedList" class="p-4 flex flex-col gap-4">
+    <main id="completedList" class="p-4 flex flex-col gap-4 flex-1">
         <div id="loader" class="flex flex-col justify-center items-center py-32 opacity-60">
             <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-[#075e54] mb-4"></div>
             <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Loading History...</p>
@@ -88,16 +90,43 @@
 
     <script>
         // Supabase Initialization
-        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // Security / Auth Check
-        const userPhone = localStorage.getItem('faster_phone');
-        if(!userPhone) window.location.replace('index.html');
-
+        // Security Variables
+        let userPhone = localStorage.getItem('faster_phone');
         let allCompletedOrders = []; 
         const sound = document.getElementById('notifSound');
+
+        // --- AUDIO UNLOCKER FOR WEBVIEW ---
+        let isAudioUnlocked = false;
+
+        function unlockAudio() {
+            if (isAudioUnlocked || !sound) return;
+            sound.muted = true; 
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                sound.muted = false; 
+                isAudioUnlocked = true;
+                document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('click', unlockAudio);
+            }).catch(e => console.warn(e));
+        }
+
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
+
+        function ring() { 
+            if(!sound) return;
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => console.log("Audio blocked:", error));
+            }
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+        }
 
         // --- TOAST NOTIFICATION ---
         let toastTimeout;
@@ -113,57 +142,29 @@
             } else if (type === 'success') {
                 toast.className = "toast-enter fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[1000000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap bg-emerald-500 text-white";
                 icon.className = "fas fa-check-circle text-lg";
+            } else {
+                toast.className = "toast-enter fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[1000000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap bg-gray-800 text-white";
+                icon.className = "fas fa-info-circle text-lg";
             }
 
             clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => toast.classList.replace('toast-enter', 'toast-leave'), 3000);
         }
 
-        // --- GLOBAL RINGTONE LOGIC ---
-        function ring() { 
-            sound.currentTime = 0; 
-            let playPromise = sound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => console.log("Audio play prevented:", error));
+        // --- INIT & SECURITY CHECK ---
+        async function initPage() {
+            if(!userPhone) {
+                window.location.replace('index.html');
+                return;
             }
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
-        }
 
-        function setupRealtime() {
-            _supabase.removeAllChannels();
+            // Secure Session Check
+            const { data: { session } } = await _supabase.auth.getSession();
+            if(!session) {
+                window.location.replace('index.html');
+                return;
+            }
 
-            // Order Updates Listener
-            _supabase.channel('global-orders').on('postgres_changes', { 
-                event: '*', schema: 'public', table: 'orders', filter: `customer_phone=eq.${userPhone}` 
-            }, (payload) => {
-                ring();
-                // If a new order is completed or canceled while user is on this page, refresh the list
-                if (payload.new && ['completed', 'canceled', 'CANCELLED', 'cancelled'].includes(payload.new.status)) {
-                    fetchCompletedOrders();
-                }
-            }).subscribe();
-
-            // Rider Chat Listener
-            _supabase.channel('global-chats').on('postgres_changes', { 
-                event: 'INSERT', schema: 'public', table: 'chats', filter: `receiver_id=eq.${userPhone}` 
-            }, () => {
-                ring();
-            }).subscribe();
-        }
-
-        // --- OFFLINE/ONLINE LOGIC ---
-        window.addEventListener('offline', () => {
-            document.getElementById('offlineBanner').style.top = '0';
-        });
-        
-        window.addEventListener('online', () => {
-            document.getElementById('offlineBanner').style.top = '-50px';
-            showToast("Back Online", "success"); 
-            fetchCompletedOrders(); 
-        });
-
-        // --- INIT FUNCTION ---
-        function initPage() {
             fetchCompletedOrders();
             setupRealtime();
         }
@@ -175,6 +176,30 @@
             await fetchCompletedOrders();
             icon.classList.remove('fa-spin');
             showToast("History Updated", "success");
+        }
+
+        // --- REALTIME SYNC ---
+        function setupRealtime() {
+            _supabase.removeAllChannels();
+
+            _supabase.channel('global-orders').on('postgres_changes', { 
+                event: '*', schema: 'public', table: 'orders' 
+            }, (payload) => {
+                if (payload.new && payload.new.customer_phone === userPhone) {
+                    ring();
+                    if (['completed', 'canceled', 'CANCELLED', 'cancelled'].includes(payload.new.status)) {
+                        fetchCompletedOrders();
+                    }
+                }
+            }).subscribe();
+
+            _supabase.channel('global-chats').on('postgres_changes', { 
+                event: 'INSERT', schema: 'public', table: 'chats' 
+            }, (payload) => {
+                if(payload.new && payload.new.receiver_id === userPhone) {
+                    ring();
+                }
+            }).subscribe();
         }
 
         // --- DATA FETCHING ---
@@ -200,7 +225,9 @@
                 if (!data || data.length === 0) {
                     container.innerHTML = `
                         <div class="flex flex-col items-center justify-center py-20 opacity-50">
-                            <i class="fas fa-history text-6xl mb-4 text-gray-300"></i>
+                            <div class="bg-gray-200 p-6 rounded-full mb-4">
+                                <i class="fas fa-history text-5xl text-gray-400"></i>
+                            </div>
                             <p class="font-black text-sm uppercase tracking-widest text-center text-gray-500">No History Yet</p>
                         </div>`;
                     return;
@@ -254,13 +281,13 @@
                 if (!isCanceled) {
                     if (bal > 0) { 
                         badgeText = "Pending"; 
-                        badgeClass = "bg-red-100 text-red-700"; 
+                        badgeClass = "bg-red-100 text-red-700 animate-pulse"; 
                         walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-black text-red-500"><span>Pending Amount</span><span>Rs. ${bal}</span></div>`;
                     }
                     else if (bal < 0) { 
                         badgeText = "Remaining"; 
-                        badgeClass = "bg-green-100 text-green-700"; 
-                        walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-black text-green-600"><span>Remaining Balance</span><span>Rs. ${Math.abs(bal)}</span></div>`;
+                        badgeClass = "bg-emerald-100 text-emerald-700"; 
+                        walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-black text-emerald-600"><span>Remaining Balance</span><span>Rs. ${Math.abs(bal)}</span></div>`;
                     } else {
                         walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-bold text-gray-400 text-[10px]"><span>Status</span><span>Settled Full</span></div>`;
                     }
@@ -273,14 +300,14 @@
                     </button>` : '';
 
                 return `
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 animate-pop ${isCanceled ? 'opacity-70' : ''}">
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 animate-pop ${isCanceled ? 'opacity-75' : ''}">
                     <div class="flex justify-between items-start mb-4 border-b border-gray-50 pb-3">
                         <div>
                             <p class="text-[9px] text-gray-400 uppercase font-black tracking-widest">Order ID</p>
                             <p class="font-mono text-sm font-bold text-gray-800">#${order.id.toString().slice(-8)}</p>
                             ${!isCanceled ? `<p class="text-[10px] font-bold text-[#075e54] mt-1"><i class="fas fa-motorcycle mr-1 opacity-80"></i> Trip: ${timeText}</p>` : ''}
                         </div>
-                        <span class="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${badgeClass}">
+                        <span class="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${badgeClass} shadow-sm">
                             ${badgeText}
                         </span>
                     </div>
@@ -299,14 +326,14 @@
                         <div class="col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-100 text-[12px]">
                              <div class="flex justify-between mb-2">
                                 <span class="text-gray-500 font-bold">Total Bill:</span>
-                                <span class="font-black font-mono text-gray-800">Rs. ${totalBill}</span>
+                                <span class="font-black font-mono text-gray-800 text-sm">Rs. ${totalBill}</span>
                              </div>
                              <div class="flex justify-between text-blue-600 font-black">
                                 <span>Cash Paid to Rider:</span>
                                 <span class="font-mono">Rs. ${paidToRider}</span>
                              </div>
                              ${walletStatusHTML}
-                        </div>` : `<div class="col-span-2 text-[11px] py-3 text-center text-red-500 font-bold bg-red-50 rounded-xl">Order was canceled</div>`}
+                        </div>` : `<div class="col-span-2 text-[11px] py-3 text-center text-red-500 font-bold bg-red-50 rounded-xl border border-red-100">Order was canceled</div>`}
 
                         <div class="col-span-2">${billBtn}</div>
                         
@@ -375,25 +402,25 @@
                     <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center mb-3 pb-2 border-b border-gray-100">Payment Breakdown</p>
                     
                     <div class="flex justify-between text-xs font-bold text-gray-600 mb-2">
-                        <span>Items + Delivery:</span><span class="font-mono">Rs. ${currentOrder}</span>
+                        <span>Items + Delivery:</span><span class="font-mono text-gray-800">Rs. ${currentOrder}</span>
                     </div>
                     
                     ${pending != 0 ? `
                     <div class="flex justify-between text-xs font-bold text-gray-400 mb-2">
-                        <span>Previous Dues:</span><span class="font-mono">Rs. ${pending}</span>
+                        <span>Previous Dues:</span><span class="font-mono ${pending > 0 ? 'text-red-500' : 'text-emerald-500'}">Rs. ${pending}</span>
                     </div>` : ''}
                     
                     <div class="border-t border-dashed border-gray-200 my-3 pt-3 flex justify-between text-sm font-black text-gray-900">
-                        <span>Total Payable:</span><span class="font-mono">Rs. ${order.bill_amount || 0}</span>
+                        <span>Total Payable:</span><span class="font-mono text-lg">Rs. ${order.bill_amount || 0}</span>
                     </div>
                     
-                    <div class="flex justify-between text-sm font-black text-[#075e54] bg-emerald-50 p-2.5 rounded-xl mt-2">
+                    <div class="flex justify-between text-sm font-black text-[#075e54] bg-emerald-50 p-3 rounded-xl mt-2 border border-emerald-100">
                         <span>Cash Paid:</span><span class="font-mono">Rs. ${order.final_amount || 0}</span>
                     </div>
                     
-                    <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs font-black">
+                    <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-black">
                         <span class="text-gray-500 uppercase tracking-wide">${balLabel}</span>
-                        <span class="font-mono ${balColor}">Rs. ${Math.abs(balNum)}</span>
+                        <span class="font-mono text-sm ${balColor}">Rs. ${Math.abs(balNum)}</span>
                     </div>
                 </div>`;
             
@@ -411,6 +438,17 @@
                 modal.classList.replace('modal-enter', 'modal-leave');
             }, 300);
         }
+
+        // --- OFFLINE/ONLINE LOGIC ---
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineBanner').style.top = '0';
+        });
+        
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            showToast("Back Online", "success"); 
+            fetchCompletedOrders(); 
+        });
 
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
