@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Faster - My Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        /* Strict Mobile WebView & iOS Optimization */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            overscroll-behavior-y: none; 
+            -webkit-tap-highlight-color: transparent; 
+            background-color: #f9fafb;
+            padding-top: env(safe-area-inset-top);
+        }
+        
+        /* 3D Claymorphism Design Elements */
+        .clay-card {
+            background: #ffffff;
+            border-radius: 2.5rem;
+            box-shadow: 10px 10px 20px #e5e7eb, -10px -10px 20px #ffffff;
+        }
+
+        .clay-input {
+            background: #f9fafb;
+            box-shadow: inset 4px 4px 8px #e5e7eb, inset -4px -4px 8px #ffffff;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .clay-input:focus {
+            box-shadow: inset 6px 6px 10px #e5e7eb, inset -6px -6px 10px #ffffff;
+            border-color: #3b82f6; /* Blue focus border for profile */
+            background: #ffffff;
+        }
+
+        .clay-btn {
+            background: #3b82f6;
+            box-shadow: 6px 6px 12px #93c5fd, -6px -6px 12px #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .clay-btn:active {
+            box-shadow: inset 4px 4px 8px #2563eb, inset -4px -4px 8px #60a5fa;
+            transform: scale(0.97);
+        }
+        
+        .clay-btn:disabled {
+            background: #9ca3af;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen">
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
+    </div>
+
+    <header class="p-5 flex items-center gap-4 bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe">
+        <i class="fas fa-arrow-left text-xl text-gray-700 cursor-pointer active:scale-90 transition p-2 bg-gray-50 rounded-full shadow-sm border border-gray-100" onclick="window.history.back()"></i>
+        <h1 class="text-xl font-black text-gray-800 tracking-tighter uppercase">My <span class="text-blue-500">Profile</span></h1>
+    </header>
+
+    <main class="p-6 flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
+        
+        <div id="mainLoader" class="flex flex-col items-center justify-center py-10">
+            <i class="fas fa-circle-notch fa-spin text-blue-500 text-4xl mb-3"></i>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fetching Details...</span>
+        </div>
+
+        <div id="profileFormSection" class="w-full clay-card p-8 border border-gray-100 hidden">
+            
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center shadow-inner border border-blue-100 mb-3">
+                    <i class="fas fa-user-edit text-blue-500 text-3xl"></i>
+                </div>
+                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center">Update your personal details below</p>
+            </div>
+
+            <div class="space-y-5">
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Full Name</label>
+                    <div class="relative mt-1">
+                        <i class="fas fa-user absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="nameInput" placeholder="Enter your name" 
+                            class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Phone Number</label>
+                    <div class="relative mt-1">
+                        <i class="fas fa-phone absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="tel" id="phoneInput" placeholder="03XXXXXXXXX" 
+                            class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Delivery Address</label>
+                    <div class="relative mt-1">
+                        <i class="fas fa-map-marker-alt absolute left-5 top-5 text-gray-400"></i>
+                        <textarea id="addressInput" placeholder="Enter full delivery address" rows="3" 
+                            class="w-full clay-input rounded-2xl pl-12 pr-4 py-4 font-bold text-gray-700 outline-none"></textarea>
+                    </div>
+                </div>
+
+                <button onclick="updateProfile()" id="saveBtn" 
+                    class="w-full clay-btn text-white font-black h-16 rounded-2xl flex items-center justify-center gap-3 mt-8 uppercase tracking-widest text-sm">
+                    <span id="btnText">Save Changes</span>
+                    <i id="btnIcon" class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- SECURE INITIALIZATION ---
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+        
+        let originalPhone = "";
+        let userEmail = "";
+
+        // --- FETCH PROFILE DATA ---
+        async function fetchProfileData() {
+            if (!navigator.onLine) {
+                alert("Please connect to the internet to view your profile.");
+                return;
+            }
+
+            try {
+                // 1. Get Secure Google Session
+                const { data: { session }, error: sessionError } = await _supabase.auth.getSession();
+                
+                if (sessionError || !session) {
+                    window.location.replace('index.html');
+                    return;
+                }
+
+                userEmail = session.user.email.toLowerCase();
+
+                // 2. Fetch Data from Database using Email (RLS Policy)
+                const { data: userData, error: fetchError } = await _supabase
+                    .from('customers')
+                    .select('name, phone, address')
+                    .eq('email', userEmail)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // 3. Populate Form
+                if (userData) {
+                    document.getElementById('nameInput').value = userData.name || "";
+                    document.getElementById('phoneInput').value = userData.phone || "";
+                    document.getElementById('addressInput').value = userData.address || "";
+                    
+                    originalPhone = userData.phone; // Save to check if user changes it later
+                    
+                    // Hide Loader, Show Form
+                    document.getElementById('mainLoader').classList.add('hidden');
+                    document.getElementById('profileFormSection').classList.remove('hidden');
+                }
+
+            } catch (err) {
+                console.error("Error fetching profile:", err);
+                alert("Could not load profile. Please try again.");
+                window.location.replace('home.html');
+            }
+        }
+
+        // --- UPDATE PROFILE FUNCTION ---
+        async function updateProfile() {
+            const newName = document.getElementById('nameInput').value.trim();
+            const newPhone = document.getElementById('phoneInput').value.trim();
+            const newAddress = document.getElementById('addressInput').value.trim();
+            
+            const btn = document.getElementById('saveBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+
+            // Form Validation
+            if (!newName || !newPhone || !newAddress) {
+                alert("Please fill out all fields!");
+                return;
+            }
+
+            if (!navigator.onLine) {
+                alert("No internet connection! Please check your network and try again.");
+                return;
+            }
+
+            // UI Loading State
+            btn.disabled = true;
+            btnText.innerText = 'Updating...';
+            btnIcon.className = 'fas fa-circle-notch fa-spin';
+
+            try {
+                // 🛑 FRAUD CHECK: If user changed phone number, check if it already belongs to someone else
+                if (newPhone !== originalPhone) {
+                    const { data: existingUser } = await _supabase
+                        .from('customers')
+                        .select('email')
+                        .eq('phone', newPhone)
+                        .maybeSingle();
+
+                    if (existingUser && existingUser.email !== userEmail) {
+                        alert(`🚨 ERROR: The number ${newPhone} is already registered with another account.\n\nPlease use a different number.`);
+                        resetBtnUI();
+                        return;
+                    }
+                }
+
+                // SECURE UPDATE (Matches user by Email)
+                const { error: updateError } = await _supabase
+                    .from('customers')
+                    .update({ 
+                        name: newName, 
+                        phone: newPhone, 
+                        address: newAddress 
+                    })
+                    .eq('email', userEmail);
+
+                if (updateError) throw updateError;
+
+                // Update LocalStorage
+                localStorage.setItem('faster_phone', newPhone);
+                localStorage.setItem('faster_name', newName);
+
+                // Update OneSignal External ID (If phone changed)
+                if (newPhone !== originalPhone) {
+                    try { window.location.href = "gonative://onesignal/externalId/set?id=" + newPhone; } catch(e){}
+                }
+
+                // Success UI
+                btnText.innerText = 'Updated Successfully!';
+                btnIcon.className = 'fas fa-check-circle';
+                btn.style.background = '#22c55e'; // Green color
+                btn.style.boxShadow = 'none';
+
+                // Go back to home after 1 second
+                setTimeout(() => {
+                    window.location.replace('home.html');
+                }, 1000);
+
+            } catch (err) {
+                console.error("Update Error:", err);
+                alert("Error updating profile: " + err.message);
+                resetBtnUI();
+            }
+        }
+
+        function resetBtnUI() {
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = false;
+            document.getElementById('btnText').innerText = 'Save Changes';
+            document.getElementById('btnIcon').className = 'fas fa-check';
+        }
+
+        // --- OFFLINE / ONLINE EVENTS ---
+        window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.top = '0'; });
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            if(document.getElementById('profileFormSection').classList.contains('hidden')) {
+                fetchProfileData();
+            }
+        });
+
+        // --- INITIALIZE ---
+        window.onload = () => {
+            fetchProfileData();
+        };
+    </script>
+</body>
+</html>
