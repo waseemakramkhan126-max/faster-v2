@@ -82,6 +82,15 @@
         </div>
 
         <nav class="space-y-3 flex-1">
+            
+            <div onclick="location.href='profile.html'" class="p-4 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-user-edit text-blue-500 text-lg"></i>
+                    <span class="font-bold text-gray-700">My Profile</span>
+                </div>
+                <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
+            </div>
+
             <div onclick="location.href='wallet.html'" class="p-4 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
@@ -89,6 +98,7 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-orange-300"></i>
             </div>
+
             <a href="csr-chat.html" class="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-2xl transition font-bold text-gray-600 border border-transparent active:border-gray-200 cursor-pointer">
                 <i class="fab fa-whatsapp text-green-500 text-2xl"></i>
                 <span>CSR Help</span>
@@ -172,8 +182,8 @@
 
     <script>
         // --- SECURE INITIALIZATION ---
-        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
         
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
@@ -348,7 +358,6 @@
         document.addEventListener('click', unlockAudio, { once: true });
 
         // --- FLAWLESS REAL-TIME SYNC ---
-        // --- FLAWLESS REAL-TIME SYNC ---
         function setupRealtime() {
             _supabase.removeAllChannels(); 
 
@@ -368,7 +377,6 @@
                         updateActiveOrdersCard(); checkNotifications(); ring(); 
                     }
                 })
-                // YAHAN SE FILTER REMOVE KAR DIYA GAYA HAI (Supabase Bug Fix)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
                     if(payload.new && payload.new.customer_phone === userPhone) {
                         updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); ring(); 
@@ -385,8 +393,10 @@
         // --- UI & STATE INTERACTIONS ---
         function toggleMenu() { document.getElementById('sidebar').classList.toggle('active'); }
         
-        function logout() { 
+        // SECURE LOGOUT WITH SUPABASE CLEAR
+        async function logout() { 
             if(confirm("Are you sure you want to logout?")) { 
+                await _supabase.auth.signOut(); // Supabase session clear
                 localStorage.clear(); 
                 try { window.location.href = "gonative://onesignal/externalId/remove"; } catch (e) {}
                 setTimeout(() => { window.location.replace("index.html"); }, 500);
