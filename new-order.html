@@ -169,12 +169,11 @@
             </div>
         </div>
     </div>
-
-    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="previewFile(this, 'photo')">
-    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="environment" onchange="previewFile(this, 'video')">
+    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture onchange="previewFile(this, 'photo')">
+    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="camcorder" onchange="previewFile(this, 'video')">
     <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
     <input type="file" id="docInput" class="hidden" accept="*/*" multiple onchange="previewFile(this, 'doc')">
-
+    
     <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">
         <div id="fullContent" class="w-full h-full flex items-center justify-center p-4"></div>
         <i class="fas fa-times absolute top-6 right-6 text-white text-2xl cursor-pointer"></i>
