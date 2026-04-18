@@ -16,7 +16,7 @@
             display: flex;
             flex-direction: column;
             background-color: #e5ddd5;
-            padding-top: env(safe-area-inset-top); /* iPhone Notch Fix */
+            padding-top: env(safe-area-inset-top);
         }
 
         .chat-bg { 
@@ -51,6 +51,7 @@
         .animate-pop { animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
+        /* Attach Menu */
         #attachMenu { 
             position: fixed; bottom: 75px; left: 16px; background: white; border-radius: 16px; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 20px; width: 280px; z-index: 9999; 
@@ -58,6 +59,14 @@
             transform-origin: bottom left; opacity: 0; pointer-events: none;
         }
         #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+        
+        /* Custom WebRTC Camera Styles */
+        .capture-btn {
+            width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.3);
+            background: white; border-radius: 50%; position: relative;
+        }
+        .capture-btn::after { content: ''; position: absolute; inset: 4px; border: 2px solid #000; border-radius: 50%; }
+
         textarea::-webkit-scrollbar { display: none; }
         #offlineBanner { transition: top 0.3s ease-in-out; }
     </style>
@@ -106,45 +115,65 @@
     </footer>
 
     <div id="attachMenu">
-        <div class="grid grid-cols-4 gap-4">
-            <div onclick="document.getElementById('cameraInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-camera"></i></div>
-                <span class="text-[10px] font-bold text-gray-600 text-center">Photo</span>
-            </div>
-            <div onclick="document.getElementById('videoInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-video"></i></div>
-                <span class="text-[10px] font-bold text-gray-600 text-center">Video</span>
+        <div class="grid grid-cols-3 gap-6">
+            <div onclick="startCustomCamera()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Camera</span>
             </div>
             <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-image"></i></div>
-                <span class="text-[10px] font-bold text-gray-600 text-center">Gallery</span>
+                <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Gallery</span>
             </div>
             <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-file-alt"></i></div>
-                <span class="text-[10px] font-bold text-gray-600 text-center">Doc</span>
+                <div class="w-14 h-14 bg-gradient-to-tr from-gray-700 to-slate-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-file-lines"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Docs</span>
             </div>
         </div>
     </div>
 
-    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="uploadFile(this, 'image')">
-    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="environment" onchange="uploadFile(this, 'video')">
-    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="uploadFile(this, 'media')">
-    <input type="file" id="docInput" class="hidden" accept="*/*" multiple onchange="uploadFile(this, 'doc')">
+    <div id="customCamOverlay" class="fixed inset-0 bg-black z-[10000] hidden flex-col">
+        <div class="flex justify-between p-6 absolute top-0 w-full z-20">
+            <button onclick="stopCustomCamera()" class="text-white text-3xl"><i class="fas fa-xmark"></i></button>
+            <div id="camTimerDisplay" class="hidden text-white font-bold bg-red-600 px-5 py-1.5 rounded-full text-xs animate-pulse">00:00</div>
+            <button onclick="switchCamera()" class="text-white text-2xl"><i class="fas fa-arrows-rotate"></i></button>
+        </div>
+        <video id="v" class="w-full flex-1 object-cover" autoplay playsinline muted></video>
+        <div class="absolute bottom-12 w-full flex flex-col items-center gap-8 z-20">
+            <div class="flex gap-12 text-gray-400 text-[11px] font-black tracking-[0.2em]">
+                <span id="pTab" onclick="setMode('photo')" class="text-white border-b-2 border-white pb-1">PHOTO</span>
+                <span id="vTab" onclick="setMode('video')" class="pb-1">VIDEO</span>
+            </div>
+            <button id="camBtn" onclick="handleCapture()" class="capture-btn active:scale-90 transition-transform"></button>
+        </div>
+        <canvas id="c" class="hidden"></canvas>
+    </div>
+
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="handleFileInput(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.apk" multiple onchange="handleFileInput(this, 'doc')">
 
     <script>
-        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const orderId = urlParams.get('orderId');
+        const orderId = urlParams.get('orderId') || urlParams.get('order_id');
         const userPhone = localStorage.getItem('faster_phone') || 'Guest';
 
-        let mediaRecorder;
+        let voiceMediaRecorder;
         let audioChunks = [];
         let timerInterval;
         let seconds = 0;
+
+        // Custom Camera Variables
+        let camStream = null;
+        let currentFacingMode = "environment";
+        let cameraMode = "photo";
+        let isCamRecording = false;
+        let camMediaRecorder;
+        let videoChunks = [];
+        let camTimerInterval;
 
         if(orderId) document.getElementById('orderIdText').innerText = `Order: #${orderId.slice(-6)}`;
 
@@ -199,7 +228,7 @@
             if (m.type === 'image' && m.file_url) {
                 media = `<img src="${m.file_url}" class="rounded-lg mb-1 max-h-64 w-full object-cover shadow-sm cursor-pointer" onclick="window.open(this.src)">`;
             } else if (m.type === 'video' && m.file_url) {
-                media = `<video src="${m.file_url}" controls class="rounded-lg mb-1 max-h-64 w-full object-cover shadow-sm"></video>`;
+                media = `<video src="${m.file_url}" controls playsinline class="rounded-lg mb-1 max-h-64 w-full object-cover shadow-sm"></video>`;
             } else if (m.type === 'voice' && m.file_url) {
                 media = `<div class="bg-black/5 p-1 rounded-md mb-1"><audio controls src="${m.file_url}" class="h-8 w-44"></audio></div>`;
             } else if (m.type === 'doc' && m.file_url) {
@@ -278,21 +307,29 @@
             }
         }
 
-        async function uploadFile(input, manualType = null) {
+        // --- FILE UPLOAD LOGIC ---
+        async function handleFileInput(input, manualType = null) {
             if(!navigator.onLine) { alert("No internet connection!"); return; }
             const file = input.files[0];
             if(!file) return;
 
-            const type = manualType || (file.type.startsWith('video') ? 'video' : (file.type.startsWith('image') ? 'image' : 'doc'));
+            const type = manualType === 'doc' ? 'doc' : (file.type.startsWith('video') ? 'video' : 'image');
             const ext = file.name ? file.name.split('.').pop() : 'jpg';
+            
+            await processUpload(file, type, ext);
+            input.value = "";
+        }
+
+        async function processUpload(fileOrBlob, type, ext) {
+            if(!navigator.onLine) { alert("No internet connection!"); return; }
             const name = `orders/${type}_${Date.now()}.${ext}`;
 
             const tempId = Date.now();
-            const tempMsg = { id: tempId, sender_phone: userPhone, message: 'Uploading file...', type: 'text', status: 'sending', created_at: new Date() };
+            const tempMsg = { id: tempId, sender_phone: userPhone, message: 'Uploading...', type: 'text', status: 'sending', created_at: new Date() };
             appendToUI(tempMsg);
 
             try {
-                const { data } = await _supabase.storage.from('order-files').upload(name, file);
+                const { data } = await _supabase.storage.from('order-files').upload(name, fileOrBlob);
                 if(data) {
                     const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
                     document.getElementById(`msg-${tempId}`).parentElement.remove();
@@ -302,9 +339,101 @@
                 alert("Upload failed.");
                 document.getElementById(`msg-${tempId}`).parentElement.remove();
             }
-            input.value = "";
         }
 
+        // --- ADVANCED WEBRTC CUSTOM CAMERA ---
+        async function startCustomCamera() {
+            toggleAttachMenu();
+            document.getElementById('customCamOverlay').classList.remove('hidden');
+            document.getElementById('customCamOverlay').classList.add('flex');
+            
+            try {
+                camStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode }, 
+                    audio: true 
+                });
+                document.getElementById('v').srcObject = camStream;
+            } catch (e) { 
+                alert("Camera Access Denied! Please enable camera permissions."); 
+                stopCustomCamera(); 
+            }
+        }
+
+        function stopCustomCamera() {
+            if(camStream) {
+                camStream.getTracks().forEach(t => t.stop());
+            }
+            document.getElementById('customCamOverlay').classList.add('hidden');
+            document.getElementById('customCamOverlay').classList.remove('flex');
+        }
+
+        function switchCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            stopCustomCamera(); 
+            startCustomCamera();
+        }
+
+        function setMode(m) {
+            cameraMode = m;
+            document.getElementById('pTab').className = (m === 'photo') ? 'text-white border-b-2 border-white pb-1' : 'pb-1';
+            document.getElementById('vTab').className = (m === 'video') ? 'text-white border-b-2 border-white pb-1' : 'pb-1';
+            document.getElementById('camBtn').style.backgroundColor = (m === 'photo') ? 'white' : '#ef4444';
+        }
+
+        function handleCapture() {
+            if(cameraMode === 'photo') {
+                const v = document.getElementById('v');
+                const c = document.getElementById('c');
+                
+                c.width = v.videoWidth; 
+                c.height = v.videoHeight;
+                c.getContext('2d').drawImage(v, 0, 0);
+                
+                c.toBlob(b => {
+                    stopCustomCamera();
+                    processUpload(b, 'image', 'jpg');
+                }, 'image/jpeg');
+            } else { 
+                if(isCamRecording) stopVideo();
+                else startVideo();
+            }
+        }
+
+        function startVideo() {
+            isCamRecording = true; 
+            videoChunks = [];
+            
+            camMediaRecorder = new MediaRecorder(camStream);
+            camMediaRecorder.ondataavailable = e => videoChunks.push(e.data);
+            
+            camMediaRecorder.onstop = () => {
+                const blob = new Blob(videoChunks, {type:'video/mp4'});
+                processUpload(blob, 'video', 'mp4');
+            };
+            
+            camMediaRecorder.start();
+            
+            document.getElementById('camTimerDisplay').classList.remove('hidden');
+            document.getElementById('camBtn').classList.add('animate-pulse');
+            
+            let s = 0; 
+            camTimerInterval = setInterval(() => {
+                s++; 
+                document.getElementById('camTimerDisplay').innerText = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        function stopVideo() {
+            isCamRecording = false; 
+            camMediaRecorder.stop();
+            clearInterval(camTimerInterval);
+            
+            document.getElementById('camBtn').classList.remove('animate-pulse');
+            document.getElementById('camTimerDisplay').classList.add('hidden');
+            stopCustomCamera();
+        }
+
+        // --- VOICE RECORDER WEBRTC ---
         async function handleVoice() {
             if(!navigator.onLine) { alert("No internet connection!"); return; }
             const micBtn = document.getElementById('voiceBtn');
@@ -313,35 +442,20 @@
             const timerText = document.getElementById('recTimer');
 
             try {
-                if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                if (!voiceMediaRecorder || voiceMediaRecorder.state === "inactive") {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    voiceMediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
                     
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    mediaRecorder.onstop = async () => {
+                    voiceMediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    voiceMediaRecorder.onstop = async () => {
                         clearInterval(timerInterval);
+                        stream.getTracks().forEach(track => track.stop());
                         const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                        const name = `orders/voice_${Date.now()}.webm`;
-                        
-                        const tempId = Date.now();
-                        const tempMsg = { id: tempId, sender_phone: userPhone, message: 'Sending Voice...', type: 'text', status: 'sending', created_at: new Date() };
-                        appendToUI(tempMsg);
-
-                        try {
-                            const { data } = await _supabase.storage.from('order-files').upload(name, blob);
-                            if(data) {
-                                const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
-                                document.getElementById(`msg-${tempId}`).parentElement.remove();
-                                sendMsg('voice', '', urlData.publicUrl);
-                            }
-                        } catch(e) {
-                            alert("Failed to send voice");
-                            document.getElementById(`msg-${tempId}`).parentElement.remove();
-                        }
+                        processUpload(blob, 'voice', 'webm');
                     };
 
-                    mediaRecorder.start();
+                    voiceMediaRecorder.start();
                     
                     recUI.classList.remove('hidden');
                     micBtn.classList.add('rec-active', 'bg-red-600');
@@ -357,7 +471,7 @@
                     }, 1000);
 
                 } else {
-                    mediaRecorder.stop();
+                    voiceMediaRecorder.stop();
                     recUI.classList.add('hidden');
                     micBtn.classList.remove('rec-active', 'bg-red-600');
                     micIcon.className = 'fas fa-microphone';
