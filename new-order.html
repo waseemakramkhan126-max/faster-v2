@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - New Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        /* WebView specific fixes */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; background-color: #f3f4f6; 
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .chat-bg { 
+            background-color: #e5ddd5; 
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
+            background-attachment: fixed;
+            flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth;
+        }
+
+        #attachMenu { 
+            position: fixed; bottom: 75px; left: 16px; background: white; border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 20px; width: 280px; z-index: 9999; 
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0);
+            transform-origin: bottom left; opacity: 0; pointer-events: none;
+        }
+        #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+
+        .bubble { 
+            max-width: 82%; padding: 8px 10px; border-radius: 12px; font-size: 14.5px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-wrap: break-word; 
+            position: relative; transition: all 0.2s ease; user-select: none; -webkit-user-select: none;
+            line-height: 1.4;
+        }
+        .customer-bubble { align-self: flex-end; background-color: #dcf8c6; border-top-right-radius: 4px; }
+        
+        /* WhatsApp like selection style */
+        .bubble-selected { 
+            background-color: #bceb9e !important; 
+            transform: scale(0.96); 
+            border: 2px solid #008069; 
+            box-shadow: 0 4px 10px rgba(0,128,105,0.2); 
+            opacity: 0.9;
+        }
+        .bubble-selected::after {
+            content: '\f058'; /* FontAwesome Check Circle */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: -8px;
+            bottom: -8px;
+            color: #008069;
+            background: white;
+            border-radius: 50%;
+            font-size: 16px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        .media-thumb { 
+            width: 100%; max-width: 140px; max-height: 140px; 
+            border-radius: 8px; pointer-events: none; object-fit: cover; 
+            background-color: rgba(0,0,0,0.05); 
+        }
+        .caption-text { font-size: 13px; color: #1f2937; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(0,0,0,0.05); }
+        
+        .animate-pop { animation: pop 0.2s ease-out forwards; }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .voice-active { background-color: #ef4444 !important; animation: pulse-shadow 1.5s infinite; }
+        @keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        textarea::-webkit-scrollbar { display: none; }
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    </div>
+
+    <div id="customModal" class="fixed inset-0 bg-black/60 z-[100000] hidden items-center justify-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-95 opacity-0" id="modalBox">
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-1"></h3>
+            <p id="modalText" class="text-sm text-gray-600 mb-4 leading-relaxed"></p>
+            <input type="text" id="modalInput" class="hidden w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange-500 mb-4 bg-gray-50">
+            <div class="flex justify-end gap-3 mt-2" id="modalButtons"></div>
+        </div>
+    </div>
+
+    <header id="selectionHeader" class="hidden bg-[#008069] p-4 text-white flex items-center shadow-md shrink-0 z-50 transition-all duration-300">
+        <div class="flex items-center">
+            <i class="fas fa-arrow-left mr-5 cursor-pointer text-xl active:scale-90" onclick="cancelSelection()"></i>
+            <span id="selectionCount" class="font-bold text-lg">1</span>
+        </div>
+        <div class="ml-auto flex items-center gap-6">
+            <i id="editIcon" class="fas fa-reply cursor-pointer text-xl active:scale-90 transition-transform" onclick="editSelected()"></i>
+            <i class="fas fa-trash cursor-pointer text-xl active:scale-90 transition-transform" onclick="confirmDelete()"></i>
+        </div>
+    </header>
+
+    <div id="customerDetailsBox" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-2.5 shadow-sm flex flex-col gap-1.5 shrink-0 border-b border-blue-100 z-40 relative pt-6">
+        <button onclick="location.href='home.html'" class="absolute top-2 right-4 text-blue-300 hover:text-blue-500 active:scale-90 transition-all">
+            <i class="fas fa-times text-lg"></i>
+        </button>
+        <div class="relative">
+            <input type="text" id="editName" placeholder="Customer Name" class="w-full bg-transparent outline-none font-bold text-blue-900 border-b border-blue-200 pb-1 text-xs pr-8 placeholder-blue-300">
+            <i class="fas fa-user absolute right-2 top-0.5 text-blue-400 text-[10px]"></i>
+        </div>
+        <div class="relative">
+            <input type="text" id="editAddress" placeholder="Delivery Address" class="w-full bg-transparent outline-none font-bold text-blue-900 text-xs pt-1 pr-8 placeholder-blue-300">
+            <i class="fas fa-map-marker-alt absolute right-2 top-1.5 text-blue-400 text-[10px]"></i>
+        </div>
+    </div>
+
+    <div id="chatArea" class="chat-bg"></div>
+
+    <div id="confirmBtnRow" class="hidden px-4 py-3 bg-white border-t shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+        <button onclick="handleConfirmPrompt()" id="finalSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-lg uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
+            Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>
+        </button>
+    </div>
+
+    <footer class="bg-white p-2.5 flex items-end gap-2 shrink-0 border-t z-50">
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+            <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
+        </button>
+        
+        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+            <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
+        </div>
+
+        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+        </div>
+
+        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+        </button>
+        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-microphone" id="micIcon"></i>
+        </button>
+    </footer>
+
+    <div id="attachMenu">
+        <div class="grid grid-cols-4 gap-4">
+            <div onclick="document.getElementById('cameraInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Photo</span>
+            </div>
+            <div onclick="document.getElementById('videoInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-video"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Video</span>
+            </div>
+            <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Gallery</span>
+            </div>
+            <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-file-alt"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Doc</span>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="previewFile(this, 'photo')">
+    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="environment" onchange="previewFile(this, 'video')">
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept="*/*" multiple onchange="previewFile(this, 'doc')">
+
+    <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">
+        <div id="fullContent" class="w-full h-full flex items-center justify-center p-4"></div>
+        <i class="fas fa-times absolute top-6 right-6 text-white text-2xl cursor-pointer"></i>
+    </div>
+
+    <script>
+        // Supabase Initialization
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
+        let deliveryCharges = 150; 
+        let selectedItems = []; 
+        let audioRecorder, audioChunks = [];
+        
+        // Voice Timer Variables
+        let voiceTimerInterval;
+        let voiceSeconds = 0;
+
+        // Custom Dialog Manager
+        const Dialog = {
+            show: function(title, text, type = 'alert') {
+                return new Promise((resolve) => {
+                    const modal = document.getElementById('customModal');
+                    const box = document.getElementById('modalBox');
+                    const tEl = document.getElementById('modalTitle');
+                    const textEl = document.getElementById('modalText');
+                    const inp = document.getElementById('modalInput');
+                    const btns = document.getElementById('modalButtons');
+
+                    tEl.innerText = title;
+                    if(text) { textEl.innerText = text; textEl.classList.remove('hidden'); } 
+                    else { textEl.classList.add('hidden'); }
+
+                    modal.classList.remove('hidden'); modal.classList.add('flex');
+                    setTimeout(() => {
+                        box.classList.remove('scale-95', 'opacity-0');
+                        box.classList.add('scale-100', 'opacity-100');
+                    }, 10);
+
+                    const close = (val) => {
+                        box.classList.remove('scale-100', 'opacity-100'); box.classList.add('scale-95', 'opacity-0');
+                        setTimeout(() => {
+                            modal.classList.add('hidden'); modal.classList.remove('flex');
+                            resolve(val);
+                        }, 200);
+                    };
+
+                    btns.innerHTML = '';
+                    if (type === 'alert') {
+                        inp.classList.add('hidden');
+                        btns.innerHTML = `<button class="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm w-full active:scale-95 transition-transform">OK</button>`;
+                        btns.querySelector('button').onclick = () => close(true);
+                    } else if (type === 'confirm') {
+                        inp.classList.add('hidden');
+                        btns.innerHTML = `
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm flex-1 active:bg-gray-200 transition-colors">Cancel</button>
+                            <button class="bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex-1 active:bg-orange-600 transition-colors shadow-md">Yes, Proceed</button>`;
+                        const [cancelBtn, okBtn] = btns.querySelectorAll('button');
+                        cancelBtn.onclick = () => close(false); okBtn.onclick = () => close(true);
+                    } else if (type === 'prompt') {
+                        inp.classList.remove('hidden'); inp.value = '';
+                        btns.innerHTML = `
+                            <button class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm active:bg-gray-200 transition-colors">Skip</button>
+                            <button class="bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex-1 active:bg-orange-600 transition-colors shadow-md">Save</button>`;
+                        const [skipBtn, saveBtn] = btns.querySelectorAll('button');
+                        skipBtn.onclick = () => close(''); saveBtn.onclick = () => close(inp.value.trim());
+                        setTimeout(() => inp.focus(), 150);
+                    }
+                });
+            }
+        };
+
+        // Initialize Page Data
+        async function initPage() {
+            const userPhone = localStorage.getItem('faster_phone');
+            if(!userPhone) return;
+
+            document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
+            document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
+
+            try {
+                if(navigator.onLine) {
+                    const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
+                    if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
+
+                    const { data: customerData } = await _supabase
+                        .from('customers')
+                        .select('name, address')
+                        .eq('phone', userPhone)
+                        .single();
+                        
+                    if (customerData) {
+                        if (customerData.name) {
+                            document.getElementById('editName').value = customerData.name;
+                            localStorage.setItem('faster_name', customerData.name);
+                        }
+                        if (customerData.address) {
+                            document.getElementById('editAddress').value = customerData.address;
+                            localStorage.setItem('faster_address', customerData.address);
+                        }
+                    }
+                }
+            } catch (e) { 
+                console.error("Data fetch error:", e); 
+            }
+        }
+        initPage();
+
+        // UI Interactions
+        function toggleAttachMenu() {
+            const menu = document.getElementById('attachMenu');
+            const icon = document.getElementById('plusIcon');
+            menu.classList.toggle('active');
+            icon.classList.toggle('rotate-45');
+            icon.classList.toggle('text-orange-500');
+        }
+
+        function handleInput(el) {
+            el.style.height = '44px'; 
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
+            const val = el.value.trim();
+            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
+            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
+        }
+
+        // Processing Selected Files
+        async function previewFile(input, mode) {
+            if(!input.files || input.files.length === 0) return;
+
+            for (const file of Array.from(input.files)) {
+                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
+                
+                if(type === 'image') {
+                    const caption = await Dialog.show("Add Caption", "Would you like to add a message with this picture? (Optional)", "prompt");
+                    addToDraft('image', { file: file, caption: caption || "" });
+                } else {
+                    addToDraft(type, file);
+                }
+            }
+            input.value = ""; 
+        }
+
+        // Adding Bubbles to Chat UI
+        function addToDraft(type, content) {
+            const chat = document.getElementById('chatArea');
+            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+            const b = document.createElement('div');
+            b.className = "bubble customer-bubble animate-pop";
+            b.id = bId;
+
+            let itemData = content;
+
+            if (type === 'text') {
+                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
+                if(!val) return;
+                itemData = val; 
+                b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+                if(typeof content !== 'string') {
+                    const inp = document.getElementById('orderInput');
+                    inp.value = ""; handleInput(inp);
+                }
+            } else if (type === 'image') {
+                const imgUrl = URL.createObjectURL(content.file);
+                b.innerHTML = `<img src="${imgUrl}" class="media-thumb shadow-sm">
+                               ${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}`;
+            } else if (type === 'video') {
+                b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm"></video>`;
+            } else if (type === 'voice') {
+                b.innerHTML = `<div class="flex items-center gap-1">
+                                <audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>
+                               </div>`;
+            } else if (type === 'doc') {
+                let iconClass = "fas fa-file text-gray-500";
+                if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
+                else if(content.name.match(/\.(doc|docx)$/)) iconClass = "fas fa-file-word text-blue-500";
+                else if(content.name.match(/\.(xls|xlsx)$/)) iconClass = "fas fa-file-excel text-green-500";
+                else if(content.name.endsWith('.apk')) iconClass = "fab fa-android text-green-600";
+                else if(content.name.match(/\.(html|js|css)$/)) iconClass = "fas fa-file-code text-orange-500";
+
+                b.innerHTML = `<div class="flex items-center gap-3 p-1 text-sm font-bold text-gray-700">
+                                <div class="bg-gray-100 p-3 rounded-lg"><i class="${iconClass} text-xl"></i></div>
+                                <div class="flex flex-col truncate w-32">
+                                    <span class="truncate">${content.name}</span>
+                                    <span class="text-[10px] text-gray-400 font-normal">${(content.size / 1024).toFixed(1)} KB</span>
+                                </div>
+                               </div>`;
+            }
+
+            // Long Press Logic
+            let pressTimer;
+            b.addEventListener('touchstart', (e) => {
+                pressTimer = setTimeout(() => {
+                    toggleSelect(bId, type);
+                    if(navigator.vibrate) navigator.vibrate(50); // Vibrate on long press
+                }, 500); // 500ms for long press
+            });
+            b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
+            b.addEventListener('touchend', () => clearTimeout(pressTimer));
+            
+            // Short Click Logic
+            b.addEventListener('click', () => {
+                if (selectedItems.length > 0) { 
+                    toggleSelect(bId, type); 
+                } 
+                else if (type === 'image' || type === 'video') {
+                    const src = type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content);
+                    openFull({src: src}, type === 'image' ? 'img' : 'vid');
+                }
+            });
+
+            const draftEntry = { id: bId, data: itemData };
+            const key = type === 'text' ? 'texts' : type + 's';
+            draftData[key].push(draftEntry);
+            
+            chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+            document.getElementById('confirmBtnRow').classList.remove('hidden');
+        }
+
+        // WhatsApp Style Selection & Deletion Logic
+        function toggleSelect(id, type) {
+            const idx = selectedItems.findIndex(item => item.id === id);
+            const el = document.getElementById(id);
+            
+            if (idx > -1) {
+                // Deselect
+                selectedItems.splice(idx, 1); 
+                el.classList.remove('bubble-selected');
+            } else {
+                // Select
+                selectedItems.push({ id, type }); 
+                el.classList.add('bubble-selected');
+            }
+
+            // Update Header UI
+            if (selectedItems.length > 0) {
+                document.getElementById('customerDetailsBox').classList.add('hidden'); // Hide details box to make room
+                document.getElementById('selectionHeader').classList.remove('hidden');
+                document.getElementById('selectionCount').innerText = selectedItems.length;
+                
+                const editIcon = document.getElementById('editIcon');
+                // Only allow editing if exactly 1 text or 1 image (with caption) is selected
+                if(selectedItems.length === 1 && (selectedItems[0].type === 'text' || selectedItems[0].type === 'image')) {
+                    editIcon.classList.remove('hidden');
+                } else { 
+                    editIcon.classList.add('hidden'); 
+                }
+            } else { 
+                cancelSelection(); 
+            }
+        }
+
+        function cancelSelection() {
+            selectedItems.forEach(item => { 
+                const el = document.getElementById(item.id); 
+                if(el) el.classList.remove('bubble-selected'); 
+            });
+            selectedItems = [];
+            document.getElementById('selectionHeader').classList.add('hidden');
+            document.getElementById('customerDetailsBox').classList.remove('hidden'); // Bring details box back
+        }
+
+        function editSelected() {
+            if(selectedItems.length !== 1) return;
+            const sel = selectedItems[0];
+            const inp = document.getElementById('orderInput');
+            
+            if(sel.type === 'text') { 
+                inp.value = draftData.texts.find(t => t.id === sel.id).data; 
+            } 
+            else if(sel.type === 'image') { 
+                inp.value = draftData.images.find(i => i.id === sel.id).data.caption; 
+            }
+            
+            confirmDelete(); // Delete the old bubble, put text in input box
+            handleInput(inp); 
+            inp.focus();
+        }
+
+        function confirmDelete() {
+            if (selectedItems.length === 0) return;
+            
+            selectedItems.forEach(sel => {
+                const key = sel.type === 'text' ? 'texts' : sel.type + 's';
+                draftData[key] = draftData[key].filter(item => item.id !== sel.id);
+                const el = document.getElementById(sel.id); 
+                if(el) el.remove();
+            });
+            
+            cancelSelection();
+            
+            // Hide confirm button if cart is empty
+            const total = Object.values(draftData).flat().length;
+            if (total === 0) document.getElementById('confirmBtnRow').classList.add('hidden');
+        }
+
+        // Voice Recorder Timer UI Handlers
+        function startVoiceTimer() {
+            voiceSeconds = 0;
+            document.getElementById('recordTimer').innerText = "00:00";
+            
+            // Hide normal input, show recording timer
+            document.getElementById('textInputWrapper').classList.add('hidden');
+            document.getElementById('recordingTimerUI').classList.remove('hidden');
+            document.getElementById('recordingTimerUI').classList.add('flex');
+            
+            voiceTimerInterval = setInterval(() => {
+                voiceSeconds++;
+                const m = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
+                const s = (voiceSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('recordTimer').innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopVoiceTimer() {
+            clearInterval(voiceTimerInterval);
+            
+            // Hide recording timer, show normal input
+            document.getElementById('recordingTimerUI').classList.add('hidden');
+            document.getElementById('recordingTimerUI').classList.remove('flex');
+            document.getElementById('textInputWrapper').classList.remove('hidden');
+        }
+
+        // Voice Recorder Logic 
+        async function handleVoice() {
+            const vBtn = document.getElementById('voiceBtn');
+            const micIcon = document.getElementById('micIcon');
+
+            if (!navigator.mediaDevices || typeof MediaRecorder === "undefined") {
+                Dialog.show("Permission Required", "Your app does not have microphone access. Please enable it in your device settings.", "alert");
+                return;
+            }
+
+            try {
+                if (!audioRecorder || audioRecorder.state === "inactive") {
+                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioRecorder = new MediaRecorder(aStream);
+                    audioChunks = [];
+
+                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    audioRecorder.onstop = () => {
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        addToDraft('voice', blob);
+                        aStream.getTracks().forEach(track => track.stop());
+                        stopVoiceTimer(); // Stop Timer when recording ends
+                    };
+
+                    audioRecorder.start();
+                    startVoiceTimer(); // Start UI Timer
+                    
+                    vBtn.classList.add('voice-active');
+                    micIcon.className = 'fas fa-stop';
+
+                } else {
+                    audioRecorder.stop();
+                    vBtn.classList.remove('voice-active');
+                    micIcon.className = 'fas fa-microphone';
+                }
+            } catch (e) {
+                Dialog.show("Microphone Blocked", "Please allow microphone permission to record a voice note.", "alert");
+            }
+        }
+
+        // Submission
+        async function handleConfirmPrompt() {
+            if (!navigator.onLine) {
+                Dialog.show("No Internet", "Please connect to the internet to submit your order.", "alert");
+                return;
+            }
+            const confirmAction = await Dialog.show("Confirm Order", `The Delivery Charges will be Rs. ${deliveryCharges}. Do you want to proceed and confirm your order?`, "confirm");
+            if (confirmAction) finalSubmitOrder();
+        }
+
+        async function finalSubmitOrder() {
+            const btn = document.getElementById('finalSubmitBtn');
+            const name = document.getElementById('editName').value.trim();
+            const addr = document.getElementById('editAddress').value.trim();
+            
+            if(!name || !addr) {
+                await Dialog.show("Missing Information", "Please provide both your Name and Delivery Address.", "alert");
+                return;
+            }
+
+            btn.disabled = true; 
+            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`;
+            btn.classList.replace('bg-orange-600', 'bg-gray-400');
+
+            try {
+                const userPhone = localStorage.getItem('faster_phone');
+                if (userPhone) {
+                     await _supabase.from('customers').update({ name: name, address: addr }).eq('phone', userPhone);
+                }
+
+                const uploadAll = async (items, prefix, defaultExt) => {
+                    const promises = items.map(async (item) => {
+                        const file = item.data.file || item.data; 
+                        const ext = file.name ? file.name.split('.').pop() : defaultExt;
+                        const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
+                        
+                        const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+                        if(error) throw error;
+                        
+                        const { data: { publicUrl } } = _supabase.storage.from('order-files').getPublicUrl(fileName);
+                        return publicUrl;
+                    });
+                    const urls = await Promise.all(promises);
+                    return urls.join(",");
+                };
+                
+                const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
+                    uploadAll(draftData.images, 'img', 'jpg'), uploadAll(draftData.videos, 'vid', 'mp4'),
+                    uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
+                ]);
+                
+                const combinedDetails = [
+                    ...draftData.texts.map(t => t.data),
+                    ...draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption)
+                ].join(" | ");
+
+                const { error } = await _supabase.from('orders').insert([{
+                    customer_phone: userPhone || 'Guest',
+                    customer_name: name, delivery_address: addr, order_details: combinedDetails,
+                    image_url: imgURLs, video_url: vidURLs, voice_url: vceURLs, doc_url: docURLs, status: 'pending'
+                }]);
+                
+                if(error) throw error;
+                
+                await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
+                window.location.href = "home.html";
+                
+            } catch (err) { 
+                await Dialog.show("Error", "There was an error placing your order: " + err.message, "alert"); 
+                btn.disabled = false; 
+                btn.innerHTML = `Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>`;
+                btn.classList.replace('bg-gray-400', 'bg-orange-600');
+            }
+        }
+
+        // View Full Image/Video
+        function openFull(el, type) {
+            const fv = document.getElementById('fullView'); fv.style.display = 'flex';
+            document.getElementById('fullContent').innerHTML = type === 'img' 
+                ? `<img src="${el.src}" class="max-w-full max-h-full rounded object-contain">` 
+                : `<video src="${el.src}" controls autoplay class="max-w-full max-h-full rounded"></video>`;
+        }
+
+        // Network State Tracking
+        window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            initPage();
+        });
+
+    </script>
+</body>
+</html>

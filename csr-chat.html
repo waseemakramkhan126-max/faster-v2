@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Faster - CSR Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Strict Mobile WebView & iOS Optimization */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            height: 100dvh; 
+            display: flex; flex-direction: column; overflow: hidden; margin: 0; background-color: #f3f4f6; 
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
+            padding-top: env(safe-area-inset-top); /* iPhone Notch Fix */
+        }
+
+        .chat-bg { background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-attachment: fixed; }
+        .bubble-in, .bubble-out { max-width: 85%; word-wrap: break-word; overflow-wrap: break-word; word-break: break-all; position: relative; }
+        .bubble-in { background: white; border-radius: 0 15px 15px 15px; align-self: flex-start; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .bubble-out { background: #dcf8c6; border-radius: 15px 0 15px 15px; align-self: flex-end; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .tick-blue { color: #34b7f1; }
+        .tick-gray { color: #8696a0; }
+        
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; transition: all 0.3s ease; }
+        .status-online { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
+        .status-active { background-color: #ef4444; animation: pulse-red 1s infinite; box-shadow: 0 0 8px #ef4444; }
+
+        @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+
+        .mic-active { background-color: #ef4444 !important; animation: pulse-red 1s infinite; }
+        
+        #chatBox { scroll-behavior: smooth; overflow-y: auto; height: calc(100vh - 130px); }
+        .animate-pop { animation: pop 0.2s ease-out; }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        #attachMenu { 
+            position: fixed; bottom: 75px; left: 16px; background: white; border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 20px; width: 280px; z-index: 9999; 
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0);
+            transform-origin: bottom left; opacity: 0; pointer-events: none;
+        }
+        #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+
+        textarea::-webkit-scrollbar { display: none; }
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+    
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
+    </div>
+
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <header class="bg-[#075e54] p-4 text-white flex items-center shadow-md shrink-0 z-10 sticky top-0">
+        <i class="fas fa-arrow-left mr-4 cursor-pointer text-lg active:scale-90 transition-transform" onclick="location.replace('home.html')"></i>
+        <div class="flex-1">
+            <h1 class="font-bold text-sm">Customer Support (CSR)</h1>
+            <p class="text-[10px] opacity-80 flex items-center gap-1">
+                <span id="statusDot" class="status-dot status-online"></span> 
+                <span id="statusText">Online</span>
+            </p>
+        </div>
+    </header>
+
+    <main id="chatBox" class="flex-1 chat-bg p-4 flex flex-col gap-3"></main>
+
+    <footer class="bg-white p-2 flex items-end gap-2 border-t shrink-0 z-20 pb-safe">
+        <button onclick="toggleAttachMenu()" class="text-gray-500 text-xl px-2 mb-2 active:text-[#075e54] transition-colors">
+            <i class="fas fa-paperclip" id="attachIcon"></i>
+        </button>
+        
+        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-2xl flex items-center px-4 min-w-0">
+            <textarea id="msgInp" oninput="toggleButtons(); autoHeight(this)" placeholder="Type a message" rows="1" class="w-full bg-transparent py-2 outline-none text-sm resize-none"></textarea>
+        </div>
+
+        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-2xl flex items-center justify-center px-4 border border-red-200 text-red-500 gap-2 h-10 mb-1">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+        </div>
+
+        <div id="btnContainer" class="flex items-center justify-center w-10 h-10 mb-1 shrink-0">
+            <button id="sendBtn" onclick="sendMsg('text')" class="hidden bg-[#128c7e] text-white w-full h-full rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+            </button>
+            <button id="voiceBtn" onclick="handleVoice()" class="bg-[#128c7e] text-white w-full h-full rounded-full flex items-center justify-center transition-all">
+                <i class="fas fa-microphone" id="micIcon"></i>
+            </button>
+        </div>
+    </footer>
+
+    <div id="attachMenu">
+        <div class="grid grid-cols-4 gap-4">
+            <div onclick="document.getElementById('cameraInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Photo</span>
+            </div>
+            <div onclick="document.getElementById('videoInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-video"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Video</span>
+            </div>
+            <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Gallery</span>
+            </div>
+            <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-file-alt"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Doc</span>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="uploadFile(this, 'image')">
+    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="environment" onchange="uploadFile(this, 'video')">
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="uploadFile(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept="*/*" multiple onchange="uploadFile(this, 'doc')">
+
+    <script>
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        const userPhone = localStorage.getItem('faster_phone') || 'Guest';
+        if(userPhone === 'Guest') { window.location.replace('index.html'); }
+
+        const chatRoomId = `CSR_${userPhone}`;
+        let mediaRecorder;
+        let audioChunks = [];
+        let voiceTimerInterval;
+        let voiceSeconds = 0;
+        
+        // --- AUDIO UNLOCKER FOR WEBVIEW ---
+        const sound = document.getElementById('notifSound');
+        function forceUnlockAudio() {
+            if(sound) { 
+                sound.muted = true; 
+                sound.play().then(() => { 
+                    sound.pause(); sound.currentTime = 0; sound.muted = false; 
+                    document.removeEventListener('click', forceUnlockAudio); 
+                    document.removeEventListener('touchstart', forceUnlockAudio); 
+                }).catch(e => console.warn(e)); 
+            }
+        }
+        document.addEventListener('click', forceUnlockAudio, {once: true});
+        document.addEventListener('touchstart', forceUnlockAudio, {once: true});
+
+        function ring() { 
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => console.log("Audio play prevented:", error));
+            }
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        }
+
+        // Attach Menu Toggle
+        function toggleAttachMenu() {
+            const menu = document.getElementById('attachMenu');
+            menu.classList.toggle('active');
+        }
+
+        function autoHeight(el) {
+            el.style.height = '36px'; 
+            el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+        }
+
+        function toggleButtons() {
+            const val = document.getElementById('msgInp').value.trim();
+            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
+            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
+        }
+
+        function renderBubble(m) {
+            const isMe = m.sender === userPhone;
+            const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now';
+            
+            let tickHtml = '';
+            if (isMe) {
+                if (m.status === 'seen') {
+                    tickHtml = '<i class="fas fa-check-double tick-blue ml-1 text-[10px]"></i>';
+                } else if (m.status === 'sent') {
+                    tickHtml = '<i class="fas fa-check-double tick-gray ml-1 text-[10px]"></i>';
+                } else {
+                    tickHtml = '<i class="fas fa-clock tick-gray ml-1 text-[10px]"></i>';
+                }
+            }
+
+            let mediaHtml = '';
+            if (m.type === 'image' && m.file_url) {
+                mediaHtml = `<img src="${m.file_url}" class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm cursor-pointer" onclick="window.open(this.src)">`;
+            } else if (m.type === 'video' && m.file_url) {
+                mediaHtml = `<video src="${m.file_url}" controls class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm"></video>`;
+            } else if (m.type === 'voice' && m.file_url) {
+                mediaHtml = `<div class="bg-black/5 p-1 rounded-md mb-1"><audio controls src="${m.file_url}" class="h-8 w-44"></audio></div>`;
+            } else if (m.type === 'doc' && m.file_url) {
+                mediaHtml = `<a href="${m.file_url}" target="_blank" class="flex items-center gap-2 p-2 bg-black/5 rounded-lg mb-1 text-[#075e54] font-bold text-xs"><i class="fas fa-file-alt text-lg"></i> Open Document</a>`;
+            }
+
+            return `
+                <div class="${isMe ? 'bubble-out' : 'bubble-in'} p-2 px-3 animate-pop shadow-sm">
+                    ${mediaHtml}
+                    ${m.message ? `<p class="text-[14px] leading-tight text-gray-800 whitespace-pre-wrap">${m.message}</p>` : ''}
+                    <div class="text-[9px] text-gray-500 text-right mt-1 flex items-center justify-end">
+                        ${time} ${tickHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadMessages() {
+            if(!navigator.onLine) return;
+
+            const { data } = await _supabase.from('csr_chats').select('*').eq('room_id', chatRoomId).order('created_at', { ascending: true });
+            if(data) {
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = data.map(m => renderBubble(m)).join('');
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+        }
+
+        async function sendMsg(type, content = '', fUrl = null) {
+            if(!navigator.onLine) { alert("Please connect to internet to send message."); return; }
+
+            const msgInp = document.getElementById('msgInp');
+            const msgText = content || msgInp.value.trim();
+            if(!msgText && !fUrl) return;
+
+            // Optimistic UI update
+            const tempMsg = { sender: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sending' };
+            document.getElementById('chatBox').innerHTML += renderBubble(tempMsg);
+            document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+
+            msgInp.value = '';
+            msgInp.style.height = '36px';
+            toggleButtons();
+
+            // Actual DB insert
+            await _supabase.from('csr_chats').insert([{
+                room_id: chatRoomId, sender: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sent'
+            }]);
+        }
+
+        async function uploadFile(input, manualType = null) {
+            if(!input.files || input.files.length === 0) return;
+            if(!navigator.onLine) { alert("No Internet Connection!"); return; }
+
+            const file = input.files[0];
+            const type = manualType || (file.type.startsWith('video') ? 'video' : (file.type.startsWith('image') ? 'image' : 'doc'));
+            
+            const ext = file.name ? file.name.split('.').pop() : 'jpg';
+            const name = `csr/${type}_${Date.now()}.${ext}`;
+
+            // Show uploading message in UI
+            const tempMsg = { sender: userPhone, message: 'Uploading file...', type: 'text', status: 'sending' };
+            document.getElementById('chatBox').innerHTML += renderBubble(tempMsg);
+            document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+
+            try {
+                const { data, error } = await _supabase.storage.from('order-files').upload(name, file);
+                if(error) throw error;
+                
+                if(data) {
+                    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
+                    // Reload completely to overwrite the "uploading file..." message
+                    await sendMsg(type, '', urlData.publicUrl);
+                }
+            } catch (err) {
+                alert("File upload failed: " + err.message);
+                loadMessages(); // reload to clear temp message
+            }
+            
+            input.value = ""; // Reset input
+        }
+
+        // Timer functions
+        function startVoiceTimer() {
+            voiceSeconds = 0;
+            document.getElementById('recordTimer').innerText = "00:00";
+            document.getElementById('textInputWrapper').classList.add('hidden');
+            document.getElementById('recordingTimerUI').classList.remove('hidden');
+            document.getElementById('recordingTimerUI').classList.add('flex');
+            
+            voiceTimerInterval = setInterval(() => {
+                voiceSeconds++;
+                const m = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
+                const s = (voiceSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('recordTimer').innerText = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function stopVoiceTimer() {
+            clearInterval(voiceTimerInterval);
+            document.getElementById('recordingTimerUI').classList.add('hidden');
+            document.getElementById('recordingTimerUI').classList.remove('flex');
+            document.getElementById('textInputWrapper').classList.remove('hidden');
+        }
+
+        async function handleVoice() {
+            if(!navigator.onLine) { alert("No Internet Connection!"); return; }
+            const micBtn = document.getElementById('voiceBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (!navigator.mediaDevices || typeof MediaRecorder === "undefined") {
+                alert("Microphone permission required. Please enable in app settings.");
+                return;
+            }
+
+            try {
+                if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        stopVoiceTimer();
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const name = `csr/voice_${Date.now()}.webm`;
+                        
+                        const tempMsg = { sender: userPhone, message: 'Sending Voice...', type: 'text', status: 'sending' };
+                        document.getElementById('chatBox').innerHTML += renderBubble(tempMsg);
+                        document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
+
+                        try {
+                            const { data } = await _supabase.storage.from('order-files').upload(name, blob);
+                            if(data) {
+                                const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
+                                sendMsg('voice', '', urlData.publicUrl);
+                            }
+                        } catch (e) {
+                            alert("Failed to send voice note.");
+                            loadMessages();
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    startVoiceTimer();
+                    
+                    micBtn.classList.add('mic-active');
+                    statusDot.classList.replace('status-online', 'status-active');
+                    statusText.innerText = "Recording...";
+                } else {
+                    mediaRecorder.stop();
+                    micBtn.classList.remove('mic-active');
+                    statusDot.classList.replace('status-active', 'status-online');
+                    statusText.innerText = "Online";
+                }
+            } catch (err) {
+                alert("Microphone access denied!");
+            }
+        }
+
+        // --- REALTIME SUBSCRIPTION (FLAWLESS JS FILTER) ---
+        _supabase.channel('csr-room')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'csr_chats' }, (payload) => {
+                if(payload.new && payload.new.room_id === chatRoomId) { 
+                    if(payload.eventType === 'INSERT' && payload.new.sender !== userPhone) {
+                        ring();
+                    }
+                    loadMessages();
+                }
+            }).subscribe();
+        
+        // Network Listeners
+        window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            loadMessages();
+        });
+
+        // Init
+        window.onload = loadMessages;
+    </script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Notifications</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* WebView specific fixes */
+        html, body { 
+            font-family: sans-serif; 
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh */
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; /* Prevents text selection */
+        }
+        
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); z-index: 100; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
+        
+        /* Broadcast Style Modal Design */
+        .modal-content { background: white; border-radius: 3rem; width: 100%; max-width: 380px; overflow: hidden; animation: slideUp 0.3s ease-out; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .whatsapp-bg { background-color: #e5ddd5; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; }
+        
+        .fade-out { opacity: 0; transform: translateX(50px); transition: 0.3s ease; pointer-events: none; }
+        
+        /* Long press visual feedback */
+        .notif-card { transition: transform 0.2s; }
+        .notif-card:active { transform: scale(0.96); }
+
+        /* Offline Banner Animation */
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col">
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    </div>
+
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <div id="previewModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="bg-[#075e54] p-5 text-white flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div id="modalIconCircle" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <i id="modalIconHeader" class="fas"></i>
+                    </div>
+                    <div>
+                        <h3 id="modalTitle" class="font-bold text-sm"></h3>
+                        <p class="text-[9px] opacity-70 uppercase tracking-widest">Notification Detail</p>
+                    </div>
+                </div>
+                <i class="fas fa-times text-xl cursor-pointer active:scale-90 transition-transform" onclick="closeModal()"></i>
+            </div>
+
+            <div class="p-6 whatsapp-bg min-h-[200px] max-h-[60vh] overflow-y-auto">
+                <div class="bg-white p-3 rounded-2xl shadow-md w-full relative">
+                    <img id="modalImg" class="hidden w-full rounded-xl mb-3 shadow-sm border border-gray-100 object-cover max-h-52">
+                    
+                    <p id="modalBody" class="text-gray-800 text-sm leading-relaxed"></p>
+                    
+                    <div id="voiceSection" class="hidden mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 flex items-center gap-3">
+                        <button onclick="toggleVoice()" class="w-10 h-10 bg-[#128c7e] text-white rounded-full flex items-center justify-center active:scale-90 transition-transform">
+                            <i id="playIcon" class="fas fa-play ml-1"></i>
+                        </button>
+                        <div class="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="progressBar" class="h-full bg-[#128c7e] w-0"></div>
+                        </div>
+                        <audio id="modalAudio" ontimeupdate="updateProgress()" onended="resetPlayer()"></audio>
+                    </div>
+
+                    <div class="text-right mt-2 border-t border-gray-50 pt-2">
+                        <span id="modalTime" class="text-[9px] text-gray-400 font-bold uppercase"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="closeModal()" class="w-full py-5 bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-widest active:bg-gray-100 active:text-red-500 transition-colors shrink-0">Dismiss</button>
+        </div>
+    </div>
+
+    <header class="bg-white p-4 flex items-center shadow-sm shrink-0 sticky top-0 z-50">
+        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600 active:scale-90 transition-transform" onclick="location.replace('home.html')"></i>
+        <h1 class="font-bold text-lg text-gray-800">Notifications</h1>
+    </header>
+
+    <main id="notifList" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <div id="loader" class="flex justify-center py-10">
+            <i class="fas fa-circle-notch animate-spin text-orange-500 text-3xl"></i>
+        </div>
+    </main>
+
+    <script>
+        // Supabase Initialization
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+        
+        // Security Check
+        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        if(!userPhone) window.location.replace('index.html');
+
+        const audio = document.getElementById('modalAudio');
+        const sound = document.getElementById('notifSound');
+
+        function getHiddenIds() {
+            return JSON.parse(localStorage.getItem('hidden_notifs') || "[]");
+        }
+
+        // Global Ringtone System
+        function ring() { 
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => console.log("Audio play prevented:", error));
+            }
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+        }
+
+        function setupRealtime() {
+            _supabase.removeAllChannels();
+
+            // Order Updates Listener
+            _supabase.channel('notif-orders').on('postgres_changes', { 
+                event: '*', schema: 'public', table: 'orders', filter: `customer_phone=eq.${userPhone}` 
+            }, () => {
+                ring();
+                loadNotifications(); // Auto refresh list
+            }).subscribe();
+
+            // Rider Chat Listener
+            _supabase.channel('notif-chats').on('postgres_changes', { 
+                event: 'INSERT', schema: 'public', table: 'chats', filter: `receiver_id=eq.${userPhone}` 
+            }, () => {
+                ring();
+                loadNotifications(); // Auto refresh list
+            }).subscribe();
+        }
+
+        async function loadNotifications() {
+            if(!navigator.onLine) return; // Skip fetch if offline
+
+            const list = document.getElementById('notifList');
+            const hiddenIds = getHiddenIds();
+
+            try {
+                const [ordersRes, chatsRes] = await Promise.all([
+                    _supabase.from('orders').select('*').eq('customer_phone', userPhone),
+                    _supabase.from('chats').select('*').eq('receiver_id', userPhone)
+                ]);
+
+                if(document.getElementById('loader')) document.getElementById('loader').remove();
+
+                let allNotifs = [];
+                if(ordersRes.data) ordersRes.data.forEach(o => allNotifs.push({...o, nType: 'order', time: new Date(o.updated_at || o.created_at)}));
+                if(chatsRes.data) chatsRes.data.forEach(c => {
+                    if(!hiddenIds.includes(c.id.toString())) {
+                        allNotifs.push({...c, nType: 'admin', time: new Date(c.created_at)});
+                    }
+                });
+
+                allNotifs.sort((a, b) => b.time - a.time);
+                
+                if (allNotifs.length === 0) {
+                    list.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-20 opacity-40">
+                            <i class="fas fa-bell-slash text-5xl mb-4 text-gray-400"></i>
+                            <p class="font-black text-xs uppercase tracking-widest text-center text-gray-500">No Notifications Yet</p>
+                        </div>`;
+                    return;
+                }
+
+                list.innerHTML = "";
+                allNotifs.forEach(item => {
+                    const card = document.createElement('div');
+                    card.id = `card-${item.id}`;
+                    card.className = `notif-card relative p-4 rounded-3xl shadow-sm border border-gray-100 mb-3 cursor-pointer transition-all bg-white`;
+                    
+                    let pressTimer;
+                    card.onmousedown = card.ontouchstart = (e) => {
+                        pressTimer = setTimeout(() => deleteNotif(item.id, item.nType), 800);
+                    };
+                    card.onmouseup = card.ontouchend = () => clearTimeout(pressTimer);
+
+                    if(item.nType === 'admin') {
+                        const hasVoice = !!item.voice_url;
+                        const hasImg = !!item.image_url;
+                        card.onclick = () => showPreview('Admin Message', item.message, item.time, hasVoice ? 'fa-microphone' : 'fa-bullhorn', item.voice_url, item.image_url);
+                        
+                        card.innerHTML = `
+                            <button onclick="event.stopPropagation(); deleteNotif('${item.id}', 'admin')" class="absolute right-4 top-4 text-gray-300 hover:text-red-500 active:scale-90 transition-transform"><i class="fas fa-times-circle"></i></button>
+                            <div class="flex items-center gap-4 pr-6">
+                                <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 shadow-inner"><i class="fas ${hasVoice ? 'fa-microphone' : (hasImg ? 'fa-image' : 'fa-bullhorn')} text-xl"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center"><h3 class="font-black text-teal-600 text-[10px] uppercase tracking-widest">Admin</h3> <span class="text-[9px] text-gray-400 font-bold">${item.time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
+                                    <p class="text-sm text-gray-700 font-bold mt-1 line-clamp-1">${item.message || (hasVoice ? 'Voice Note' : 'Image attachment')}</p>
+                                </div>
+                            </div>`;
+                    } else {
+                        let msgTitle = "Order Update", msgBody = `Status: ${item.status}`, msgIcon = "fa-truck", billPic = null;
+                        const isArrived = (item.status === 'arrived' || item.rider_status === 'Arrived');
+
+                        // Calculations
+                        const curBill = parseFloat(item.item_price || 0) + parseFloat(item.dc_amount || 0);
+                        const prev = parseFloat(item.previous_due || 0);
+                        const total = parseFloat(item.bill_amount || 0);
+
+                        if (isArrived) {
+                            msgTitle = "🟥 Order Arrived!";
+                            msgBody = `Rider is outside! Please collect your order.<br><br><b>Total Cash to Pay: Rs. ${total}</b>`;
+                            msgIcon = "fa-map-marker-alt";
+                        } else if (item.status === 'assigned') {
+                            if (item.bill_amount) {
+                                msgTitle = "🚚 ON THE WAY";
+                                msgBody = `<b>Bill Breakdown:</b><br><br>
+                                           Current Order: Rs. ${curBill}<br>
+                                           ${prev != 0 ? `Previous Balance: Rs. ${prev}<br>` : ''}
+                                           -------------------<br>
+                                           <b>Total Payable: Rs. ${total}</b>`;
+                                billPic = item.bill_image; 
+                                msgIcon = "fa-motorcycle";
+                            } else {
+                                msgTitle = "🟨 Processing Order";
+                                msgBody = "Rider has started processing your order. Thank you!";
+                                msgIcon = "fa-spinner";
+                            }
+                        } else if (item.status === 'completed') {
+                            msgTitle = "✅ Order Completed";
+                            msgIcon = "fa-check-double";
+                            
+                            const paid = item.final_amount || 0;
+                            const bal = item.balance_amount || 0;
+                            
+                            let balText = bal > 0 
+                                ? `<br><span class="text-red-500 font-extrabold">🔴 PENDING: Rs. ${bal}</span>` 
+                                : (bal < 0 ? `<br><span class="text-emerald-500 font-extrabold">🟢 ADVANCE: Rs. ${Math.abs(bal)}</span>` : `<br><span class="text-gray-400 font-bold">⚪ Settled</span>`);
+
+                            msgBody = `Total Bill: Rs. ${total}<br>Paid to Rider: Rs. ${paid}<br>${balText}`;
+                        }
+
+                        card.onclick = () => showPreview(msgTitle, msgBody, item.time, msgIcon, null, billPic);
+                        
+                        card.innerHTML = `
+                            <div class="flex items-center gap-4 pr-6">
+                                <div class="w-12 h-12 ${isArrived ? 'bg-red-50 text-red-500' : 'bg-orange-50 text-orange-500'} rounded-2xl flex items-center justify-center shadow-inner">
+                                    <i class="fas ${msgIcon} text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center">
+                                        <h3 class="font-black text-gray-400 text-[10px] uppercase tracking-widest">Delivery</h3> 
+                                        <span class="text-[9px] text-gray-400 font-bold">${item.time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-700 font-black mt-1">${msgTitle}</p>
+                                    
+                                    <div class="flex gap-2 mt-1">
+                                       ${item.bill_amount ? `<span class="bg-orange-100 text-orange-700 text-[8px] px-2 py-0.5 rounded-md font-bold text-center">TOTAL: Rs. ${total}</span>` : ''}
+                                       ${prev > 0 ? `<span class="bg-red-100 text-red-700 text-[8px] px-2 py-0.5 rounded-md font-bold italic text-center">+Rs. ${prev} PENDING</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    list.appendChild(card);
+                });
+            } catch (err) { console.error("Notification load error:", err); }
+        }
+
+        function deleteNotif(id, type) {
+            if(type === 'order') return; // Orders can't be deleted from notifications by user
+            if(confirm("Do you want to delete this notification?")) {
+                const hiddenIds = getHiddenIds();
+                hiddenIds.push(id.toString());
+                localStorage.setItem('hidden_notifs', JSON.stringify(hiddenIds));
+                const card = document.getElementById(`card-${id}`);
+                if(card) { 
+                    card.classList.add('fade-out'); 
+                    setTimeout(() => card.remove(), 300); 
+                }
+            }
+        }
+
+        function showPreview(title, msg, time, icon, voiceUrl = null, imageUrl = null) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalBody').innerHTML = msg || "";
+            document.getElementById('modalTime').innerText = new Date(time).toLocaleString();
+            document.getElementById('modalIconHeader').className = `fas ${icon}`;
+            
+            const mImg = document.getElementById('modalImg');
+            if(imageUrl) { 
+                mImg.src = imageUrl; 
+                mImg.classList.remove('hidden'); 
+            } else { 
+                mImg.classList.add('hidden'); 
+            }
+            
+            if(voiceUrl) { 
+                document.getElementById('voiceSection').classList.remove('hidden'); 
+                document.getElementById('voiceSection').classList.add('flex'); 
+                audio.src = voiceUrl; 
+            } else { 
+                document.getElementById('voiceSection').classList.add('hidden'); 
+                document.getElementById('voiceSection').classList.remove('flex'); 
+                audio.src = ""; 
+            }
+            
+            document.getElementById('previewModal').style.display = 'flex';
+        }
+
+        // Voice Player Controls
+        function toggleVoice() {
+            if (audio.paused) { 
+                audio.play(); 
+                document.getElementById('playIcon').className = "fas fa-pause"; 
+            } else { 
+                audio.pause(); 
+                document.getElementById('playIcon').className = "fas fa-play ml-1"; 
+            }
+        }
+
+        function updateProgress() { 
+            if (audio.duration) {
+                document.getElementById('progressBar').style.width = (audio.currentTime / audio.duration * 100) + "%"; 
+            }
+        }
+        
+        function resetPlayer() { 
+            document.getElementById('playIcon').className = "fas fa-play ml-1"; 
+            document.getElementById('progressBar').style.width = "0%"; 
+        }
+        
+        function closeModal() { 
+            audio.pause(); 
+            resetPlayer(); 
+            document.getElementById('previewModal').style.display = 'none'; 
+        }
+
+        // Network State Tracking
+        window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            loadNotifications();
+        });
+        // --- AUDIO FORCE UNLOCKER FOR ANDROID WEBVIEW ---
+function forceUnlockAudio() {
+    const sound = document.getElementById('notifSound');
+    if(sound) {
+        // Ek dafa halka sa play kar ke pause kar do taake Android ko lagay user ne allow kar diya hai
+        let promise = sound.play();
+        if (promise !== undefined) {
+            promise.then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                console.log("Audio Unlocked Successfully!");
+            }).catch(error => {
+                console.log("Audio still blocked by Android:", error);
+            });
+        }
+    }
+    // Jab ek dafa unlock ho jaye to in events ko hata do taake app bhari na ho
+    document.removeEventListener('click', forceUnlockAudio);
+    document.removeEventListener('touchstart', forceUnlockAudio);
+    document.removeEventListener('scroll', forceUnlockAudio);
+}
+
+// User jese hi screen par pehla click, touch, ya thora sa scroll karega, awaz unlock ho jayegi
+document.addEventListener('click', forceUnlockAudio);
+document.addEventListener('touchstart', forceUnlockAudio);
+document.addEventListener('scroll', forceUnlockAudio);
+
+        // Initialize Page
+        window.onload = () => {
+            loadNotifications();
+            setupRealtime();
+        };
+    </script>
+</body>
+</html>

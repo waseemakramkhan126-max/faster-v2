@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Completed Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        
+        /* WebView specific fixes */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh */
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; /* Prevents text selection */
+        }
+
+        /* Animations */
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        .toast-enter { transform: translateY(0); opacity: 1; }
+        .toast-leave { transform: translateY(-150%); opacity: 0; }
+
+        .modal-enter { opacity: 1; pointer-events: auto; }
+        .modal-leave { opacity: 0; pointer-events: none; }
+        .modal-content-enter { transform: scale(1); opacity: 1; }
+        .modal-content-leave { transform: scale(0.95); opacity: 0; }
+
+        /* Offline Banner Animation */
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-10">
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    </div>
+
+    <div id="toast" class="toast-leave fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[100000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap">
+        <i id="toastIcon" class="fas fa-info-circle text-lg"></i>
+        <span id="toastMsg">Message here</span>
+    </div>
+
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <header class="bg-[#075e54] p-4 text-white flex items-center justify-between shadow-md sticky top-0 z-40">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 flex items-center justify-center -ml-2 cursor-pointer active:bg-white/20 rounded-full transition" onclick="location.replace('home.html')">
+                <i class="fas fa-arrow-left text-lg"></i>
+            </div>
+            <h1 class="font-bold text-lg tracking-wide">History</h1>
+        </div>
+        <div class="w-10 h-10 flex items-center justify-center cursor-pointer active:bg-white/20 rounded-full transition" onclick="refreshData()">
+            <i id="refreshIcon" class="fas fa-sync-alt text-white/80"></i>
+        </div>
+    </header>
+
+    <main id="completedList" class="p-4 flex flex-col gap-4">
+        <div id="loader" class="flex flex-col justify-center items-center py-32 opacity-60">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-[#075e54] mb-4"></div>
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-widest">Loading History...</p>
+        </div>
+    </main>
+
+    <div id="billModal" class="modal-leave fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300" onclick="closeBillModal()">
+        <div id="billModalContent" class="modal-content-leave bg-white rounded-[1.5rem] w-full max-w-sm overflow-hidden shadow-2xl transition-all duration-300 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
+            
+            <div class="bg-[#075e54] p-4 text-white flex justify-between items-center shrink-0">
+                <span class="font-black text-sm uppercase tracking-widest">Order Summary</span>
+                <i class="fas fa-times cursor-pointer text-xl opacity-80 active:opacity-100 transition active:scale-90" onclick="closeBillModal()"></i>
+            </div>
+            
+            <div class="p-4 overflow-y-auto flex-1 bg-gray-50">
+                <img id="fullBillImg" src="" class="w-full rounded-2xl mb-4 object-contain border border-gray-200 shadow-sm hidden cursor-pointer" onclick="window.open(this.src)">
+                <div id="modalBreakdown" class="space-y-4"></div>
+            </div>
+            
+            <div class="p-4 bg-white border-t border-gray-100 shrink-0">
+                <button onclick="closeBillModal()" class="w-full py-3.5 bg-gray-100 active:bg-gray-200 text-gray-600 rounded-xl font-black text-xs uppercase tracking-widest transition-colors active:scale-95">Close Details</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Initialization
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        // Security / Auth Check
+        const userPhone = localStorage.getItem('faster_phone');
+        if(!userPhone) window.location.replace('index.html');
+
+        let allCompletedOrders = []; 
+        const sound = document.getElementById('notifSound');
+
+        // --- TOAST NOTIFICATION ---
+        let toastTimeout;
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toastMsg');
+            const icon = document.getElementById('toastIcon');
+
+            msg.innerText = message;
+            if (type === 'error') {
+                toast.className = "toast-enter fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[1000000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap bg-red-500 text-white";
+                icon.className = "fas fa-exclamation-triangle text-lg";
+            } else if (type === 'success') {
+                toast.className = "toast-enter fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[1000000] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 whitespace-nowrap bg-emerald-500 text-white";
+                icon.className = "fas fa-check-circle text-lg";
+            }
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.replace('toast-enter', 'toast-leave'), 3000);
+        }
+
+        // --- GLOBAL RINGTONE LOGIC ---
+        function ring() { 
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => console.log("Audio play prevented:", error));
+            }
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+        }
+
+        function setupRealtime() {
+            _supabase.removeAllChannels();
+
+            // Order Updates Listener
+            _supabase.channel('global-orders').on('postgres_changes', { 
+                event: '*', schema: 'public', table: 'orders', filter: `customer_phone=eq.${userPhone}` 
+            }, (payload) => {
+                ring();
+                // If a new order is completed or canceled while user is on this page, refresh the list
+                if (payload.new && ['completed', 'canceled', 'CANCELLED', 'cancelled'].includes(payload.new.status)) {
+                    fetchCompletedOrders();
+                }
+            }).subscribe();
+
+            // Rider Chat Listener
+            _supabase.channel('global-chats').on('postgres_changes', { 
+                event: 'INSERT', schema: 'public', table: 'chats', filter: `receiver_id=eq.${userPhone}` 
+            }, () => {
+                ring();
+            }).subscribe();
+        }
+
+        // --- OFFLINE/ONLINE LOGIC ---
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineBanner').style.top = '0';
+        });
+        
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            showToast("Back Online", "success"); 
+            fetchCompletedOrders(); 
+        });
+
+        // --- INIT FUNCTION ---
+        function initPage() {
+            fetchCompletedOrders();
+            setupRealtime();
+        }
+
+        async function refreshData() {
+            if(!navigator.onLine) { showToast("No Internet Connection", "error"); return; }
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('fa-spin');
+            await fetchCompletedOrders();
+            icon.classList.remove('fa-spin');
+            showToast("History Updated", "success");
+        }
+
+        // --- DATA FETCHING ---
+        async function fetchCompletedOrders() {
+            if(!navigator.onLine) return; 
+
+            const container = document.getElementById('completedList');
+            const loader = document.getElementById('loader');
+            if(loader) loader.style.display = 'flex';
+
+            try {
+                const { data, error } = await _supabase
+                    .from('orders') 
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']) 
+                    .order('created_at', { ascending: false });
+
+                if(loader) loader.style.display = 'none';
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-20 opacity-50">
+                            <i class="fas fa-history text-6xl mb-4 text-gray-300"></i>
+                            <p class="font-black text-sm uppercase tracking-widest text-center text-gray-500">No History Yet</p>
+                        </div>`;
+                    return;
+                }
+
+                allCompletedOrders = data; 
+                renderList(data);
+
+            } catch (err) {
+                if(loader) loader.style.display = 'none';
+                showToast("Failed to load history", "error");
+            }
+        }
+
+        // --- UI RENDERING ---
+        function renderList(data) {
+            const container = document.getElementById('completedList');
+            
+            container.innerHTML = data.map(order => {
+                const orderStatus = order.status ? order.status.toLowerCase() : '';
+                const isCanceled = orderStatus === 'canceled' || orderStatus === 'cancelled';
+                
+                const bal = parseFloat(order.balance_amount || 0);
+                const totalBill = order.bill_amount || 0;
+                const paidToRider = order.final_amount || 0;
+                
+                let timeText = "Quick Trip"; 
+                const t_assigned = order.assigned_at ? new Date(order.assigned_at) : null;
+                const t_arrived = order.arrived_at ? new Date(order.arrived_at) : null;
+                const t_created = new Date(order.created_at);
+                const t_updated = new Date(order.updated_at);
+
+                let start = t_assigned || t_created;
+                let end = t_arrived || t_updated;
+
+                if (start && end && !isCanceled) {
+                    const diffMs = end - start;
+                    const mins = Math.floor(diffMs / 60000);
+                    const secs = Math.floor((diffMs % 60000) / 1000);
+                    if (mins > 0) timeText = `${mins}m ${secs}s`;
+                    else if (secs > 0) timeText = `${secs}s`;
+                    else timeText = "Instant";
+                }
+
+                let badgeText = isCanceled ? "Canceled" : "Settled";
+                let badgeClass = isCanceled ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600";
+                let statusText = isCanceled ? "Order Canceled" : "Delivered";
+                let statusColor = isCanceled ? "text-red-600" : "text-[#075e54]";
+                let walletStatusHTML = '';
+
+                if (!isCanceled) {
+                    if (bal > 0) { 
+                        badgeText = "Pending"; 
+                        badgeClass = "bg-red-100 text-red-700"; 
+                        walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-black text-red-500"><span>Pending Amount</span><span>Rs. ${bal}</span></div>`;
+                    }
+                    else if (bal < 0) { 
+                        badgeText = "Remaining"; 
+                        badgeClass = "bg-green-100 text-green-700"; 
+                        walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-black text-green-600"><span>Remaining Balance</span><span>Rs. ${Math.abs(bal)}</span></div>`;
+                    } else {
+                        walletStatusHTML = `<div class="flex justify-between mt-2 pt-2 border-t border-gray-200 font-bold text-gray-400 text-[10px]"><span>Status</span><span>Settled Full</span></div>`;
+                    }
+                }
+
+                const billBtn = (order.bill_image && !isCanceled) ? `
+                    <button onclick="openBillModal('${order.id}')" 
+                        class="w-full mt-3 py-3 bg-orange-50 active:bg-orange-100 text-orange-600 rounded-xl text-[11px] font-black border border-orange-200 flex items-center justify-center gap-2 transition-transform active:scale-[0.98] uppercase tracking-wider">
+                        <i class="fas fa-file-invoice-dollar text-sm"></i> View Details & Receipt
+                    </button>` : '';
+
+                return `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 animate-pop ${isCanceled ? 'opacity-70' : ''}">
+                    <div class="flex justify-between items-start mb-4 border-b border-gray-50 pb-3">
+                        <div>
+                            <p class="text-[9px] text-gray-400 uppercase font-black tracking-widest">Order ID</p>
+                            <p class="font-mono text-sm font-bold text-gray-800">#${order.id.toString().slice(-8)}</p>
+                            ${!isCanceled ? `<p class="text-[10px] font-bold text-[#075e54] mt-1"><i class="fas fa-motorcycle mr-1 opacity-80"></i> Trip: ${timeText}</p>` : ''}
+                        </div>
+                        <span class="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${badgeClass}">
+                            ${badgeText}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-y-4">
+                        <div>
+                            <p class="text-[9px] text-gray-400 uppercase font-black tracking-widest">Rider</p>
+                            <p class="text-sm font-bold text-gray-700 capitalize">${order.rider_name || 'N/A'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[9px] text-gray-400 uppercase font-black tracking-widest">Status</p>
+                            <p class="text-sm font-black ${statusColor} uppercase tracking-tight">${statusText}</p>
+                        </div>
+                        
+                        ${!isCanceled ? `
+                        <div class="col-span-2 bg-gray-50 p-4 rounded-xl border border-gray-100 text-[12px]">
+                             <div class="flex justify-between mb-2">
+                                <span class="text-gray-500 font-bold">Total Bill:</span>
+                                <span class="font-black font-mono text-gray-800">Rs. ${totalBill}</span>
+                             </div>
+                             <div class="flex justify-between text-blue-600 font-black">
+                                <span>Cash Paid to Rider:</span>
+                                <span class="font-mono">Rs. ${paidToRider}</span>
+                             </div>
+                             ${walletStatusHTML}
+                        </div>` : `<div class="col-span-2 text-[11px] py-3 text-center text-red-500 font-bold bg-red-50 rounded-xl">Order was canceled</div>`}
+
+                        <div class="col-span-2">${billBtn}</div>
+                        
+                        <div class="col-span-2 mt-2 pt-3 border-t border-gray-50 flex justify-between items-center text-gray-400">
+                            <p class="text-[10px] font-bold"><i class="far fa-calendar-alt mr-1 text-[#075e54]"></i> ${new Date(order.created_at).toLocaleDateString()}</p>
+                            <p class="text-[9px] uppercase font-black tracking-widest text-[#075e54]">Faster Delivery</p>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- MODAL LOGIC ---
+        function openBillModal(orderId) {
+            const order = allCompletedOrders.find(o => o.id === orderId);
+            if(!order) return;
+
+            const modal = document.getElementById('billModal');
+            const content = document.getElementById('billModalContent');
+            const imgEl = document.getElementById('fullBillImg');
+            
+            if(order.bill_image) {
+                imgEl.src = order.bill_image;
+                imgEl.classList.remove('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+            }
+
+            const currentOrder = parseFloat(order.item_price || 0) + parseFloat(order.dc_amount || 0);
+            const balNum = parseFloat(order.balance_amount || 0);
+            const pending = parseFloat(order.previous_due || 0);
+
+            let balLabel = "Settled Full";
+            let balColor = "text-gray-400";
+            if(balNum > 0) { balLabel = "Pending Amount:"; balColor = "text-red-500"; }
+            else if(balNum < 0) { balLabel = "Remaining Balance:"; balColor = "text-emerald-500"; }
+
+            let userImgHTML = '';
+            if(order.image_url) {
+                const firstImg = order.image_url.split(',')[0].trim();
+                if(firstImg) {
+                    userImgHTML = `
+                    <div class="mt-3">
+                        <p class="text-[9px] text-blue-500 font-black uppercase tracking-widest mb-1.5">Attached Image:</p>
+                        <img src="${firstImg}" class="w-full rounded-xl border border-gray-200 cursor-pointer object-cover max-h-32" onclick="window.open(this.src)">
+                    </div>`;
+                }
+            }
+
+            const breakdownHTML = `
+                <div class="mb-5 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest text-center mb-3">Original Details</p>
+                    
+                    ${order.order_details ? `<p class="text-[13px] font-bold text-gray-800 mb-3 leading-relaxed">${order.order_details}</p>` : ''}
+                    
+                    ${order.voice_url ? `
+                        <div class="mb-2">
+                            <p class="text-[9px] text-blue-500 font-black uppercase tracking-widest mb-1.5">Voice Instruction:</p>
+                            <audio controls class="w-full h-8"><source src="${order.voice_url}" type="audio/mpeg"></audio>
+                        </div>` : ''}
+                    
+                    ${userImgHTML}
+                </div>
+                
+                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                    <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center mb-3 pb-2 border-b border-gray-100">Payment Breakdown</p>
+                    
+                    <div class="flex justify-between text-xs font-bold text-gray-600 mb-2">
+                        <span>Items + Delivery:</span><span class="font-mono">Rs. ${currentOrder}</span>
+                    </div>
+                    
+                    ${pending != 0 ? `
+                    <div class="flex justify-between text-xs font-bold text-gray-400 mb-2">
+                        <span>Previous Dues:</span><span class="font-mono">Rs. ${pending}</span>
+                    </div>` : ''}
+                    
+                    <div class="border-t border-dashed border-gray-200 my-3 pt-3 flex justify-between text-sm font-black text-gray-900">
+                        <span>Total Payable:</span><span class="font-mono">Rs. ${order.bill_amount || 0}</span>
+                    </div>
+                    
+                    <div class="flex justify-between text-sm font-black text-[#075e54] bg-emerald-50 p-2.5 rounded-xl mt-2">
+                        <span>Cash Paid:</span><span class="font-mono">Rs. ${order.final_amount || 0}</span>
+                    </div>
+                    
+                    <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs font-black">
+                        <span class="text-gray-500 uppercase tracking-wide">${balLabel}</span>
+                        <span class="font-mono ${balColor}">Rs. ${Math.abs(balNum)}</span>
+                    </div>
+                </div>`;
+            
+            document.getElementById('modalBreakdown').innerHTML = breakdownHTML;
+            
+            modal.classList.replace('modal-leave', 'modal-enter');
+            content.classList.replace('modal-content-leave', 'modal-content-enter');
+        }
+
+        function closeBillModal() {
+            const modal = document.getElementById('billModal');
+            const content = document.getElementById('billModalContent');
+            content.classList.replace('modal-content-enter', 'modal-content-leave');
+            setTimeout(() => {
+                modal.classList.replace('modal-enter', 'modal-leave');
+            }, 300);
+        }
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

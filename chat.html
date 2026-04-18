@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Faster Chat - Rider Support</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Strict Mobile WebView & iOS Optimization */
+        html, body { 
+            overscroll-behavior-y: none; 
+            -webkit-tap-highlight-color: transparent; 
+            height: 100dvh; 
+            display: flex;
+            flex-direction: column;
+            background-color: #e5ddd5;
+            padding-top: env(safe-area-inset-top); /* iPhone Notch Fix */
+        }
+
+        .chat-bg { 
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
+            background-attachment: fixed; 
+            background-size: cover;
+        }
+        
+        #chatBox { 
+            flex-grow: 1;
+            overflow-y: auto; 
+            scroll-behavior: smooth; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            padding: 16px 16px 20px 16px; 
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .bubble-in, .bubble-out { max-width: 85%; word-wrap: break-word; position: relative; }
+        .bubble-in { background: white; border-radius: 0 15px 15px 15px; align-self: flex-start; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .bubble-out { background: #dcf8c6; border-radius: 15px 0 15px 15px; align-self: flex-end; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .tick-blue { color: #34b7f1; }
+        
+        /* Recording Animation */
+        .rec-active { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .animate-pop { animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        #attachMenu { 
+            position: fixed; bottom: 75px; left: 16px; background: white; border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); padding: 20px; width: 280px; z-index: 9999; 
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0);
+            transform-origin: bottom left; opacity: 0; pointer-events: none;
+        }
+        #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+        textarea::-webkit-scrollbar { display: none; }
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+    
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
+    </div>
+
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+    
+    <header class="bg-[#075e54] p-4 text-white flex items-center shadow-md shrink-0 z-50">
+        <i class="fas fa-arrow-left mr-4 cursor-pointer text-lg active:scale-90 transition-transform" onclick="location.href='active-orders.html'"></i>
+        <div class="flex-1">
+            <h1 class="font-bold text-sm">Rider Support</h1>
+            <div class="flex items-center gap-2">
+                <p id="orderIdText" class="text-[10px] opacity-80 uppercase font-bold tracking-tighter">Order: Loading...</p>
+                <div id="recordingUI" class="hidden flex items-center gap-1.5 bg-red-500 px-2 py-0.5 rounded-full shadow-sm">
+                    <span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                    <span id="recTimer" class="text-[10px] font-black">00:00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main id="chatBox" class="chat-bg"></main>
+
+    <footer class="bg-white p-2.5 flex items-end gap-2 border-t shrink-0 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+        <button onclick="toggleAttachMenu()" class="text-gray-500 text-xl px-2 mb-2 active:text-[#075e54] transition-colors">
+            <i class="fas fa-paperclip"></i>
+        </button>
+        
+        <div class="flex-1 bg-gray-100 rounded-2xl flex items-center px-4 min-w-0 border border-gray-200 shadow-inner">
+            <textarea id="msgInp" oninput="handleInput(this)" placeholder="Type a message" rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
+        </div>
+
+        <div class="flex items-center justify-center w-11 h-11 mb-1 shrink-0">
+            <button id="sendBtn" onclick="sendMsg('text')" class="hidden bg-[#128c7e] text-white w-full h-full rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform">
+                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+            </button>
+            <button id="voiceBtn" onclick="handleVoice()" class="bg-[#128c7e] text-white w-full h-full rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform">
+                <i class="fas fa-microphone" id="micIcon"></i>
+            </button>
+        </div>
+    </footer>
+
+    <div id="attachMenu">
+        <div class="grid grid-cols-4 gap-4">
+            <div onclick="document.getElementById('cameraInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Photo</span>
+            </div>
+            <div onclick="document.getElementById('videoInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-video"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Video</span>
+            </div>
+            <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Gallery</span>
+            </div>
+            <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg text-lg"><i class="fas fa-file-alt"></i></div>
+                <span class="text-[10px] font-bold text-gray-600 text-center">Doc</span>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="uploadFile(this, 'image')">
+    <input type="file" id="videoInput" class="hidden" accept="video/*" capture="environment" onchange="uploadFile(this, 'video')">
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="uploadFile(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept="*/*" multiple onchange="uploadFile(this, 'doc')">
+
+    <script>
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const userPhone = localStorage.getItem('faster_phone') || 'Guest';
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let timerInterval;
+        let seconds = 0;
+
+        if(orderId) document.getElementById('orderIdText').innerText = `Order: #${orderId.slice(-6)}`;
+
+        // --- AUDIO UNLOCKER ---
+        const sound = document.getElementById('notifSound');
+        let isAudioUnlocked = false;
+
+        function unlockAudio() {
+            if (isAudioUnlocked || !sound) return;
+            sound.muted = true; 
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                sound.muted = false; 
+                isAudioUnlocked = true;
+                document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('click', unlockAudio);
+            }).catch(e => console.warn(e));
+        }
+
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
+
+        function ring() { 
+            if(!sound) return;
+            sound.currentTime = 0; 
+            let playPromise = sound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => console.log("Audio blocked:", error));
+            }
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
+        }
+
+        // --- UI LOGIC ---
+        function toggleAttachMenu() {
+            document.getElementById('attachMenu').classList.toggle('active');
+        }
+
+        function handleInput(el) {
+            el.style.height = '42px';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+            const val = el.value.trim();
+            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
+            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
+        }
+
+        function renderBubble(m) {
+            const isMe = m.sender_phone === userPhone;
+            const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...';
+            
+            let media = '';
+            if (m.type === 'image' && m.file_url) {
+                media = `<img src="${m.file_url}" class="rounded-lg mb-1 max-h-64 w-full object-cover shadow-sm cursor-pointer" onclick="window.open(this.src)">`;
+            } else if (m.type === 'video' && m.file_url) {
+                media = `<video src="${m.file_url}" controls class="rounded-lg mb-1 max-h-64 w-full object-cover shadow-sm"></video>`;
+            } else if (m.type === 'voice' && m.file_url) {
+                media = `<div class="bg-black/5 p-1 rounded-md mb-1"><audio controls src="${m.file_url}" class="h-8 w-44"></audio></div>`;
+            } else if (m.type === 'doc' && m.file_url) {
+                media = `<a href="${m.file_url}" target="_blank" class="flex items-center gap-2 p-2 bg-black/5 rounded-lg mb-1 text-[#075e54] font-bold text-xs"><i class="fas fa-file-alt text-lg"></i> Open Document</a>`;
+            }
+
+            return `
+                <div class="${isMe ? 'bubble-out' : 'bubble-in'} p-2 px-3 animate-pop shadow-sm" id="msg-${m.id}">
+                    ${media}
+                    ${m.message ? `<p class="text-[14px] leading-tight text-gray-800 whitespace-pre-wrap">${m.message}</p>` : ''}
+                    <div class="text-[9px] text-gray-500 text-right mt-1 flex items-center justify-end uppercase font-bold">
+                        ${time} 
+                        ${isMe ? (m.status === 'seen' ? '<i class="fas fa-check-double tick-blue ml-1"></i>' : '<i class="fas fa-check ml-1"></i>') : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function appendToUI(m) {
+            const chatBox = document.getElementById('chatBox');
+            if(document.getElementById(`msg-${m.id}`)) return; 
+            
+            const div = document.createElement('div');
+            div.className = "flex flex-col w-full";
+            div.innerHTML = renderBubble(m);
+            chatBox.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // --- DATABASE INTERACTION ---
+        async function loadMessages() {
+            if(!orderId || !navigator.onLine) return;
+            const { data } = await _supabase.from('order_chats').select('*').eq('order_id', orderId).order('created_at', { ascending: true });
+            
+            if(data) {
+                document.getElementById('chatBox').innerHTML = ''; 
+                data.forEach(m => appendToUI(m));
+                scrollToBottom();
+
+                await _supabase.from('order_chats')
+                    .update({ status: 'seen' })
+                    .eq('order_id', orderId)
+                    .neq('sender_phone', userPhone)
+                    .neq('status', 'seen');
+            }
+        }
+
+        async function sendMsg(type, content = '', fUrl = null) {
+            if(!navigator.onLine) { alert("No internet connection!"); return; }
+            
+            const msgInp = document.getElementById('msgInp');
+            const msgText = content || msgInp.value.trim();
+            if(!msgText && !fUrl) return;
+
+            const tempId = Date.now();
+            const tempMsg = { id: tempId, sender_phone: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sending', created_at: new Date() };
+            appendToUI(tempMsg);
+
+            msgInp.value = '';
+            handleInput(msgInp);
+
+            const { error, data } = await _supabase.from('order_chats').insert([{
+                order_id: orderId, sender_phone: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sent'
+            }]).select();
+            
+            if(error) {
+                document.getElementById(`msg-${tempId}`).style.opacity = '0.5';
+            } else {
+                document.getElementById(`msg-${tempId}`).parentElement.remove();
+                if(data && data[0]) appendToUI(data[0]);
+            }
+        }
+
+        async function uploadFile(input, manualType = null) {
+            if(!navigator.onLine) { alert("No internet connection!"); return; }
+            const file = input.files[0];
+            if(!file) return;
+
+            const type = manualType || (file.type.startsWith('video') ? 'video' : (file.type.startsWith('image') ? 'image' : 'doc'));
+            const ext = file.name ? file.name.split('.').pop() : 'jpg';
+            const name = `orders/${type}_${Date.now()}.${ext}`;
+
+            const tempId = Date.now();
+            const tempMsg = { id: tempId, sender_phone: userPhone, message: 'Uploading file...', type: 'text', status: 'sending', created_at: new Date() };
+            appendToUI(tempMsg);
+
+            try {
+                const { data } = await _supabase.storage.from('order-files').upload(name, file);
+                if(data) {
+                    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
+                    document.getElementById(`msg-${tempId}`).parentElement.remove();
+                    sendMsg(type, '', urlData.publicUrl);
+                }
+            } catch(e) {
+                alert("Upload failed.");
+                document.getElementById(`msg-${tempId}`).parentElement.remove();
+            }
+            input.value = "";
+        }
+
+        async function handleVoice() {
+            if(!navigator.onLine) { alert("No internet connection!"); return; }
+            const micBtn = document.getElementById('voiceBtn');
+            const micIcon = document.getElementById('micIcon');
+            const recUI = document.getElementById('recordingUI');
+            const timerText = document.getElementById('recTimer');
+
+            try {
+                if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        clearInterval(timerInterval);
+                        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const name = `orders/voice_${Date.now()}.webm`;
+                        
+                        const tempId = Date.now();
+                        const tempMsg = { id: tempId, sender_phone: userPhone, message: 'Sending Voice...', type: 'text', status: 'sending', created_at: new Date() };
+                        appendToUI(tempMsg);
+
+                        try {
+                            const { data } = await _supabase.storage.from('order-files').upload(name, blob);
+                            if(data) {
+                                const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
+                                document.getElementById(`msg-${tempId}`).parentElement.remove();
+                                sendMsg('voice', '', urlData.publicUrl);
+                            }
+                        } catch(e) {
+                            alert("Failed to send voice");
+                            document.getElementById(`msg-${tempId}`).parentElement.remove();
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    
+                    recUI.classList.remove('hidden');
+                    micBtn.classList.add('rec-active', 'bg-red-600');
+                    micIcon.className = 'fas fa-stop';
+                    
+                    seconds = 0;
+                    timerText.innerText = "00:00";
+                    timerInterval = setInterval(() => {
+                        seconds++;
+                        let m = Math.floor(seconds / 60).toString().padStart(2,'0');
+                        let s = (seconds % 60).toString().padStart(2,'0');
+                        timerText.innerText = `${m}:${s}`;
+                    }, 1000);
+
+                } else {
+                    mediaRecorder.stop();
+                    recUI.classList.add('hidden');
+                    micBtn.classList.remove('rec-active', 'bg-red-600');
+                    micIcon.className = 'fas fa-microphone';
+                    clearInterval(timerInterval);
+                }
+            } catch (err) {
+                alert("Microphone permission blocked. Please enable it.");
+            }
+        }
+
+        // --- REALTIME SUBSCRIPTION (FLAWLESS JS FILTER) ---
+        _supabase.channel(`room-${orderId}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, async (payload) => {
+                if(payload.new && payload.new.order_id == orderId) { 
+                    if(payload.new.sender_phone !== userPhone) {
+                        appendToUI(payload.new);
+                        ring(); 
+                        await _supabase.from('order_chats').update({ status: 'seen' }).eq('id', payload.new.id);
+                    }
+                }
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_chats' }, (payload) => {
+                if(payload.new && payload.new.order_id == orderId) { 
+                    if(payload.new.sender_phone === userPhone && payload.new.status === 'seen') {
+                        loadMessages(); 
+                    }
+                }
+            }).subscribe();
+
+        // Network Handlers
+        window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            loadMessages();
+        });
+
+        window.onload = loadMessages;
+    </script>
+</body>
+</html>

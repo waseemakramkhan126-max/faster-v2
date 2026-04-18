@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Active Orders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <style>
+        /* WebView specific optimizations */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            overscroll-behavior-y: none; /* Disables pull-to-refresh */
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none;
+            background-color: #f9fafb;
+        }
+        
+        .animate-pulse-fast { animation: pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        
+        .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
+        .thumb-box { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 15px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        #fullMediaView { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .order-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .order-card:active { transform: scale(0.98); }
+
+        /* Offline Banner */
+        #offlineBanner { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(-100%); }
+        #offlineBanner.show { transform: translateY(0); }
+    </style>
+</head>
+<body class="min-h-screen pb-10 flex flex-col">
+
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <div id="offlineBanner" class="fixed top-0 left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
+    </div>
+
+    <header class="sticky top-0 bg-white/90 backdrop-blur-md z-40 p-4 flex items-center border-b border-gray-100 shadow-sm transition-all">
+        <i class="fas fa-chevron-left text-xl mr-4 p-2 cursor-pointer active:scale-90 transition-transform text-gray-700" onclick="window.location.href='home.html'"></i>
+        <h1 class="text-xl font-black text-gray-800 tracking-tight">Active Orders</h1>
+    </header>
+
+    <main class="p-4 flex-1">
+        <div id="activeList" class="space-y-4">
+            <div class="animate-pulse space-y-4">
+                <div class="h-36 bg-gray-200 rounded-[2.5rem]"></div>
+                <div class="h-36 bg-gray-200 rounded-[2.5rem]"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="previewModal" class="fixed inset-0 bg-black/60 z-50 hidden flex-items-end justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full max-w-lg rounded-t-[2.5rem] shadow-2xl overflow-y-auto max-h-[90vh] mt-auto transform transition-transform translate-y-0">
+            <div class="sticky top-0 bg-white p-4 flex justify-center border-b z-10 cursor-pointer" onclick="closePreview()">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+            <div id="modalContent" class="p-6 space-y-6 pb-24"></div>
+            <div class="p-4 sticky bottom-0 bg-white/95 backdrop-blur-md border-t shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
+                <button onclick="closePreview()" class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-lg active:scale-[0.98] transition-transform uppercase tracking-wider text-sm">Close Details</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullMediaView" onclick="this.style.display='none'">
+        <div id="fullMediaContainer" class="w-full h-full flex items-center justify-center p-4"></div>
+        <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
+    </div>
+
+    <script>
+        // Supabase Initialization
+        const SUPABASE_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        
+        let currentOrders = [];
+        let activeTimers = {};
+        let globalDeliveryTime = 30;
+        let unreadCounts = {}; 
+
+        // --- 100% WEBVIEW AUDIO UNLOCKER ---
+        const notifSound = document.getElementById('notifSound');
+        let isAudioUnlocked = false;
+
+        function unlockAudioContext() {
+            if (isAudioUnlocked || !notifSound) return;
+            
+            notifSound.muted = true;
+            notifSound.play().then(() => {
+                notifSound.pause();
+                notifSound.currentTime = 0;
+                notifSound.muted = false;
+                isAudioUnlocked = true;
+                console.log("Audio Unlocked for WebView!");
+                // Cleanup listeners once unlocked
+                document.removeEventListener('touchstart', unlockAudioContext);
+                document.removeEventListener('click', unlockAudioContext);
+            }).catch(e => console.warn("Audio unlock pending...", e));
+        }
+
+        // Aggressively attach to interactions to ensure unlock
+        document.addEventListener('touchstart', unlockAudioContext, { once: true });
+        document.addEventListener('click', unlockAudioContext, { once: true });
+
+        function ring() { 
+            if(!notifSound) return;
+            notifSound.currentTime = 0; 
+            
+            let playPromise = notifSound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Audio blocked. Falling back to vibration.", error);
+                    if (navigator.vibrate) navigator.vibrate([300, 100, 300]); 
+                });
+            } else if (navigator.vibrate) {
+                navigator.vibrate([300, 100, 300]); 
+            }
+        }
+
+        // --- CORE INITIALIZATION ---
+        async function init() {
+            if(!userPhone) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            if(navigator.onLine) {
+                try {
+                    const { data: settings } = await _supabase.from('app_settings').select('delivery_timer').single();
+                    if (settings && settings.delivery_timer) globalDeliveryTime = settings.delivery_timer;
+                } catch (e) { console.warn("Settings fetch failed"); }
+            }
+
+            await fetchOrders();
+            setupRealtime();
+        }
+
+        // --- REAL-TIME LOGIC ---
+        function setupRealtime() {
+            _supabase.removeAllChannels();
+
+            // Order Status Updates
+            _supabase.channel('active-orders').on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_phone=eq.${userPhone}` 
+            }, (payload) => {
+                ring(); 
+                fetchOrders(); // Refresh DOM
+            }).subscribe();
+
+            // Chat Messages (Incoming)
+            _supabase.channel('active-messages').on('postgres_changes', { 
+                event: 'INSERT', schema: 'public', table: 'order_chats' 
+            }, (payload) => {
+                if(payload.new.sender_phone !== userPhone) {
+                    ring(); 
+                    fetchUnreadCounts(); // Dynamically update badges without reload
+                }
+            }).subscribe();
+
+            // Chat Messages (Seen - Badge clearing)
+            _supabase.channel('messages-seen').on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'order_chats' 
+            }, (payload) => {
+                if(payload.new.status === 'seen') {
+                    fetchUnreadCounts(); // Dynamically clear badges without reload
+                }
+            }).subscribe();
+        }
+
+        // --- DATA FETCHING ---
+        async function fetchOrders() {
+            if(!navigator.onLine) return; 
+
+            try {
+                const { data, error } = await _supabase.from('orders')
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+
+                currentOrders = data || [];
+                await fetchUnreadCounts(); 
+            } catch (error) {
+                console.error("Fetch Error:", error.message);
+                const list = document.getElementById('activeList');
+                list.innerHTML = `<p class="text-center text-red-500 font-bold mt-10">Failed to load orders. Tap to retry.</p>`;
+            }
+        }
+
+        async function fetchUnreadCounts() {
+            if (!currentOrders || currentOrders.length === 0) {
+                renderOrders(currentOrders);
+                return;
+            }
+            
+            const orderIds = currentOrders.map(o => o.id);
+            
+            try {
+                const { data, error } = await _supabase
+                    .from('order_chats')
+                    .select('order_id')
+                    .in('order_id', orderIds)
+                    .neq('sender_phone', userPhone)
+                    .neq('status', 'seen'); 
+                    
+                let newCounts = {};
+                if (!error && data) {
+                    data.forEach(msg => {
+                        newCounts[msg.order_id] = (newCounts[msg.order_id] || 0) + 1;
+                    });
+                }
+                unreadCounts = newCounts;
+                renderOrders(currentOrders);
+            } catch(e) {
+                console.error("Badge fetch error:", e);
+                renderOrders(currentOrders); // Render anyway if badge fetch fails
+            }
+        }
+
+        // --- UI RENDERING ---
+        function renderOrders(orders) {
+            const list = document.getElementById('activeList');
+            
+            if (orders.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-20 opacity-50">
+                        <div class="bg-gray-100 p-6 rounded-full mb-4">
+                            <i class="fas fa-box-open text-5xl text-gray-400"></i>
+                        </div>
+                        <p class="font-black text-sm uppercase tracking-widest text-center text-gray-500">No Active Orders</p>
+                        <p class="text-xs text-gray-400 mt-2">Your ongoing orders will appear here</p>
+                    </div>`;
+                return;
+            }
+
+            // Clear old timers
+            Object.values(activeTimers).forEach(clearInterval);
+            activeTimers = {};
+
+            list.innerHTML = orders.map(order => {
+                const status = (order.status || 'pending').toLowerCase();
+                const riderStatus = (order.rider_status || '').toLowerCase();
+                const isArrived = (status === 'arrived' || riderStatus === 'arrived');
+                
+                let displayStatus = "SEARCHING";
+                let statusColor = "bg-amber-500 text-white animate-pulse";
+                let statusMsg = "Looking for a Rider...";
+                let showTimer = false;
+
+                if (isArrived) {
+                    displayStatus = "ARRIVED";
+                    statusColor = "bg-red-600 text-white animate-pulse-fast shadow-md shadow-red-500/30";
+                    statusMsg = "Rider has arrived! Collect your order.";
+                } else if (status === 'assigned') {
+                    showTimer = true;
+                    if (parseFloat(order.bill_amount) > 0) {
+                        displayStatus = "ON THE WAY";
+                        statusColor = "bg-emerald-500 text-white shadow-md shadow-emerald-500/30";
+                        statusMsg = "Rider is heading to your location.";
+                    } else {
+                        displayStatus = "PURCHASING";
+                        statusColor = "bg-blue-600 text-white shadow-md shadow-blue-500/30";
+                        statusMsg = "Rider is purchasing your items...";
+                    }
+                }
+
+                return `
+                <div class="order-card bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 cursor-pointer" onclick="openPreview('${order.id}')">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${statusColor}">${displayStatus}</span>
+                        <p class="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest">ID: #${order.id.slice(-6)}</p>
+                    </div>
+                    
+                    <h3 class="text-lg font-black text-gray-800 mb-1 leading-tight">${statusMsg}</h3>
+                    <p class="text-[11px] text-gray-400 font-bold mb-4 flex items-center gap-1">
+                        <i class="far fa-clock"></i> ${dayjs(order.created_at).format('DD MMM, hh:mm A')}
+                    </p>
+
+                    ${showTimer ? `
+                        <div class="p-4 bg-red-50 rounded-3xl border border-red-100 flex flex-col items-center justify-center mb-4 transition-all">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Estimated Arrival</span>
+                            <div id="timer-${order.id}" class="text-3xl font-black text-red-600 tracking-tighter tabular-nums">--:--</div>
+                        </div>
+                    ` : ''}
+
+                    <div class="pt-4 border-t border-dashed border-gray-200 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
+                                <i class="fas fa-motorcycle text-gray-400 text-xs"></i>
+                            </div>
+                            <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Live Tracked</span>
+                        </div>
+                        ${(status === 'assigned' || isArrived) ? 
+                            `<button onclick="event.stopPropagation(); window.location.href='chat.html?orderId=${order.id}'" class="relative bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black shadow-lg shadow-blue-500/20 active:bg-blue-700 transition-colors flex items-center gap-2">
+                                <i class="fas fa-comment-dots"></i> CHAT
+                                ${unreadCounts[order.id] ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce font-bold">${unreadCounts[order.id]}</span>` : ''}
+                            </button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Init Timers
+            orders.forEach(o => {
+                const status = (o.status || 'pending').toLowerCase();
+                const riderStatus = (o.rider_status || '').toLowerCase();
+                if (status === 'assigned' && riderStatus !== 'arrived' && status !== 'arrived') {
+                    runTimer(o.id, o.assigned_at);
+                }
+            });
+        }
+
+        function runTimer(id, assignedAt) {
+            const start = assignedAt ? dayjs(assignedAt) : dayjs();
+            const end = start.add(globalDeliveryTime, 'minute');
+            
+            const update = () => {
+                const el = document.getElementById(`timer-${id}`);
+                if (!el) {
+                    clearInterval(activeTimers[id]);
+                    return;
+                }
+                const diff = end.diff(dayjs());
+                const abs = Math.abs(diff);
+                const m = Math.floor(abs / 60000);
+                const s = Math.floor((abs % 60000) / 1000);
+                
+                el.innerText = (diff < 0 ? '-' : '') + `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+                if (diff < 0) {
+                    el.classList.remove('text-red-600');
+                    el.classList.add('text-gray-400');
+                }
+            };
+            
+            update();
+            activeTimers[id] = setInterval(update, 1000);
+        }
+
+        // --- MODAL LOGIC ---
+        function openPreview(orderId) {
+            const order = currentOrders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const content = document.getElementById('modalContent');
+            const modal = document.getElementById('previewModal');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const mediaHelper = (str, type) => {
+                if(!str) return '';
+                return str.split(',').map(url => {
+                    const u = url.trim();
+                    if(type === 'img') return `<img src="${u}" class="thumb-box shadow-sm cursor-pointer" onclick="showFull('${u}', 'img')">`;
+                    if(type === 'vid') return `<div class="relative cursor-pointer"><video src="${u}" class="thumb-box shadow-sm"></video><div class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-[15px]" onclick="showFull('${u}', 'vid')"><i class="fas fa-play text-white text-xl drop-shadow-md"></i></div></div>`;
+                }).join('');
+            };
+
+            const itemPlusDc = (parseFloat(order.item_price) || 0) + (parseFloat(order.dc_amount) || 0);
+
+            content.innerHTML = `
+                <div class="text-center border-b border-gray-100 pb-4">
+                    <h2 class="text-2xl font-black text-gray-900">Order Details</h2>
+                    <p class="text-[10px] text-gray-400 font-mono font-bold uppercase tracking-widest mt-1">ID: ${order.id}</p>
+                </div>
+
+                <div class="bg-gray-50 p-5 rounded-[2rem] border border-gray-100 shadow-inner">
+                    <h4 class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2"><i class="fas fa-shopping-basket"></i> Items</h4>
+                    <p class="text-sm font-bold text-gray-800 leading-relaxed whitespace-pre-wrap">${order.order_details || 'No textual description provided'}</p>
+                    <div class="media-grid mt-4">${mediaHelper(order.image_url, 'img')}${mediaHelper(order.video_url, 'vid')}</div>
+                </div>
+
+                ${order.bill_image ? `
+                <div class="space-y-3 bg-blue-50 p-4 rounded-[2rem] border border-blue-100">
+                    <h4 class="text-[10px] font-black text-blue-600 uppercase tracking-widest text-center flex justify-center items-center gap-2"><i class="fas fa-receipt"></i> Store Receipt</h4>
+                    <img src="${order.bill_image}" class="rounded-2xl w-full border-2 border-white shadow-md cursor-pointer" onclick="showFull(this.src, 'img')">
+                </div>` : ''}
+
+                <div class="bg-gray-900 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400">Total Payable</span>
+                            <span class="text-3xl font-black text-emerald-400 tracking-tighter">Rs. ${order.bill_amount || 0}</span>
+                        </div>
+                        <div class="flex justify-between text-[11px] font-bold text-gray-300 border-t border-white/10 pt-4">
+                            <span>Current Items + Delivery</span>
+                            <span>Rs. ${itemPlusDc}</span>
+                        </div>
+                        ${parseFloat(order.previous_due) !== 0 ? `
+                        <div class="flex justify-between text-[11px] font-bold ${parseFloat(order.previous_due) > 0 ? 'text-red-400' : 'text-emerald-400'} mt-2">
+                            <span>Previous Balance</span>
+                            <span>Rs. ${parseFloat(order.previous_due)}</span>
+                        </div>` : ''}
+                    </div>
+                    <i class="fas fa-money-bill-wave absolute -right-4 -bottom-4 text-[6rem] text-white/5 rotate-12"></i>
+                </div>
+
+                <div class="p-5 bg-white rounded-3xl border border-gray-100 flex items-start gap-4 shadow-sm">
+                    <div class="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+                        <i class="fas fa-map-marker-alt text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Delivery Address</h4>
+                        <p class="text-xs font-bold text-gray-800 leading-relaxed">${order.delivery_address || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showFull(url, type) {
+            const container = document.getElementById('fullMediaContainer');
+            document.getElementById('fullMediaView').style.display = 'flex';
+            container.innerHTML = type === 'img' ? 
+                `<img src="${url}" class="max-w-[95%] max-h-[85vh] object-contain rounded-2xl border-4 border-white shadow-2xl">` : 
+                `<video src="${url}" controls autoplay class="max-w-[95%] max-h-[85vh] rounded-2xl shadow-2xl border-4 border-white"></video>`;
+        }
+
+        function closePreview() { 
+            document.getElementById('previewModal').classList.add('hidden');
+            document.getElementById('previewModal').classList.remove('flex');
+        }
+        
+        // --- OFFLINE & VISIBILITY HANDLING ---
+        const offlineBanner = document.getElementById('offlineBanner');
+        
+        window.addEventListener('offline', () => offlineBanner.classList.add('show'));
+        window.addEventListener('online', () => {
+            offlineBanner.classList.remove('show');
+            fetchOrders();
+        });
+
+        // Fix for Android WebView/iOS Back button logic (Forces data refresh when app comes to foreground)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && navigator.onLine) {
+                fetchOrders();
+            }
+        });
+
+        window.addEventListener('pageshow', function (event) {
+            // event.persisted ensures it fetches even if loaded from browser cache via back button
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                if(navigator.onLine) fetchOrders();
+            }
+        });
+
+        // Initialize
+        window.onload = init;
+    </script>
+</body>
+</html>

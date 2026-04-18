@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Smart Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        /* WebView specific fixes */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; 
+            overscroll-behavior-y: none; /* Prevents pull-to-refresh */
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; /* Prevents text selection */
+        }
+        
+        .wallet-card { background: linear-gradient(135deg, #075e54 0%, #128c7e 100%); transition: all 0.5s ease; }
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .tx-card { border-left: 4px solid transparent; }
+        .tx-card.pending { border-left-color: #ef4444; background: #fffafb; }
+        .tx-card.remaining { border-left-color: #10b981; background: #fafffb; }
+
+        /* Offline Banner Animation */
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    </div>
+
+    <header class="bg-white p-4 flex items-center justify-between shadow-sm sticky top-0 z-50">
+        <div class="flex items-center">
+            <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600 active:scale-90 transition-transform" onclick="location.replace('home.html')"></i>
+            <h1 class="font-bold text-lg text-gray-800">My Smart Wallet</h1>
+        </div>
+        <div class="w-10 h-10 flex items-center justify-center cursor-pointer active:bg-gray-100 rounded-full transition-colors" onclick="loadWalletData(true)">
+            <i id="refreshIcon" class="fas fa-sync-alt text-gray-400"></i>
+        </div>
+    </header>
+
+    <main class="flex-1 p-5 max-w-md mx-auto w-full">
+        <div id="balanceCard" class="wallet-card rounded-[2.5rem] p-8 text-white shadow-2xl mb-8 relative overflow-hidden">
+            <div class="relative z-10">
+                <p id="balanceLabel" class="text-[10px] opacity-80 uppercase tracking-[0.2em] font-black mb-2">Net Wallet Balance</p>
+                <h2 id="balanceAmount" class="text-5xl font-extrabold mb-4 tracking-tighter">Rs. 0</h2>
+                <div id="statusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 border border-white/30 shadow-sm">
+                    <i class="fas fa-circle-notch fa-spin"></i> Syncing...
+                </div>
+            </div>
+            <i class="fas fa-wallet absolute -right-6 -bottom-6 text-white/10 text-[12rem] rotate-12"></i>
+        </div>
+
+        <div class="flex justify-between items-center mb-6 px-2">
+            <div>
+                <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest">Transaction History</h3>
+                <p class="text-[10px] text-gray-400 font-bold mt-1 italic">Last Order Status</p>
+            </div>
+        </div>
+
+        <div id="transactionList" class="space-y-4 pb-10">
+            <div class="flex flex-col items-center justify-center py-10 opacity-50">
+                <i class="fas fa-spinner fa-spin text-3xl text-teal-600 mb-3"></i>
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Fetching Records...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Supabase Initialization
+        const SB_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        // Security Check
+        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        if(!userPhone) {
+            window.location.replace('index.html');
+        }
+
+        async function loadWalletData(isManualRefresh = false) {
+            if (!navigator.onLine) {
+                if(isManualRefresh) alert("No internet connection!");
+                return;
+            }
+
+            const refreshIcon = document.getElementById('refreshIcon');
+            if(isManualRefresh) refreshIcon.classList.add('fa-spin', 'text-teal-500');
+
+            try {
+                const { data: orders, error } = await _supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']) // Fetching both to give accurate history
+                    .order('updated_at', { ascending: false });
+
+                if (error) throw error;
+
+                // Total Balance logic (Latest order's balance_amount is the current net state)
+                const currentBal = orders.length > 0 ? parseFloat(orders[0].balance_amount || 0) : 0;
+                
+                updateBalanceUI(currentBal);
+                renderTransactions(orders);
+
+            } catch (err) { 
+                console.error("Wallet Fetch Error:", err); 
+                document.getElementById('transactionList').innerHTML = `<div class="text-center py-10 text-red-500 text-xs font-bold">Failed to load data.</div>`;
+            } finally {
+                if(isManualRefresh) {
+                    setTimeout(() => refreshIcon.classList.remove('fa-spin', 'text-teal-500'), 500);
+                }
+            }
+        }
+
+        function updateBalanceUI(bal) {
+            const amtEl = document.getElementById('balanceAmount');
+            const badge = document.getElementById('statusBadge');
+            const label = document.getElementById('balanceLabel');
+            const card = document.getElementById('balanceCard');
+
+            amtEl.innerText = `Rs. ${Math.abs(bal)}`;
+
+            if (bal > 0) {
+                badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> Pending Payment`;
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
+                label.innerText = "You Owe Us";
+                card.style.background = "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)";
+            } else if (bal < 0) {
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> Advance Balance`;
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm";
+                label.innerText = "Your Remaining Credit";
+                card.style.background = "linear-gradient(135deg, #065f46 0%, #064e3b 100%)";
+            } else {
+                badge.innerHTML = `<i class="fas fa-check-double"></i> All Clear`;
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white/60 border border-white/20 shadow-sm";
+                label.innerText = "Wallet Balance";
+                card.style.background = "linear-gradient(135deg, #0f172a 0%, #334155 100%)";
+            }
+        }
+
+        function renderTransactions(orders) {
+            const list = document.getElementById('transactionList');
+            
+            // Filter out canceled orders from displaying in the transaction math breakdown if they don't have a bill
+            const validOrders = orders.filter(o => {
+                const status = (o.status || "").toLowerCase();
+                return status === 'completed';
+            });
+
+            if (validOrders.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-10 opacity-40">
+                        <i class="fas fa-receipt text-5xl mb-3 text-gray-300"></i>
+                        <div class="text-center text-xs font-black uppercase tracking-widest text-gray-500">No Transactions Yet</div>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = validOrders.map(o => {
+                const bal = parseFloat(o.balance_amount || 0);
+                const itemPlusDc = (parseFloat(o.item_price) || 0) + (parseFloat(o.dc_amount) || 0);
+                const totalPayable = parseFloat(o.bill_amount) || 0;
+                const paid = parseFloat(o.final_amount) || 0;
+                
+                // Calculate Previous History used in this order
+                const prevHist = totalPayable - itemPlusDc;
+
+                return `
+                    <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 tx-card ${bal > 0 ? 'pending' : (bal < 0 ? 'remaining' : '')} animate-pop">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="font-black text-gray-800 text-[12px] uppercase">Order #${o.id.toString().slice(-5)}</h4>
+                                <p class="text-[9px] text-gray-400 font-bold">${new Date(o.updated_at).toLocaleString()}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[11px] font-black px-3 py-1 rounded-full ${bal > 0 ? 'bg-red-50 text-red-600' : (bal < 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-600')}">
+                                    ${bal > 0 ? 'Pending' : (bal < 0 ? 'Advance' : 'Settled')}: Rs. ${Math.abs(bal)}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-1 border-t border-dashed border-gray-100 pt-3">
+                            <div class="flex justify-between text-[10px] font-bold text-gray-500">
+                                <span>Current Order (Item + Delivery):</span>
+                                <span>Rs. ${itemPlusDc}</span>
+                            </div>
+                            ${prevHist !== 0 ? `
+                            <div class="flex justify-between text-[10px] font-bold ${prevHist > 0 ? 'text-red-400' : 'text-emerald-400'}">
+                                <span>Prev. ${prevHist > 0 ? 'Pending Dues' : 'Advance Balance'}:</span>
+                                <span>${prevHist > 0 ? '+' : ''}Rs. ${prevHist}</span>
+                            </div>` : ''}
+                            <div class="flex justify-between text-[11px] font-black text-gray-800 pt-1">
+                                <span>Total Payable Bill:</span>
+                                <span>Rs. ${totalPayable}</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-xl mt-2">
+                                <span><i class="fas fa-hand-holding-usd mr-1"></i> Cash Paid to Rider:</span>
+                                <span class="text-sm">Rs. ${paid}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Realtime Subscription to update wallet if an order completes while on this page
+        function setupRealtime() {
+            _supabase.channel('wallet-sync').on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'orders', filter: `customer_phone=eq.${userPhone}` 
+            }, (payload) => {
+                if(payload.new && payload.new.status === 'completed') {
+                    loadWalletData();
+                }
+            }).subscribe();
+        }
+
+        // Network State Listeners
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineBanner').style.top = '0';
+        });
+
+        window.addEventListener('online', () => {
+            document.getElementById('offlineBanner').style.top = '-50px';
+            loadWalletData();
+        });
+
+        // Initialize Page
+        window.onload = () => {
+            loadWalletData();
+            setupRealtime();
+        };
+    </script>
+</body>
+</html>

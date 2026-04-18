@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Join Us</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        /* 1. Pull-to-refresh & Zooming Fix for WebView APK */
+        html, body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            overscroll-behavior-y: none; /* Page refresh hone se rokega */
+            -webkit-tap-highlight-color: transparent; /* Mobile click flash remove */
+        }
+        
+        /* 2. 3D Claymorphism Design Elements */
+        .brand-logo-gol { 
+            object-fit: cover; 
+            border-radius: 9999px; 
+            border: 3px solid #2916f9;
+            background: white;
+            box-shadow: 6px 6px 12px #e5e7eb, -6px -6px 12px #ffffff;
+        }
+
+        .clay-card {
+            background: #ffffff;
+            border-radius: 2.5rem;
+            box-shadow: 10px 10px 20px #e5e7eb, -10px -10px 20px #ffffff;
+        }
+
+        .clay-input {
+            background: #f9fafb;
+            box-shadow: inset 4px 4px 8px #e5e7eb, inset -4px -4px 8px #ffffff;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .clay-input:focus {
+            box-shadow: inset 6px 6px 10px #e5e7eb, inset -6px -6px 10px #ffffff;
+            border-color: #f97316; /* Orange focus border */
+            background: #ffffff;
+        }
+
+        .clay-btn {
+            background: #3b82f6;
+            box-shadow: 6px 6px 12px #93c5fd, -6px -6px 12px #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .clay-btn:active {
+            box-shadow: inset 4px 4px 8px #2563eb, inset -4px -4px 8px #60a5fa;
+            transform: scale(0.97);
+        }
+        
+        .clay-btn:disabled {
+            background: #9ca3af;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col justify-center items-center p-6">
+
+    <div class="w-full max-w-md clay-card p-8 border border-gray-100 relative">
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-24 h-24 mb-4">
+                <img id="appLogo" src="" class="w-full h-full brand-logo-gol hidden">
+                <div id="logoFallback" class="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                    <i class="fas fa-rocket text-white text-3xl"></i>
+                </div>
+            </div>
+            
+            <h1 id="brandName" class="text-2xl font-black text-gray-800 uppercase tracking-tighter">
+                Faster <span class="text-orange-500">Delivery</span>
+            </h1>
+            <p id="subTitle" class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Create Your Account</p>
+        </div>
+
+        <div id="mainLoader" class="flex flex-col items-center justify-center py-4">
+            <i class="fas fa-circle-notch fa-spin text-orange-500 text-3xl mb-2"></i>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Loading...</span>
+        </div>
+
+        <div id="googleLoginSection" class="w-full hidden">
+            <button onclick="loginWithGoogle()" class="w-full bg-white text-gray-700 font-black h-16 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-widest text-sm border-2 border-gray-100 shadow-sm active:scale-95 transition-transform">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" class="w-6 h-6">
+                Continue with Google
+            </button>
+            <div id="loadingText" class="hidden text-center text-[10px] font-bold text-gray-400 mt-4 uppercase animate-pulse">
+                <i class="fas fa-circle-notch fa-spin mr-1"></i> Verifying...
+            </div>
+        </div>
+
+        <div id="profileFormSection" class="space-y-4 hidden">
+            <div>
+                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Full Name</label>
+                <div class="relative mt-1">
+                    <i class="fas fa-user absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="nameInput" placeholder="Enter your name" autocomplete="name"
+                        class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Phone Number (Required)</label>
+                <div class="relative mt-1">
+                    <i class="fas fa-phone absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="tel" id="phoneInput" placeholder="03XXXXXXXXX" autocomplete="tel"
+                        class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Delivery Address (Required)</label>
+                <div class="relative mt-1">
+                    <i class="fas fa-map-marker-alt absolute left-5 top-5 text-gray-400"></i>
+                    <textarea id="addressInput" placeholder="Enter full delivery address" rows="2" autocomplete="street-address"
+                        class="w-full clay-input rounded-2xl pl-12 pr-4 py-4 font-bold text-gray-700 outline-none"></textarea>
+                </div>
+            </div>
+
+            <button onclick="saveProfile()" id="saveBtn" 
+                class="w-full clay-btn text-white font-black h-16 rounded-2xl flex items-center justify-center gap-3 mt-6 uppercase tracking-widest text-sm">
+                <span id="btnText">Save & Continue</span>
+                <i id="btnIcon" class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <p class="text-center text-[9px] text-gray-400 mt-8 uppercase tracking-widest font-black">
+            Fastest Delivery Service In Your City
+        </p>
+    </div>
+
+    <script>
+        // YAHAN APNE NAYE SUPABASE PROJECT KI KEYS DAALNI HAIN
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        // Fetch Branding (Purana logic bilkul same rakha hai)
+        async function fetchBranding() {
+            try {
+                if(!navigator.onLine) return;
+                const { data } = await _supabase.from('app_settings').select('logo_url').eq('id', 1).single();
+                if (data && data.logo_url) {
+                    const img = document.getElementById('appLogo');
+                    img.src = data.logo_url;
+                    img.classList.remove('hidden');
+                    document.getElementById('logoFallback').classList.add('hidden');
+                }
+            } catch (err) { 
+                console.log("Branding failed to load", err); 
+            }
+        }
+
+        // Google Login Trigger
+        async function loginWithGoogle() {
+            if (!navigator.onLine) {
+                alert("No internet connection! Please check your network and try again.");
+                return;
+            }
+            document.getElementById('loadingText').classList.remove('hidden');
+            const { error } = await _supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.href }
+            });
+            if (error) {
+                alert("Login failed: " + error.message);
+                document.getElementById('loadingText').classList.add('hidden');
+            }
+        }
+
+        // Auth State Check (Smart Routing)
+        async function checkAuthState() {
+            // Agar pehle se localStorage mein data hai, toh fauran andar bhej do (Fast UI)
+            if (localStorage.getItem('faster_phone')) {
+                window.location.replace('home.html');
+                return;
+            }
+
+            const { data: { session }, error } = await _supabase.auth.getSession();
+            document.getElementById('mainLoader').classList.add('hidden');
+
+            if (!session) {
+                // User login nahi hai, Google button dikhao
+                document.getElementById('googleLoginSection').classList.remove('hidden');
+                return;
+            }
+
+            // User Google se login ho chuka hai, ab database mein check karein
+            const userEmail = session.user.email.toLowerCase();
+            const googleName = session.user.user_metadata.full_name;
+
+            try {
+                const { data: customerRecord } = await _supabase
+                    .from('customers')
+                    .select('phone, name')
+                    .eq('email', userEmail)
+                    .maybeSingle();
+
+                if (customerRecord && customerRecord.phone) {
+                    // Record mil gaya, app open karein
+                    localStorage.setItem('faster_phone', customerRecord.phone);
+                    localStorage.setItem('faster_name', customerRecord.name);
+                    window.location.replace('home.html');
+                } else {
+                    // Naya user hai, form show karein aur naam pre-fill karein
+                    document.getElementById('nameInput').value = googleName;
+                    document.getElementById('subTitle').innerText = "Complete Your Profile";
+                    document.getElementById('profileFormSection').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error("Auth verification failed", err);
+                document.getElementById('googleLoginSection').classList.remove('hidden');
+            }
+        }
+
+        // Save Profile Data
+        async function saveProfile() {
+            const name = document.getElementById('nameInput').value.trim();
+            const phone = document.getElementById('phoneInput').value.trim();
+            const address = document.getElementById('addressInput').value.trim();
+            
+            const btn = document.getElementById('saveBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+
+            if (!name || !phone || !address) {
+                alert("Please fill all fields properly!");
+                return;
+            }
+
+            if (!navigator.onLine) {
+                alert("No internet connection! Please check your network and try again.");
+                return;
+            }
+
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (!session) return;
+
+            btn.disabled = true;
+            btnText.innerText = 'Saving...';
+            btnIcon.className = 'fas fa-circle-notch fa-spin';
+
+            const userEmail = session.user.email.toLowerCase();
+
+            try {
+                // Database mein naya record insert karein
+                const { error } = await _supabase.from('customers').insert([{ 
+                    phone: phone, 
+                    name: name, 
+                    email: userEmail, 
+                    address: address 
+                }]);
+
+                if (error) throw error;
+
+                // LocalStorage set kar ke Home par bhej dein
+                localStorage.setItem('faster_phone', phone);
+                localStorage.setItem('faster_name', name);
+                window.location.replace('home.html');
+                
+            } catch (err) {
+                alert("Error saving profile: " + err.message);
+                btn.disabled = false;
+                btnText.innerText = 'Save & Continue';
+                btnIcon.className = 'fas fa-arrow-right';
+            }
+        }
+
+        // Initialize
+        window.onload = async () => {
+            fetchBranding();
+            await checkAuthState();
+        };
+    </script>
+</body>
+</html>
