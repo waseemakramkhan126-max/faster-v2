@@ -127,6 +127,19 @@
             </div>
         </div>
     </header>
+    <div id="promoBanner" class="hidden mx-4 mt-4 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden relative">
+        <button onclick="document.getElementById('promoBanner').style.display='none'" class="absolute top-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm active:scale-90 transition">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+        <div id="promoMedia" class="w-full hidden"></div>
+        <div id="promoTextBox" class="p-4 hidden bg-gradient-to-r from-orange-50 to-red-50 border-t border-orange-100">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fas fa-bullhorn text-orange-500 animate-pulse"></i>
+                <h3 class="font-black text-orange-700 text-[11px] uppercase tracking-widest">Special Offer</h3>
+            </div>
+            <p id="promoTextContent" class="text-xs text-gray-700 font-bold leading-relaxed"></p>
+        </div>
+    </div>
 
     <main class="p-6">
         <div class="mb-8 flex justify-between items-start">
@@ -431,6 +444,42 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
+        // --- PROMOTION BANNER LOGIC ---
+        async function fetchPromotions() {
+            if(!navigator.onLine) return; 
+            
+            try {
+                const { data, error } = await _supabase.from('app_settings').select('promo_active, promo_type, promo_url, promo_text').limit(1).single();
+                
+                if (data && data.promo_active === true) {
+                    const banner = document.getElementById('promoBanner');
+                    const mediaBox = document.getElementById('promoMedia');
+                    const textBox = document.getElementById('promoTextBox');
+                    const textContent = document.getElementById('promoTextContent');
+
+                    if (data.promo_type === 'image' && data.promo_url) {
+                        mediaBox.innerHTML = `<img src="${data.promo_url}" class="w-full h-40 object-cover">`;
+                        mediaBox.classList.remove('hidden');
+                    } 
+                    else if (data.promo_type === 'video' && data.promo_url) {
+                        mediaBox.innerHTML = `<video src="${data.promo_url}" autoplay loop muted playsinline class="w-full h-40 object-cover"></video>`;
+                        mediaBox.classList.remove('hidden');
+                    }
+
+                    if (data.promo_text) {
+                        textContent.innerText = data.promo_text;
+                        textBox.classList.remove('hidden');
+                    }
+
+                    banner.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.log("Promo Error: ", err);
+            }
+        }
+
+        // Page load hone ke aadhe second baad promo check karega
+        setTimeout(fetchPromotions, 500);
     </script>
 </body>
 </html>
