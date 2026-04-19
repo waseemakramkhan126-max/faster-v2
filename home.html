@@ -451,41 +451,49 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM PROMOTION BANNER LOGIC ---
+        // --- PREMIUM PROMOTION BANNER LOGIC (UPDATED & CRASH-PROOF) ---
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             
             try {
-                const { data, error } = await _supabase.from('app_settings').select('promo_active, promo_type, promo_url, promo_text').limit(1).single();
+                // FIX: .single() aur .limit(1) hata diya hai taake crash na ho
+                const { data, error } = await _supabase.from('app_settings').select('promo_active, promo_type, promo_url, promo_text');
                 
-                if (data && data.promo_active === true) {
-                    const banner = document.getElementById('promoBanner');
-                    const mediaBox = document.getElementById('promoMedia');
-                    const textBox = document.getElementById('promoTextBox');
-                    const textContent = document.getElementById('promoTextContent');
+                if (error) throw error;
 
-                    const shadowOverlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
+                // Agar data aagaya hai aur table khali nahi hai
+                if (data && data.length > 0) {
+                    const promo = data[0]; // Sirf pehli line ka data uthayega
+                    
+                    if (promo.promo_active === true) {
+                        const banner = document.getElementById('promoBanner');
+                        const mediaBox = document.getElementById('promoMedia');
+                        const textBox = document.getElementById('promoTextBox');
+                        const textContent = document.getElementById('promoTextContent');
 
-                    if (data.promo_type === 'image' && data.promo_url) {
-                        mediaBox.innerHTML = `<img src="${data.promo_url}" class="w-full h-48 object-cover">` + shadowOverlay;
-                        mediaBox.classList.remove('hidden');
-                    } 
-                    else if (data.promo_type === 'video' && data.promo_url) {
-                        mediaBox.innerHTML = `<video src="${data.promo_url}" autoplay loop muted playsinline class="w-full h-48 object-cover"></video>` + shadowOverlay;
-                        mediaBox.classList.remove('hidden');
+                        const shadowOverlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
+
+                        if (promo.promo_type === 'image' && promo.promo_url) {
+                            mediaBox.innerHTML = `<img src="${promo.promo_url}" class="w-full h-48 object-cover">` + shadowOverlay;
+                            mediaBox.classList.remove('hidden');
+                        } 
+                        else if (promo.promo_type === 'video' && promo.promo_url) {
+                            mediaBox.innerHTML = `<video src="${promo.promo_url}" autoplay loop muted playsinline class="w-full h-48 object-cover"></video>` + shadowOverlay;
+                            mediaBox.classList.remove('hidden');
+                        }
+
+                        if (promo.promo_text) {
+                            textContent.innerText = promo.promo_text;
+                            textBox.classList.remove('hidden');
+                        }
+
+                        // Smooth fade-in animation
+                        banner.classList.remove('hidden');
+                        banner.classList.add('animate-pop');
                     }
-
-                    if (data.promo_text) {
-                        textContent.innerText = data.promo_text;
-                        textBox.classList.remove('hidden');
-                    }
-
-                    // Smooth fade-in animation
-                    banner.classList.remove('hidden');
-                    banner.classList.add('animate-pop');
                 }
             } catch (err) {
-                console.log("Promo Error: ", err);
+                console.log("Promo Error: ", err.message || err);
             }
         }
 
