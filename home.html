@@ -127,17 +127,24 @@
             </div>
         </div>
     </header>
-    <div id="promoBanner" class="hidden mx-4 mt-4 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden relative">
-        <button onclick="document.getElementById('promoBanner').style.display='none'" class="absolute top-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm active:scale-90 transition">
-            <i class="fas fa-times text-xs"></i>
+    <div id="promoBanner" class="hidden mx-4 mt-5 relative bg-white rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] border border-white overflow-hidden transform transition-all duration-500">
+        
+        <button onclick="document.getElementById('promoBanner').style.display='none'" class="absolute top-3 right-3 w-8 h-8 bg-black/30 hover:bg-black/50 text-white rounded-full flex items-center justify-center z-30 backdrop-blur-md transition-all active:scale-90 shadow-lg">
+            <i class="fas fa-times text-sm"></i>
         </button>
-        <div id="promoMedia" class="w-full hidden"></div>
-        <div id="promoTextBox" class="p-4 hidden bg-gradient-to-r from-orange-50 to-red-50 border-t border-orange-100">
-            <div class="flex items-center gap-2 mb-1">
-                <i class="fas fa-bullhorn text-orange-500 animate-pulse"></i>
-                <h3 class="font-black text-orange-700 text-[11px] uppercase tracking-widest">Special Offer</h3>
+        
+        <div id="promoMedia" class="w-full relative hidden group">
             </div>
-            <p id="promoTextContent" class="text-xs text-gray-700 font-bold leading-relaxed"></p>
+        
+        <div id="promoTextBox" class="p-5 hidden bg-gradient-to-br from-white to-orange-50 relative z-20">
+            <div class="flex items-center gap-2.5 mb-2">
+                <span class="relative flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+                </span>
+                <h3 class="font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-500 text-[12px] uppercase tracking-[0.2em] drop-shadow-sm">Exclusive Offer</h3>
+            </div>
+            <p id="promoTextContent" class="text-sm text-gray-800 font-bold leading-relaxed tracking-wide"></p>
         </div>
     </div>
 
@@ -444,7 +451,7 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PROMOTION BANNER LOGIC ---
+        // --- PREMIUM PROMOTION BANNER LOGIC ---
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             
@@ -457,12 +464,14 @@
                     const textBox = document.getElementById('promoTextBox');
                     const textContent = document.getElementById('promoTextContent');
 
+                    const shadowOverlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
+
                     if (data.promo_type === 'image' && data.promo_url) {
-                        mediaBox.innerHTML = `<img src="${data.promo_url}" class="w-full h-40 object-cover">`;
+                        mediaBox.innerHTML = `<img src="${data.promo_url}" class="w-full h-48 object-cover">` + shadowOverlay;
                         mediaBox.classList.remove('hidden');
                     } 
                     else if (data.promo_type === 'video' && data.promo_url) {
-                        mediaBox.innerHTML = `<video src="${data.promo_url}" autoplay loop muted playsinline class="w-full h-40 object-cover"></video>`;
+                        mediaBox.innerHTML = `<video src="${data.promo_url}" autoplay loop muted playsinline class="w-full h-48 object-cover"></video>` + shadowOverlay;
                         mediaBox.classList.remove('hidden');
                     }
 
@@ -471,14 +480,15 @@
                         textBox.classList.remove('hidden');
                     }
 
+                    // Smooth fade-in animation
                     banner.classList.remove('hidden');
+                    banner.classList.add('animate-pop');
                 }
             } catch (err) {
                 console.log("Promo Error: ", err);
             }
         }
 
-        // Page load hone ke aadhe second baad promo check karega
         setTimeout(fetchPromotions, 500);
     </script>
 </body>
