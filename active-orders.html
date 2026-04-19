@@ -74,8 +74,8 @@
 
     <script>
         // Supabase Initialization
-        const SUPABASE_URL = "https://hfaghazbwdbjurachzzq.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdoYXpid2RianVyYWNoenpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQ1ODAsImV4cCI6MjA4NjQ2MDU4MH0.ojmtP9i_wO74CuvDUgI--lhocsfqcB_Lql_hC2w8UMI";
+        const SUPABASE_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
@@ -178,23 +178,40 @@
         }
 
         // --- DATA FETCHING ---
+        // --- DATA FETCHING ---
         async function fetchOrders() {
             if(!navigator.onLine) return; 
 
             try {
+                // Debugging: Check what phone number is actually being sent
+                console.log("Fetching orders for phone:", userPhone);
+
                 const { data, error } = await _supabase.from('orders')
                     .select('*')
                     .eq('customer_phone', userPhone)
-                    .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")')
+                    // ✅ FIX: Multiple .neq() is the safest way to filter out statuses
+                    .neq('status', 'completed')
+                    .neq('status', 'canceled')
+                    .neq('status', 'CANCELLED')
+                    .neq('status', 'cancelled')
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
 
+                // Debugging: Check if data is actually coming from DB
+                console.log("Fetched Orders Data:", data);
+
                 currentOrders = data || [];
                 await fetchUnreadCounts(); 
             } catch (error) {
+                // ✅ FIX: Print the exact error in the console so we know what's wrong
+                console.error("Supabase Fetch Error Details:", error.message || error);
+                
                 const list = document.getElementById('activeList');
-                list.innerHTML = `<p class="text-center text-red-500 font-bold mt-10">Failed to load orders. Tap to retry.</p>`;
+                list.innerHTML = `
+                    <p class="text-center text-red-500 font-bold mt-10">Failed to load orders.</p>
+                    <p class="text-center text-xs text-gray-400 mt-2">Error: ${error.message || "Check console"}</p>
+                `;
             }
         }
 
