@@ -2,917 +2,489 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Faster - New Order</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Faster - Active Orders</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        
-        /* Strict WebView Fixes */
+        /* Strict Mobile WebView & iOS Optimization */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            height: 100dvh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-            margin: 0; 
-            background-color: #f3f4f6; 
             overscroll-behavior-y: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        .chat-bg { 
-            background-color: #e5ddd5; 
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
-            background-attachment: fixed;
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 16px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 8px; 
-            scroll-behavior: smooth;
-        }
-
-        #attachMenu { 
-            position: fixed; 
-            bottom: 75px; 
-            left: 16px; 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
-            padding: 20px; 
-            width: 280px; 
-            z-index: 9999; 
-            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            transform: scale(0);
-            transform-origin: bottom left; 
-            opacity: 0; 
-            pointer-events: none;
-        }
-
-        #attachMenu.active { 
-            transform: scale(1); 
-            opacity: 1; 
-            pointer-events: auto; 
-        }
-
-        .bubble { 
-            max-width: 82%; 
-            padding: 8px 10px; 
-            border-radius: 12px; 
-            font-size: 14.5px; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-            word-wrap: break-word; 
-            position: relative; 
-            transition: all 0.2s ease; 
-            user-select: none; 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none;
             -webkit-user-select: none;
-            line-height: 1.4;
-        }
-
-        .customer-bubble { 
-            align-self: flex-end; 
-            background-color: #dcf8c6; 
-            border-top-right-radius: 4px; 
+            background-color: #f9fafb;
+            padding-top: env(safe-area-inset-top);
         }
         
-        .bubble-selected { 
-            background-color: #bceb9e !important; 
-            transform: scale(0.96); 
-            border: 2px solid #008069; 
-            box-shadow: 0 4px 10px rgba(0,128,105,0.2); 
-            opacity: 0.9;
-        }
-
-        .bubble-selected::after {
-            content: '\f058'; 
-            font-family: 'Font Awesome 6 Free'; 
-            font-weight: 900;
-            position: absolute; 
-            right: -8px; 
-            bottom: -8px; 
-            color: #008069; 
-            background: white; 
-            border-radius: 50%;
-            font-size: 16px; 
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
-        }
-
-        .media-thumb { 
-            width: 100%; 
-            max-width: 140px; 
-            max-height: 140px; 
-            border-radius: 8px; 
-            pointer-events: none; 
-            object-fit: cover; 
-            background-color: rgba(0,0,0,0.05); 
-        }
-
-        .caption-text { 
-            font-size: 13px; 
-            color: #1f2937; 
-            margin-top: 6px; 
-            padding-top: 4px; 
-            border-top: 1px solid rgba(0,0,0,0.05); 
-        }
+        .animate-pulse-fast { animation: pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
         
-        .animate-pop { animation: pop 0.2s ease-out forwards; }
-        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        
-        .voice-active { background-color: #ef4444 !important; animation: pulse-shadow 1.5s infinite; }
-        @keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .order-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .order-card:active { transform: scale(0.98); }
 
-        .capture-btn {
-            width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.3);
-            background: white; border-radius: 50%; position: relative;
-        }
-        .capture-btn::after { content: ''; position: absolute; inset: 4px; border: 2px solid #000; border-radius: 50%; }
+        /* Offline Banner */
+        #offlineBanner { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(-100%); }
+        #offlineBanner.show { transform: translateY(0); }
 
-        textarea::-webkit-scrollbar { display: none; }
-        #offlineBanner { transition: top 0.3s ease-in-out; }
-        /* FIX: Mobile Footer Safe Area Padding */
-        .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+        /* Beautiful Modal Animations (From Completed.html) */
+        .modal-enter { opacity: 1; pointer-events: auto; display: flex !important; }
+        .modal-leave { opacity: 0; pointer-events: none; }
+        .modal-content-enter { transform: scale(1); opacity: 1; }
+        .modal-content-leave { transform: scale(0.95); opacity: 0; }
+
+        /* Full Screen Media Preview */
+        #fullMediaView { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
     </style>
 </head>
-<body>
+<body class="min-h-screen pb-10 flex flex-col">
 
     <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
 
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
-        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    <div id="offlineBanner" class="fixed top-0 left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md flex items-center justify-center gap-2">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
     </div>
 
-    <div id="customModal" class="fixed inset-0 bg-black/60 z-[100000] hidden items-center justify-center backdrop-blur-sm px-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-95 opacity-0" id="modalBox">
-            <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-1"></h3>
-            <p id="modalText" class="text-sm text-gray-600 mb-4 leading-relaxed"></p>
-            <input type="text" id="modalInput" class="hidden w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange-500 mb-4 bg-gray-50">
-            <div class="flex justify-end gap-3 mt-2" id="modalButtons"></div>
-        </div>
-    </div>
-
-    <header id="selectionHeader" class="hidden bg-[#008069] p-4 text-white flex items-center shadow-md shrink-0 z-50 transition-all duration-300">
-        <div class="flex items-center">
-            <i class="fas fa-arrow-left mr-5 cursor-pointer text-xl active:scale-90" onclick="cancelSelection()"></i>
-            <span id="selectionCount" class="font-bold text-lg">1</span>
-        </div>
-        <div class="ml-auto flex items-center gap-6">
-            <i id="editIcon" class="fas fa-reply cursor-pointer text-xl active:scale-90 transition-transform" onclick="editSelected()"></i>
-            <i class="fas fa-trash cursor-pointer text-xl active:scale-90 transition-transform" onclick="confirmDelete()"></i>
-        </div>
+    <header class="sticky top-0 bg-white/90 backdrop-blur-md z-40 p-4 flex items-center border-b border-gray-100 shadow-sm transition-all">
+        <i class="fas fa-chevron-left text-xl mr-4 p-2 cursor-pointer active:scale-90 transition-transform text-gray-700" onclick="window.location.href='home.html'"></i>
+        <h1 class="text-xl font-black text-gray-800 tracking-tight">Active Orders</h1>
     </header>
 
-    <div id="customerDetailsBox" class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-1.5 shadow-sm flex flex-col gap-0.5 shrink-0 border-b border-blue-100 z-40 relative">
-        <div class="flex justify-between items-center">
-            <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">Delivery Details</span>
-            <button onclick="location.href='profile.html'" class="text-[8px] font-black text-blue-600 bg-white px-2 py-0.5 rounded-full shadow-sm border border-blue-100 active:scale-90 transition-transform"><i class="fas fa-pen"></i> Edit</button>
-        </div>
-        <div class="relative">
-            <input type="text" id="editName" class="w-full bg-transparent outline-none font-bold text-blue-900 border-b border-blue-200 pb-0.5 text-xs pr-6" readonly>
-            <i class="fas fa-user absolute right-1 top-0 text-blue-400 text-[10px]"></i>
-        </div>
-        <div class="relative">
-            <input type="text" id="editAddress" class="w-full bg-transparent outline-none font-bold text-blue-900 text-[11px] pr-6 truncate" readonly>
-            <i class="fas fa-map-marker-alt absolute right-1 top-0.5 text-blue-400 text-[10px]"></i>
-        </div>
-    </div>
-
-    <div id="chatArea" class="chat-bg"></div>
-
-    <div id="confirmBtnRow" class="hidden px-4 py-3 bg-white border-t shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-        <button onclick="handleConfirmPrompt()" id="finalSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-lg uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
-            Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>
-        </button>
-    </div>
-
-    <footer class="bg-white p-2.5 pb-safe flex items-end gap-2 shrink-0 border-t z-50">
-        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
-            <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
-        </button>
-        
-        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
-            <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
-        </div>
-
-        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
-            <i class="fas fa-circle text-[8px] animate-pulse"></i>
-            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
-        </div>
-
-        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
-        </button>
-        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-            <i class="fas fa-microphone" id="micIcon"></i>
-        </button>
-    </footer>
-
-    <div id="attachMenu">
-        <div class="grid grid-cols-3 gap-6">
-            <div onclick="startCustomCamera()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
-                <span class="text-[10px] font-bold text-gray-600">Camera</span>
+    <main class="p-4 flex-1">
+        <div id="activeList" class="space-y-4">
+            <div class="animate-pulse space-y-4">
+                <div class="h-36 bg-gray-200 rounded-[2.5rem]"></div>
+                <div class="h-36 bg-gray-200 rounded-[2.5rem]"></div>
             </div>
-            <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
-                <span class="text-[10px] font-bold text-gray-600">Gallery</span>
+        </div>
+    </main>
+
+    <div id="billModal" class="modal-leave fixed inset-0 bg-black/80 z-[1000] hidden items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300" onclick="closeBillModal()">
+        <div id="billModalContent" class="modal-content-leave bg-white rounded-[1.5rem] w-full max-w-sm overflow-hidden shadow-2xl transition-all duration-300 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
+            
+            <div class="bg-[#075e54] p-4 text-white flex justify-between items-center shrink-0">
+                <span class="font-black text-sm uppercase tracking-widest">Order Summary</span>
+                <i class="fas fa-times cursor-pointer text-xl opacity-80 active:opacity-100 transition active:scale-90" onclick="closeBillModal()"></i>
             </div>
-            <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <div class="w-14 h-14 bg-gradient-to-tr from-gray-700 to-slate-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-file-lines"></i></div>
-                <span class="text-[10px] font-bold text-gray-600">Docs</span>
+            
+            <div class="p-4 overflow-y-auto flex-1 bg-gray-50">
+                <img id="fullBillImg" src="" class="w-full rounded-2xl mb-4 object-contain border border-gray-200 shadow-sm hidden cursor-pointer" onclick="showFull(this.src, 'img')">
+                <div id="modalBreakdown" class="space-y-4"></div>
+            </div>
+            
+            <div class="p-4 bg-white border-t border-gray-100 shrink-0">
+                <button onclick="closeBillModal()" class="w-full py-3.5 bg-gray-100 active:bg-gray-200 text-gray-600 rounded-xl font-black text-xs uppercase tracking-widest transition-colors active:scale-95">Close Details</button>
             </div>
         </div>
     </div>
 
-    <div id="customCamOverlay" class="fixed inset-0 bg-black z-[10000] hidden flex-col">
-        <div class="flex justify-between p-6 absolute top-0 w-full z-20">
-            <button onclick="stopCustomCamera()" class="text-white text-3xl"><i class="fas fa-xmark"></i></button>
-            <div id="camTimerDisplay" class="hidden text-white font-bold bg-red-600 px-5 py-1.5 rounded-full text-xs animate-pulse">00:00</div>
-            <button onclick="switchCamera()" class="text-white text-2xl"><i class="fas fa-arrows-rotate"></i></button>
-        </div>
-        <video id="v" class="w-full flex-1 object-cover" autoplay playsinline muted></video>
-        <div class="absolute bottom-12 w-full flex flex-col items-center gap-8 z-20">
-            <div class="flex gap-12 text-gray-400 text-[11px] font-black tracking-[0.2em]">
-                <span id="pTab" onclick="setMode('photo')" class="text-white border-b-2 border-white pb-1">PHOTO</span>
-                <span id="vTab" onclick="setMode('video')" class="pb-1">VIDEO</span>
-            </div>
-            <button id="camBtn" onclick="handleCapture()" class="capture-btn active:scale-90 transition-transform"></button>
-        </div>
-        <canvas id="c" class="hidden"></canvas>
-    </div>
-
-    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
-    <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.rtf,.dot,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.csv" multiple onchange="previewFile(this, 'doc')">
-
-    <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">
-        <div id="fullContent" class="w-full h-full flex items-center justify-center p-4"></div>
-        <i class="fas fa-times absolute top-6 right-6 text-white text-2xl cursor-pointer"></i>
+    <div id="fullMediaView" onclick="this.style.display='none'">
+        <div id="fullMediaContainer" class="w-full h-full flex items-center justify-center p-4"></div>
+        <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
     </div>
 
     <script>
-        // Supabase Initialization
-        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
-        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+        // 🚨 NAYE PROJECT KI KEYS YAHAN BHI DALIYE GA 🚨
+        const SUPABASE_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
-        let deliveryCharges = 150; 
-        let selectedItems = []; 
-        let userPhone = localStorage.getItem('faster_phone');
-        let fullSavedAddress = ""; 
+        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        
+        let currentOrders = [];
+        let activeTimers = {};
+        let globalDeliveryTime = 30;
+        let unreadCounts = {}; 
 
-        // Camera & Video Variables
-        let stream = null;
-        let currentFacingMode = "environment";
-        let cameraMode = "photo";
-        let isRecording = false;
-        let camMediaRecorder;
-        let videoChunks = [];
-        let camTimerInterval;
-        
-        // Voice Variables
-        let audioRecorder;
-        let audioChunks = [];
-        let voiceTimerInterval;
-        let voiceSeconds = 0;
-        
-        // Audio Notification Setup
-        const sound = document.getElementById('notifSound');
+        // --- 100% WEBVIEW AUDIO UNLOCKER ---
+        const notifSound = document.getElementById('notifSound');
+        let isAudioUnlocked = false;
+
+        function unlockAudioContext() {
+            if (isAudioUnlocked || !notifSound) return;
+            
+            notifSound.muted = true;
+            notifSound.play().then(() => {
+                notifSound.pause();
+                notifSound.currentTime = 0;
+                notifSound.muted = false;
+                isAudioUnlocked = true;
+                document.removeEventListener('touchstart', unlockAudioContext);
+                document.removeEventListener('click', unlockAudioContext);
+            }).catch(e => console.warn("Audio unlock pending...", e));
+        }
+
+        document.addEventListener('touchstart', unlockAudioContext, { once: true });
+        document.addEventListener('click', unlockAudioContext, { once: true });
 
         function ring() { 
-            if(!sound) return;
-            sound.currentTime = 0; 
-            let playPromise = sound.play();
-            if (playPromise !== undefined) { 
-                playPromise.catch(error => { 
-                    console.warn("Auto-play blocked:", error); 
-                }); 
-            }
-            if (navigator.vibrate) {
-                navigator.vibrate([200, 100, 200]); 
-            }
-        }
-
-        function unlockAudio() {
-            if(sound) {
-                sound.muted = true;
-                sound.play().then(() => {
-                    sound.pause(); 
-                    sound.currentTime = 0; 
-                    sound.muted = false;
-                    document.removeEventListener('touchstart', unlockAudio);
-                    document.removeEventListener('click', unlockAudio);
-                }).catch(e => console.warn(e));
-            }
-        }
-        document.addEventListener('touchstart', unlockAudio, { once: true });
-        document.addEventListener('click', unlockAudio, { once: true });
-
-        // Deep Linking (GoNative)
-        function gonative_onesignal_notification_opened(jsonData) {
-            try {
-                if(jsonData && jsonData.additionalData) {
-                    if (jsonData.additionalData.type === 'chat' && jsonData.additionalData.order_id) { 
-                        window.location.href = 'chat.html?order_id=' + jsonData.additionalData.order_id; 
-                    } else if (jsonData.additionalData.target_url) { 
-                        window.location.href = jsonData.additionalData.target_url; 
-                    } else { 
-                        window.location.href = 'active-orders.html'; 
-                    }
-                } else { 
-                    window.location.href = 'active-orders.html'; 
-                }
-            } catch(e) {
-                console.error("Deep link failed:", e);
-            }
-        }
-
-        function setupRealtime() {
-            if(!userPhone) return;
+            if(!notifSound) return;
+            notifSound.currentTime = 0; 
             
-            _supabase.removeAllChannels(); 
-            
-            _supabase.channel('new-order-live')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.sender_phone !== userPhone) {
-                        ring(); 
-                    }
-                })
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) {
-                        ring(); 
-                    }
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
-                    if(payload.new && payload.new.receiver_id === userPhone) {
-                        ring(); 
-                    }
-                })
-                .subscribe();
-        }
-
-        // Custom Camera WebRTC Functionality
-        async function startCustomCamera() {
-            toggleAttachMenu();
-            document.getElementById('customCamOverlay').classList.remove('hidden');
-            document.getElementById('customCamOverlay').classList.add('flex');
-            
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: currentFacingMode }, 
-                    audio: true 
+            let playPromise = notifSound.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    if (navigator.vibrate) navigator.vibrate([300, 100, 300]); 
                 });
-                document.getElementById('v').srcObject = stream;
-            } catch (e) { 
-                alert("Camera Access Denied! Please enable camera permissions."); 
-                stopCustomCamera(); 
+            } else if (navigator.vibrate) {
+                navigator.vibrate([300, 100, 300]); 
             }
         }
 
-        function stopCustomCamera() {
-            if(stream) {
-                stream.getTracks().forEach(t => t.stop());
+        // --- CORE INITIALIZATION ---
+        async function init() {
+            if(!userPhone) {
+                window.location.replace('index.html');
+                return;
             }
-            document.getElementById('customCamOverlay').classList.add('hidden');
-            document.getElementById('customCamOverlay').classList.remove('flex');
+
+            if(navigator.onLine) {
+                try {
+                    const { data: settings } = await _supabase.from('app_settings').select('delivery_timer').single();
+                    if (settings && settings.delivery_timer) globalDeliveryTime = settings.delivery_timer;
+                } catch (e) { console.warn("Settings fetch failed"); }
+            }
+
+            await fetchOrders();
+            setupRealtime();
         }
 
-        function switchCamera() {
-            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
-            stopCustomCamera(); 
-            startCustomCamera();
-        }
+        // --- FLAWLESS REAL-TIME LOGIC ---
+        function setupRealtime() {
+            _supabase.removeAllChannels();
 
-        function setMode(m) {
-            cameraMode = m;
-            document.getElementById('pTab').className = (m === 'photo') ? 'text-white border-b-2 border-white pb-1' : 'pb-1';
-            document.getElementById('vTab').className = (m === 'video') ? 'text-white border-b-2 border-white pb-1' : 'pb-1';
-            document.getElementById('camBtn').style.backgroundColor = (m === 'photo') ? 'white' : '#ef4444';
-        }
-
-        function handleCapture() {
-            if(cameraMode === 'photo') {
-                const v = document.getElementById('v');
-                const c = document.getElementById('c');
-                
-                c.width = v.videoWidth; 
-                c.height = v.videoHeight;
-                c.getContext('2d').drawImage(v, 0, 0);
-                
-                c.toBlob(async b => {
-                    const cap = await Dialog.show("Photo Detail", "Add a caption... (Optional)", "prompt");
-                    addToDraft('image', { file: b, caption: cap });
-                    stopCustomCamera();
-                }, 'image/jpeg');
-            } else { 
-                if(isRecording) {
-                    stopVideo();
-                } else {
-                    startVideo();
+            _supabase.channel('active-orders').on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'orders' 
+            }, (payload) => {
+                if (payload.new && payload.new.customer_phone === userPhone) {
+                    const oldOrder = currentOrders.find(o => o.id === payload.new.id);
+                    if (oldOrder && (oldOrder.status !== payload.new.status || oldOrder.rider_status !== payload.new.rider_status)) {
+                        ring(); 
+                    }
+                    fetchOrders(); 
                 }
+            }).subscribe();
+
+            _supabase.channel('active-messages').on('postgres_changes', { 
+                event: 'INSERT', schema: 'public', table: 'order_chats' 
+            }, (payload) => {
+                if(payload.new && payload.new.sender_phone !== userPhone) {
+                    ring(); 
+                    fetchUnreadCounts(); 
+                }
+            }).subscribe();
+
+            _supabase.channel('messages-seen').on('postgres_changes', { 
+                event: 'UPDATE', schema: 'public', table: 'order_chats' 
+            }, (payload) => {
+                if(payload.new && payload.new.status === 'seen') {
+                    fetchUnreadCounts(); 
+                }
+            }).subscribe();
+        }
+
+        // --- DATA FETCHING ---
+        async function fetchOrders() {
+            if(!navigator.onLine) return; 
+
+            try {
+                const { data, error } = await _supabase.from('orders')
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .neq('status', 'completed')
+                    .neq('status', 'canceled')
+                    .neq('status', 'CANCELLED')
+                    .neq('status', 'cancelled')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+
+                currentOrders = data || [];
+                await fetchUnreadCounts(); 
+            } catch (error) {
+                const list = document.getElementById('activeList');
+                list.innerHTML = `
+                    <p class="text-center text-red-500 font-bold mt-10">Failed to load orders.</p>
+                    <p class="text-center text-xs text-gray-400 mt-2">Error: ${error.message || "Check console"}</p>
+                `;
             }
         }
 
-        function startVideo() {
-            isRecording = true; 
-            videoChunks = [];
+        async function fetchUnreadCounts() {
+            if (!currentOrders || currentOrders.length === 0) {
+                renderOrders(currentOrders);
+                return;
+            }
             
-            camMediaRecorder = new MediaRecorder(stream);
-            camMediaRecorder.ondataavailable = e => videoChunks.push(e.data);
+            const orderIds = currentOrders.map(o => o.id);
             
-            camMediaRecorder.onstop = () => {
-                addToDraft('video', new Blob(videoChunks, {type:'video/mp4'}));
+            try {
+                const { data, error } = await _supabase
+                    .from('order_chats')
+                    .select('order_id')
+                    .in('order_id', orderIds)
+                    .neq('sender_phone', userPhone)
+                    .neq('status', 'seen'); 
+                    
+                let newCounts = {};
+                if (!error && data) {
+                    data.forEach(msg => {
+                        newCounts[msg.order_id] = (newCounts[msg.order_id] || 0) + 1;
+                    });
+                }
+                unreadCounts = newCounts;
+                renderOrders(currentOrders);
+            } catch(e) {
+                renderOrders(currentOrders); 
+            }
+        }
+
+        // --- UI RENDERING ---
+        function renderOrders(orders) {
+            const list = document.getElementById('activeList');
+            
+            if (orders.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-20 opacity-50">
+                        <div class="bg-gray-100 p-6 rounded-full mb-4">
+                            <i class="fas fa-box-open text-5xl text-gray-400"></i>
+                        </div>
+                        <p class="font-black text-sm uppercase tracking-widest text-center text-gray-500">No Active Orders</p>
+                    </div>`;
+                return;
+            }
+
+            Object.values(activeTimers).forEach(clearInterval);
+            activeTimers = {};
+
+            let lastVisit = localStorage.getItem('last_active_orders_visit') || '2000-01-01T00:00:00.000Z';
+
+            list.innerHTML = orders.map(order => {
+                const status = (order.status || 'pending').toLowerCase();
+                const riderStatus = (order.rider_status || '').toLowerCase();
+                const isArrived = (status === 'arrived' || riderStatus === 'arrived');
+                
+                let isStatusNew = order.updated_at > lastVisit;
+
+                let displayStatus = "SEARCHING";
+                let statusColor = "bg-amber-500 text-white animate-pulse";
+                let statusMsg = "Looking for a Rider...";
+                let showTimer = false;
+
+                if (isArrived) {
+                    displayStatus = "ARRIVED";
+                    statusColor = "bg-red-600 text-white animate-pulse-fast shadow-md shadow-red-500/30";
+                    statusMsg = "Rider has arrived! Collect your order.";
+                } else if (status === 'assigned') {
+                    showTimer = true;
+                    if (parseFloat(order.bill_amount) > 0) {
+                        displayStatus = "ON THE WAY";
+                        statusColor = "bg-emerald-500 text-white shadow-md shadow-emerald-500/30";
+                        statusMsg = "Rider is heading to your location.";
+                    } else {
+                        displayStatus = "PURCHASING";
+                        statusColor = "bg-blue-600 text-white shadow-md shadow-blue-500/30";
+                        statusMsg = "Rider is purchasing your items...";
+                    }
+                }
+
+                return `
+                <div class="order-card bg-white rounded-[2rem] p-5 shadow-sm border ${isStatusNew ? 'border-red-400 bg-red-50' : 'border-gray-100'} cursor-pointer" onclick="openBillModal('${order.id}')">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${statusColor}">${displayStatus}</span>
+                            ${isStatusNew ? `<span class="px-2 py-1 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse shadow-md shadow-red-500/50"><i class="fas fa-exclamation-circle"></i> UPDATED</span>` : ''}
+                        </div>
+                        <p class="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest">ID: #${order.id.slice(-6)}</p>
+                    </div>
+                    
+                    <h3 class="text-lg font-black text-gray-800 mb-1 leading-tight">${statusMsg}</h3>
+                    <p class="text-[11px] text-gray-400 font-bold mb-4 flex items-center gap-1">
+                        <i class="far fa-clock"></i> ${dayjs(order.created_at).format('DD MMM, hh:mm A')}
+                    </p>
+
+                    ${showTimer ? `
+                        <div class="p-4 bg-red-50 rounded-3xl border border-red-100 flex flex-col items-center justify-center mb-4 transition-all">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Estimated Arrival</span>
+                            <div id="timer-${order.id}" class="text-3xl font-black text-red-600 tracking-tighter tabular-nums">--:--</div>
+                        </div>
+                    ` : ''}
+
+                    <div class="pt-4 border-t border-dashed border-gray-200 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
+                                <i class="fas fa-motorcycle text-gray-400 text-xs"></i>
+                            </div>
+                            <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Live Tracked</span>
+                        </div>
+                        ${(status === 'assigned' || isArrived) ? 
+                            `<button onclick="event.stopPropagation(); window.location.href='chat.html?orderId=${order.id}'" class="relative bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black shadow-lg shadow-blue-500/20 active:bg-blue-700 transition-colors flex items-center gap-2">
+                                <i class="fas fa-comment-dots"></i> CHAT
+                                ${unreadCounts[order.id] ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce font-bold">${unreadCounts[order.id]}</span>` : ''}
+                            </button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            orders.forEach(o => {
+                const status = (o.status || 'pending').toLowerCase();
+                const riderStatus = (o.rider_status || '').toLowerCase();
+                if (status === 'assigned' && riderStatus !== 'arrived' && status !== 'arrived') {
+                    runTimer(o.id, o.assigned_at);
+                }
+            });
+        }
+
+        function runTimer(id, assignedAt) {
+            const start = assignedAt ? dayjs(assignedAt) : dayjs();
+            const end = start.add(globalDeliveryTime, 'minute');
+            
+            const update = () => {
+                const el = document.getElementById(`timer-${id}`);
+                if (!el) { clearInterval(activeTimers[id]); return; }
+                const diff = end.diff(dayjs());
+                const abs = Math.abs(diff);
+                const m = Math.floor(abs / 60000);
+                const s = Math.floor((abs % 60000) / 1000);
+                
+                el.innerText = (diff < 0 ? '-' : '') + `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+                if (diff < 0) { el.classList.remove('text-red-600'); el.classList.add('text-gray-400'); }
             };
             
-            camMediaRecorder.start();
-            
-            document.getElementById('camTimerDisplay').classList.remove('hidden');
-            document.getElementById('camBtn').classList.add('animate-pulse');
-            
-            let s = 0; 
-            camTimerInterval = setInterval(() => {
-                s++; 
-                document.getElementById('camTimerDisplay').innerText = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-            }, 1000);
+            update();
+            activeTimers[id] = setInterval(update, 1000);
         }
 
-        function stopVideo() {
-            isRecording = false; 
-            camMediaRecorder.stop();
-            clearInterval(camTimerInterval);
+        // --- NEW BEAUTIFUL MODAL LOGIC ---
+        function openBillModal(orderId) {
+            localStorage.setItem('last_active_orders_visit', new Date().toISOString());
+            renderOrders(currentOrders); 
+
+            const order = currentOrders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const modal = document.getElementById('billModal');
+            const content = document.getElementById('billModalContent');
+            const imgEl = document.getElementById('fullBillImg');
             
-            document.getElementById('camBtn').classList.remove('animate-pulse');
-            document.getElementById('camTimerDisplay').classList.add('hidden');
-            stopCustomCamera();
-        }
-
-        // Custom Dialog System
-        const Dialog = {
-            show: function(title, text, type = 'alert') {
-                return new Promise((resolve) => {
-                    const modal = document.getElementById('customModal');
-                    const box = document.getElementById('modalBox');
-                    const tEl = document.getElementById('modalTitle');
-                    const textEl = document.getElementById('modalText');
-                    const inp = document.getElementById('modalInput');
-                    const btns = document.getElementById('modalButtons');
-
-                    tEl.innerText = title;
-                    
-                    if(text) { 
-                        textEl.innerText = text; 
-                        textEl.classList.remove('hidden'); 
-                    } else { 
-                        textEl.classList.add('hidden'); 
-                    }
-
-                    modal.classList.remove('hidden'); 
-                    modal.classList.add('flex');
-                    
-                    setTimeout(() => { 
-                        box.classList.remove('scale-95', 'opacity-0'); 
-                        box.classList.add('scale-100', 'opacity-100'); 
-                    }, 10);
-
-                    const close = (val) => {
-                        box.classList.remove('scale-100', 'opacity-100'); 
-                        box.classList.add('scale-95', 'opacity-0');
-                        setTimeout(() => { 
-                            modal.classList.add('hidden'); 
-                            modal.classList.remove('flex'); 
-                            resolve(val); 
-                        }, 200);
-                    };
-
-                    btns.innerHTML = '';
-                    
-                    if (type === 'alert') {
-                        inp.classList.add('hidden');
-                        btns.innerHTML = `<button class="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm w-full">OK</button>`;
-                        btns.querySelector('button').onclick = () => close(true);
-                        
-                    } else if (type === 'confirm') {
-                        inp.classList.add('hidden');
-                        btns.innerHTML = `
-                            <button class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm flex-1">Cancel</button>
-                            <button class="bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex-1 shadow-md">Yes, Proceed</button>
-                        `;
-                        btns.querySelectorAll('button')[0].onclick = () => close(false); 
-                        btns.querySelectorAll('button')[1].onclick = () => close(true);
-                        
-                    } else if (type === 'prompt') {
-                        inp.classList.remove('hidden'); 
-                        inp.value = '';
-                        btns.innerHTML = `
-                            <button class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm">Skip</button>
-                            <button class="bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex-1 shadow-md">Save</button>
-                        `;
-                        btns.querySelectorAll('button')[0].onclick = () => close(''); 
-                        btns.querySelectorAll('button')[1].onclick = () => close(inp.value.trim());
-                        setTimeout(() => inp.focus(), 150);
-                    }
-                });
-            }
-        };
-
-        // Page Initialization
-        async function initPage() {
-            if(!userPhone) {
-                return window.location.replace('index.html');
-            }
-            
-            document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
-            document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
-            
-            setupRealtime();
-
-            try {
-                if(navigator.onLine) {
-                    const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
-                    if (settings && settings.length > 0) {
-                        deliveryCharges = settings[0].customer_delivery_fee;
-                    }
-
-                    const { data: { session } } = await _supabase.auth.getSession();
-                    if(session) {
-                        const { data: customerData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
-                        
-                        if (customerData) {
-                            if (customerData.name) { 
-                                document.getElementById('editName').value = customerData.name; 
-                                localStorage.setItem('faster_name', customerData.name); 
-                            }
-                            if (customerData.address) { 
-                                fullSavedAddress = customerData.address; // Pura address GPS ke sath backend ke liye save kiya
-                                let displayAddr = customerData.address;
-                                if(displayAddr.includes(" | GPS: ")) {
-                                    displayAddr = displayAddr.split(" | GPS: ")[0].trim(); // GPS wala link cut kar diya
-                                }
-                                document.getElementById('editAddress').value = displayAddr; // Box mein clean address show kiya
-                                localStorage.setItem('faster_address', customerData.address); 
-                            }
-                        }
-                    }
-                }
-            } catch (e) { 
-                console.error("Data fetch error:", e); 
-            }
-        }
-        
-        initPage();
-
-        function toggleAttachMenu() {
-            document.getElementById('attachMenu').classList.toggle('active');
-            document.getElementById('plusIcon').classList.toggle('rotate-45');
-            document.getElementById('plusIcon').classList.toggle('text-orange-500');
-        }
-
-        function handleInput(el) {
-            el.style.height = '44px'; 
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
-            const val = el.value.trim();
-            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
-            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
-        }
-
-        async function previewFile(input, mode) {
-            if(!input.files || input.files.length === 0) return;
-            
-            for (const file of Array.from(input.files)) {
-                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
-                
-                if(type === 'image') {
-                    const caption = await Dialog.show("Add Caption", "Would you like to add a message with this picture? (Optional)", "prompt");
-                    addToDraft('image', { file: file, caption: caption || "" });
-                } else { 
-                    addToDraft(type, file); 
-                }
-            }
-            input.value = ""; 
-        }
-
-        function addToDraft(type, content) {
-            const chat = document.getElementById('chatArea');
-            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
-            const b = document.createElement('div');
-            
-            b.className = "bubble customer-bubble animate-pop"; 
-            b.id = bId;
-
-            let itemData = content;
-            
-            if (type === 'text') {
-                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
-                if(!val) return; 
-                
-                itemData = val; 
-                b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
-                
-                if(typeof content !== 'string') { 
-                    document.getElementById('orderInput').value = ""; 
-                    handleInput(document.getElementById('orderInput')); 
-                }
-            } else if (type === 'image') {
-                const imgUrl = URL.createObjectURL(content.file);
-                b.innerHTML = `
-                    <img src="${imgUrl}" class="media-thumb shadow-sm">
-                    ${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}
-                `;
-            } else if (type === 'video') {
-                b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm" playsinline preload="metadata"></video>`;
-            } else if (type === 'voice') {
-                b.innerHTML = `
-                    <div class="flex items-center gap-1">
-                        <audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>
-                    </div>
-                `;
-            } else if (type === 'doc') {
-                let iconClass = "fas fa-file text-gray-500";
-                if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
-                else if(content.name.match(/\.(doc|docx)$/)) iconClass = "fas fa-file-word text-blue-500";
-                
-                b.innerHTML = `
-                    <div class="flex items-center gap-3 p-1 text-sm font-bold text-gray-700">
-                        <div class="bg-gray-100 p-3 rounded-lg"><i class="${iconClass} text-xl"></i></div>
-                        <div class="flex flex-col truncate w-32">
-                            <span class="truncate">${content.name}</span>
-                            <span class="text-[10px] text-gray-400 font-normal">${(content.size / 1024).toFixed(1)} KB</span>
-                        </div>
-                    </div>
-                `;
-            }
-
-            let pressTimer;
-            b.addEventListener('touchstart', (e) => { 
-                pressTimer = setTimeout(() => { 
-                    toggleSelect(bId, type); 
-                    if(navigator.vibrate) navigator.vibrate(50); 
-                }, 500); 
-            });
-            b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
-            b.addEventListener('touchend', () => clearTimeout(pressTimer));
-            
-            b.addEventListener('click', () => {
-                if (selectedItems.length > 0) { 
-                    toggleSelect(bId, type); 
-                } else if (type === 'image' || type === 'video') {
-                    const src = type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content);
-                    openFull({src: src}, type === 'image' ? 'img' : 'vid');
-                }
-            });
-
-            const key = type === 'text' ? 'texts' : type + 's';
-            draftData[key].push({ id: bId, data: itemData });
-            
-            chat.appendChild(b); 
-            chat.scrollTop = chat.scrollHeight;
-            document.getElementById('confirmBtnRow').classList.remove('hidden');
-        }
-
-        function toggleSelect(id, type) {
-            const idx = selectedItems.findIndex(item => item.id === id);
-            const el = document.getElementById(id);
-            
-            if (idx > -1) { 
-                selectedItems.splice(idx, 1); 
-                el.classList.remove('bubble-selected'); 
-            } else { 
-                selectedItems.push({ id, type }); 
-                el.classList.add('bubble-selected'); 
-            }
-
-            if (selectedItems.length > 0) {
-                document.getElementById('customerDetailsBox').classList.add('hidden');
-                document.getElementById('selectionHeader').classList.remove('hidden');
-                document.getElementById('selectionCount').innerText = selectedItems.length;
-                
-                const showEdit = (selectedItems.length === 1 && (selectedItems[0].type === 'text' || selectedItems[0].type === 'image'));
-                document.getElementById('editIcon').classList.toggle('hidden', !showEdit);
-            } else { 
-                cancelSelection(); 
-            }
-        }
-
-        function cancelSelection() {
-            selectedItems.forEach(item => {
-                const el = document.getElementById(item.id);
-                if (el) { el.classList.remove('bubble-selected'); }
-            });
-            selectedItems = [];
-            document.getElementById('selectionHeader').classList.add('hidden');
-            document.getElementById('customerDetailsBox').classList.remove('hidden');
-        }
-
-        function editSelected() {
-            if(selectedItems.length !== 1) return;
-            const sel = selectedItems[0];
-            const inp = document.getElementById('orderInput');
-            
-            if(sel.type === 'text') { 
-                inp.value = draftData.texts.find(t => t.id === sel.id).data; 
-            } else if(sel.type === 'image') { 
-                inp.value = draftData.images.find(i => i.id === sel.id).data.caption; 
-            }
-            
-            confirmDelete(); 
-            handleInput(inp); 
-            inp.focus();
-        }
-
-        function confirmDelete() {
-            if (selectedItems.length === 0) return;
-            
-            selectedItems.forEach(sel => {
-                const key = sel.type === 'text' ? 'texts' : sel.type + 's';
-                draftData[key] = draftData[key].filter(item => item.id !== sel.id);
-                
-                const el = document.getElementById(sel.id);
-                if (el) { el.remove(); }
-            });
-            
-            cancelSelection();
-            
-            if (Object.values(draftData).flat().length === 0) {
-                document.getElementById('confirmBtnRow').classList.add('hidden');
-            }
-        }
-
-        function startVoiceTimer() {
-            voiceSeconds = 0; 
-            document.getElementById('recordTimer').innerText = "00:00";
-            
-            document.getElementById('textInputWrapper').classList.add('hidden');
-            document.getElementById('recordingTimerUI').classList.remove('hidden');
-            document.getElementById('recordingTimerUI').classList.add('flex');
-            
-            voiceTimerInterval = setInterval(() => {
-                voiceSeconds++; 
-                const m = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
-                const s = (voiceSeconds % 60).toString().padStart(2, '0');
-                document.getElementById('recordTimer').innerText = `${m}:${s}`;
-            }, 1000);
-        }
-
-        function stopVoiceTimer() {
-            clearInterval(voiceTimerInterval);
-            document.getElementById('recordingTimerUI').classList.add('hidden');
-            document.getElementById('recordingTimerUI').classList.remove('flex');
-            document.getElementById('textInputWrapper').classList.remove('hidden');
-        }
-
-        async function handleVoice() {
-            const vBtn = document.getElementById('voiceBtn');
-            const micIcon = document.getElementById('micIcon');
-            
-            if (!navigator.mediaDevices) {
-                return Dialog.show("Error", "Microphone access blocked.", "alert");
-            }
-
-            try {
-                if (!audioRecorder || audioRecorder.state === "inactive") {
-                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audioRecorder = new MediaRecorder(aStream); 
-                    audioChunks = [];
-                    
-                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    
-                    audioRecorder.onstop = () => { 
-                        addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); 
-                        aStream.getTracks().forEach(track => track.stop()); 
-                        stopVoiceTimer(); 
-                    };
-                    
-                    audioRecorder.start(); 
-                    startVoiceTimer();
-                    
-                    vBtn.classList.add('voice-active'); 
-                    micIcon.className = 'fas fa-stop';
-                } else {
-                    audioRecorder.stop(); 
-                    vBtn.classList.remove('voice-active'); 
-                    micIcon.className = 'fas fa-microphone';
-                }
-            } catch (e) { 
-                Dialog.show("Error", "Please allow microphone permission.", "alert"); 
-            }
-        }
-
-        async function handleConfirmPrompt() {
-            if (!navigator.onLine) {
-                return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
-            }
-            
-            const { data: { session } } = await _supabase.auth.getSession();
-            
-            if(!session) { 
-                await Dialog.show("Session Expired", "Please login again."); 
-                window.location.replace("index.html"); 
-                return; 
-            }
-            
-            const confirmMsg = `The Delivery Charges will be Rs. ${deliveryCharges}. Do you want to proceed?`;
-            const userConfirmed = await Dialog.show("Confirm Order", confirmMsg, "confirm");
-            
-            if (userConfirmed) {
-                finalSubmitOrder(session.user.email);
-            }
-        }
-
-        async function finalSubmitOrder(userEmail) {
-            const btn = document.getElementById('finalSubmitBtn');
-            const name = document.getElementById('editName').value.trim();
-            // Niche wali line change ki hai taake hidden GPS location database mein jaye
-            const addr = fullSavedAddress || document.getElementById('editAddress').value.trim(); 
-            
-            if(!name || !addr) {
-                return Dialog.show("Missing Information", "Please provide Name and Address.");
-            }
-
-            btn.disabled = true; 
-            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
-            btn.classList.replace('bg-orange-600', 'bg-gray-400');
-
-            try {
-                if (userEmail) {
-                    await _supabase.from('customers').update({ name: name, address: addr }).eq('email', userEmail);
-                }
-
-                const uploadAll = async (items, prefix, defaultExt) => {
-                    const promises = items.map(async (item) => {
-                        const file = item.data.file || item.data; 
-                        const ext = file.name ? file.name.split('.').pop() : defaultExt;
-                        const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
-                        
-                        const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
-                        if(error) throw error;
-                        
-                        return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
-                    });
-                    
-                    const urls = await Promise.all(promises);
-                    return urls.join(",");
-                };
-                
-                const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
-                    uploadAll(draftData.images, 'img', 'jpg'), 
-                    uploadAll(draftData.videos, 'vid', 'mp4'),
-                    uploadAll(draftData.voices, 'voice', 'webm'), 
-                    uploadAll(draftData.docs, 'doc', 'pdf')
-                ]);
-                
-                const textData = draftData.texts.map(t => t.data);
-                const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-                const combinedDetails = [...textData, ...captionData].join(" | ");
-
-                // FIXED: dc_amount add kiya gaya hai
-                const { error } = await _supabase.from('orders').insert([{
-                    customer_phone: userPhone, 
-                    customer_name: name, 
-                    delivery_address: addr, 
-                    order_details: combinedDetails,
-                    image_url: imgURLs, 
-                    video_url: vidURLs, 
-                    voice_url: vceURLs, 
-                    doc_url: docURLs, 
-                    status: 'pending',
-                    dc_amount: deliveryCharges 
-                }]);
-                
-                if(error) throw error;
-                
-                await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
-                window.location.href = "home.html";
-                
-            } catch (err) { 
-                await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
-                btn.disabled = false; 
-                btn.innerHTML = `Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>`; 
-                btn.classList.replace('bg-gray-400', 'bg-orange-600');
-            }
-        }
-
-        function openFull(el, type) {
-            const fv = document.getElementById('fullView'); 
-            fv.style.display = 'flex';
-            
-            if (type === 'img') {
-                document.getElementById('fullContent').innerHTML = `<img src="${el.src}" class="max-w-full max-h-full rounded object-contain">`;
+            if(order.bill_image) {
+                imgEl.src = order.bill_image;
+                imgEl.classList.remove('hidden');
             } else {
-                document.getElementById('fullContent').innerHTML = `<video src="${el.src}" controls autoplay playsinline class="max-w-full max-h-full rounded"></video>`;
+                imgEl.classList.add('hidden');
             }
+
+            const currentOrder = parseFloat(order.item_price || 0) + parseFloat(order.dc_amount || 0);
+            const pending = parseFloat(order.previous_due || 0);
+            const totalBill = parseFloat(order.bill_amount || 0);
+
+            // Conditional Active Order Messages
+            let statusBadge = "Calculating Bill...";
+            let statusColor = "text-amber-600 bg-amber-50 border-amber-200 animate-pulse";
+            if (totalBill > 0) {
+                statusBadge = "Please pay this amount to rider";
+                statusColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
+            }
+
+            // Media Extractor for Order Details
+            const mediaHelper = (str, type) => {
+                if(!str) return '';
+                return str.split(',').map(url => {
+                    const u = url.trim();
+                    if(type === 'img') return `<img src="${u}" class="w-full rounded-xl border border-gray-200 cursor-pointer object-cover max-h-32 mb-2 shadow-sm" onclick="showFull('${u}', 'img')">`;
+                    if(type === 'vid') return `<video src="${u}" controls playsinline class="w-full rounded-xl border border-gray-200 cursor-pointer object-cover max-h-32 mb-2 shadow-sm"></video>`;
+                }).join('');
+            };
+
+            const breakdownHTML = `
+                <div class="mb-5 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest text-center mb-3">Original Details</p>
+                    
+                    ${order.order_details ? `<p class="text-[13px] font-bold text-gray-800 mb-3 leading-relaxed whitespace-pre-wrap">${order.order_details}</p>` : ''}
+                    
+                    ${order.voice_url ? `
+                        <div class="mb-3">
+                            <p class="text-[9px] text-blue-500 font-black uppercase tracking-widest mb-1.5">Voice Instruction:</p>
+                            <audio controls class="w-full h-8"><source src="${order.voice_url}" type="audio/mpeg"></audio>
+                        </div>` : ''}
+                    
+                    <div class="mt-2">${mediaHelper(order.image_url, 'img')}${mediaHelper(order.video_url, 'vid')}</div>
+                </div>
+                
+                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                    <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center mb-3 pb-2 border-b border-gray-100">Payment Breakdown</p>
+                    
+                    <div class="flex justify-between text-xs font-bold text-gray-600 mb-2">
+                        <span>Items + Delivery:</span><span class="font-mono text-gray-800">Rs. ${currentOrder}</span>
+                    </div>
+                    
+                    ${pending != 0 ? `
+                    <div class="flex justify-between text-xs font-bold text-gray-400 mb-2">
+                        <span>Previous Dues:</span><span class="font-mono ${pending > 0 ? 'text-red-500' : 'text-emerald-500'}">Rs. ${pending}</span>
+                    </div>` : ''}
+                    
+                    <div class="border-t border-dashed border-gray-200 my-3 pt-3 flex justify-between text-sm font-black text-gray-900">
+                        <span>Total Payable:</span><span class="font-mono text-lg">Rs. ${totalBill}</span>
+                    </div>
+                    
+                    <div class="mt-3 p-2.5 rounded-xl text-center text-[10px] font-black uppercase tracking-widest border ${statusColor}">
+                        ${statusBadge}
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-4 bg-white rounded-2xl border border-gray-100 flex items-start gap-4 shadow-sm">
+                    <div class="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+                        <i class="fas fa-map-marker-alt text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Delivery Address</h4>
+                        <p class="text-xs font-bold text-gray-800 leading-relaxed">${order.delivery_address || 'N/A'}</p>
+                    </div>
+                </div>`;
+            
+            document.getElementById('modalBreakdown').innerHTML = breakdownHTML;
+            
+            modal.classList.replace('modal-leave', 'modal-enter');
+            content.classList.replace('modal-content-leave', 'modal-content-enter');
         }
 
-        window.addEventListener('offline', () => {
-            document.getElementById('offlineBanner').style.top = '0';
-        });
+        function closeBillModal() {
+            const modal = document.getElementById('billModal');
+            const content = document.getElementById('billModalContent');
+            content.classList.replace('modal-content-enter', 'modal-content-leave');
+            setTimeout(() => {
+                modal.classList.replace('modal-enter', 'modal-leave');
+            }, 300);
+        }
+
+        function showFull(url, type) {
+            const container = document.getElementById('fullMediaContainer');
+            document.getElementById('fullMediaView').style.display = 'flex';
+            container.innerHTML = type === 'img' ? 
+                `<img src="${url}" class="max-w-[95%] max-h-[85vh] object-contain rounded-2xl border-4 border-white shadow-2xl">` : 
+                `<video src="${url}" controls autoplay playsinline class="max-w-[95%] max-h-[85vh] rounded-2xl shadow-2xl border-4 border-white"></video>`;
+        }
         
-        window.addEventListener('online', () => { 
-            document.getElementById('offlineBanner').style.top = '-50px'; 
-            initPage(); 
+        // --- OFFLINE & VISIBILITY HANDLING ---
+        const offlineBanner = document.getElementById('offlineBanner');
+        
+        window.addEventListener('offline', () => offlineBanner.classList.add('show'));
+        window.addEventListener('online', () => { offlineBanner.classList.remove('show'); fetchOrders(); });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && navigator.onLine) { fetchOrders(); }
         });
+
+        window.addEventListener('pageshow', function (event) {
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                if(navigator.onLine) fetchOrders();
+            }
+        });
+
+        window.onload = init;
     </script>
 </body>
 </html>
