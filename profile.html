@@ -108,11 +108,16 @@
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Delivery Address</label>
-                    <div class="relative mt-1">
+                    <div class="flex justify-between items-end mb-1 px-2">
+                        <label class="text-[10px] font-black text-gray-400 uppercase ml-2 tracking-widest">Delivery Address</label>
+                        <button onclick="autoFetchLocation()" id="locBtn" class="text-[10px] font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-full active:scale-90 transition-transform flex items-center gap-1 shadow-sm">
+                            <i class="fas fa-crosshairs"></i> Auto Fetch
+                        </button>
+                    </div>
+                    <div class="relative">
                         <i class="fas fa-map-marker-alt absolute left-5 top-5 text-gray-400"></i>
-                        <textarea id="addressInput" placeholder="Enter full delivery address" rows="3" 
-                            class="w-full clay-input rounded-2xl pl-12 pr-4 py-4 font-bold text-gray-700 outline-none"></textarea>
+                        <textarea id="addressInput" placeholder="Enter full delivery address or use auto fetch" rows="3" 
+                            class="w-full clay-input rounded-2xl pl-12 pr-4 py-4 font-bold text-gray-700 outline-none leading-relaxed"></textarea>
                     </div>
                 </div>
 
@@ -182,6 +187,51 @@
             }
         }
 
+        // --- AUTO FETCH LOCATION LOGIC (FREE API) ---
+        async function autoFetchLocation() {
+            const locBtn = document.getElementById('locBtn');
+            const addrInput = document.getElementById('addressInput');
+            
+            if (!navigator.geolocation) {
+                alert("Your device does not support GPS Location.");
+                return;
+            }
+
+            // Show loading state on button
+            locBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+            locBtn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    // Free OpenStreetMap Reverse Geocoding API (No API Key Required)
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                    const data = await response.json();
+                    
+                    if (data && data.display_name) {
+                        addrInput.value = data.display_name;
+                        // Add a small highlight effect to show it updated
+                        addrInput.classList.add('bg-blue-50');
+                        setTimeout(() => addrInput.classList.remove('bg-blue-50'), 1000);
+                    } else {
+                        alert("Could not find exact address. Please type it manually.");
+                    }
+                } catch (error) {
+                    alert("Network error fetching address details.");
+                } finally {
+                    // Reset Button
+                    locBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Auto Fetch';
+                    locBtn.disabled = false;
+                }
+            }, (error) => {
+                alert("GPS Permission Denied! Please allow Location permission for this app in your phone settings.");
+                locBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Auto Fetch';
+                locBtn.disabled = false;
+            }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+        }
+
         // --- UPDATE PROFILE FUNCTION ---
         async function updateProfile() {
             const newName = document.getElementById('nameInput').value.trim();
@@ -209,7 +259,7 @@
             btnIcon.className = 'fas fa-circle-notch fa-spin';
 
             try {
-                // 🛑 FRAUD CHECK: If user changed phone number, check if it already belongs to someone else
+                // FRAUD CHECK
                 if (newPhone !== originalPhone) {
                     const { data: existingUser } = await _supabase
                         .from('customers')
@@ -224,7 +274,7 @@
                     }
                 }
 
-                // SECURE UPDATE (Matches user by Email)
+                // SECURE UPDATE
                 const { error: updateError } = await _supabase
                     .from('customers')
                     .update({ 
@@ -239,6 +289,7 @@
                 // Update LocalStorage
                 localStorage.setItem('faster_phone', newPhone);
                 localStorage.setItem('faster_name', newName);
+                localStorage.setItem('faster_address', newAddress);
 
                 // Update OneSignal External ID (If phone changed)
                 if (newPhone !== originalPhone) {
