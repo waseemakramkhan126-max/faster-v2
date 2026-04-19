@@ -13,7 +13,7 @@
         /* Strict WebView Fixes */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            height: 100vh; 
+            height: 100dvh; 
             display: flex; 
             flex-direction: column; 
             overflow: hidden; 
@@ -133,6 +133,8 @@
 
         textarea::-webkit-scrollbar { display: none; }
         #offlineBanner { transition: top 0.3s ease-in-out; }
+        /* FIX: Mobile Footer Safe Area Padding */
+        .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
     </style>
 </head>
 <body>
@@ -182,7 +184,7 @@
         </button>
     </div>
 
-    <footer class="bg-white p-2.5 flex items-end gap-2 shrink-0 border-t z-50">
+    <footer class="bg-white p-2.5 pb-safe flex items-end gap-2 shrink-0 border-t z-50">
         <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
             <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
