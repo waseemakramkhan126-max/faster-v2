@@ -103,9 +103,9 @@
 
         .media-thumb { 
             width: 100%; 
-            max-width: 140px; 
-            max-height: 140px; 
-            border-radius: 8px; 
+            max-width: 110px; /* FIX: 140px se kam kar ke 110px kar diya */
+            max-height: 110px; /* FIX: 140px se kam kar ke 110px kar diya */
+            border-radius: 12px; 
             pointer-events: none; 
             object-fit: cover; 
             background-color: rgba(0,0,0,0.05); 
@@ -180,7 +180,11 @@
         </div>
     </div>
 
-    <div id="chatArea" class="chat-bg"></div>
+    <div id="chatArea" class="chat-bg relative">
+        <div id="emptyPlaceholder" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            <span class="text-lg font-black uppercase tracking-[0.3em] text-gray-500">( Empty )</span>
+        </div>
+    </div>
 
     <div id="confirmBtnRow" class="hidden px-4 py-3 bg-white border-t shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
         <button onclick="handleConfirmPrompt()" id="finalSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-lg uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
@@ -595,6 +599,7 @@
         }
 
         function addToDraft(type, content) {
+            document.getElementById('emptyPlaceholder').style.display = 'none';
             const chat = document.getElementById('chatArea');
             const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
             const b = document.createElement('div');
@@ -737,6 +742,7 @@
             
             if (Object.values(draftData).flat().length === 0) {
                 document.getElementById('confirmBtnRow').classList.add('hidden');
+                document.getElementById('emptyPlaceholder').style.display = 'flex';
             }
         }
 
