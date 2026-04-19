@@ -451,21 +451,20 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM PROMOTION BANNER LOGIC (UPDATED & CRASH-PROOF) ---
+        // --- PREMIUM PROMOTION BANNER LOGIC (SMART FIX) ---
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             
             try {
-                // FIX: .single() aur .limit(1) hata diya hai taake crash na ho
                 const { data, error } = await _supabase.from('app_settings').select('promo_active, promo_type, promo_url, promo_text');
                 
                 if (error) throw error;
 
-                // Agar data aagaya hai aur table khali nahi hai
                 if (data && data.length > 0) {
-                    const promo = data[0]; // Sirf pehli line ka data uthayega
+                    // FIX: Ab code khud dhoondega ke kis line mein promo ON (true) hai
+                    const promo = data.find(row => row.promo_active === true || row.promo_active === 'true' || row.promo_active === 1);
                     
-                    if (promo.promo_active === true) {
+                    if (promo) {
                         const banner = document.getElementById('promoBanner');
                         const mediaBox = document.getElementById('promoMedia');
                         const textBox = document.getElementById('promoTextBox');
@@ -487,7 +486,7 @@
                             textBox.classList.remove('hidden');
                         }
 
-                        // Smooth fade-in animation
+                        // Banner ko show kar do
                         banner.classList.remove('hidden');
                         banner.classList.add('animate-pop');
                     }
