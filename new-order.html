@@ -904,6 +904,19 @@
                 document.getElementById('fullContent').innerHTML = `<video src="${el.src}" controls autoplay playsinline class="max-w-full max-h-full rounded"></video>`;
             }
         }
+        // --- CLOSE ATTACH MENU ON OUTSIDE CLICK ---
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('attachMenu');
+            const plusBtn = document.getElementById('plusBtn');
+
+            // Agar menu khula hua hai...
+            if (menu && menu.classList.contains('active')) {
+                // Aur customer ne menu ya plus button ke ilawa bahar kahin bhi click kiya hai...
+                if (!menu.contains(event.target) && !plusBtn.contains(event.target)) {
+                    toggleAttachMenu(); // Toh menu ko band kar do aur icon ko wapis set kar do
+                }
+            }
+        });
 
         window.addEventListener('offline', () => {
             document.getElementById('offlineBanner').style.top = '0';
