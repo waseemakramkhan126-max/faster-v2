@@ -449,7 +449,7 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM MULTI-SLIDER (ULTIMATE 3:1 AI ALGORITHM) ---
+        // --- PREMIUM MULTI-SLIDER (3:1 AI ALGORITHM + BOREDOM DETECTION) ---
         let currentSlideIndex = 0;
         let slideTimer;
         let isAutoScrolling = false;
@@ -458,7 +458,10 @@
         let promosData = []; 
         let userInterests = new Set(); 
         let slideStartTime = 0;
-        let consecutiveInterestShown = 0; // Track karega ke pasand ki kitni chal chuki hain (3:1 rule)
+        let consecutiveInterestShown = 0; 
+        
+        // NAYA: Boredom (Jaldi Swipe) Track karne ke liye
+        let consecutiveSwipes = 0; 
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
@@ -511,16 +514,45 @@
 
                     container.classList.remove('hidden');
 
-                    // CUSTOMER SWIPE KAREGA TOH YAHAN AAYEGA
+                    // 🧠 SWIPE BOREDOM DETECTION
                     slider.addEventListener('scroll', () => {
                         if (isAutoScrolling) return; 
                         clearTimeout(slider.scrollTimeout);
                         slider.scrollTimeout = setTimeout(() => {
                             let newIndex = Math.round(slider.scrollLeft / slider.offsetWidth);
                             if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                                // Agar customer ne swipe kar diya, toh ratio wapas zero (0) kar do 
-                                // Taake agli video dobara uski pasand ki dhoonde
+                                
+                                // Check karein ke jaldi swipe kiya hai ya dekh kar?
+                                const watchTime = (Date.now() - slideStartTime) / 1000;
+                                if (watchTime < 3) { 
+                                    consecutiveSwipes++; // Jaldi Swipe (Boredom)
+                                } else {
+                                    consecutiveSwipes = 0; // Der tak dekha
+                                }
+
                                 consecutiveInterestShown = 0; 
+                                
+                                // AGAR 3 DAFA JALDI SWIPE KIYA, TOH CATEGORY CHANGE KARO
+                                if (consecutiveSwipes >= 3) {
+                                    consecutiveSwipes = 0; // Counter reset
+                                    const currentCategory = promos[currentSlideIndex].category;
+                                    let jumpIndex = newIndex;
+                                    
+                                    // Aisi video dhoondo jo is boring category se mukhtalif ho
+                                    for (let i = 1; i < promos.length; i++) {
+                                        let checkIdx = (newIndex + i) % promos.length;
+                                        if (promos[checkIdx].category !== currentCategory) {
+                                            jumpIndex = checkIdx;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // Customer ko zabardasti nayi category par auto-scroll karao
+                                    activateSlide(jumpIndex, true);
+                                    return; // Normal scroll rok do
+                                }
+
+                                // Normal Swipe chalne do
                                 activateSlide(newIndex, false); 
                             }
                         }, 150); 
@@ -533,44 +565,49 @@
 
         // 🧠 NEXT VIDEO DECISION ALGORITHM (3:1 RULE)
         function getSmartNextIndex() {
-            // Agar customer ki koi pasand nahi mili abhi tak
             if (userInterests.size === 0) {
                 return (currentSlideIndex + 1) % promosData.length;
             }
 
-            // Agar 3 videos se kam dikhayi hain uski pasand ki (Rule: 1, 2, 3)
             if (consecutiveInterestShown < 3) {
                 for (let i = 1; i < promosData.length; i++) {
                     let checkIdx = (currentSlideIndex + i) % promosData.length;
                     if (userInterests.has(promosData[checkIdx].category)) {
-                        consecutiveInterestShown++; // Counter badhao
-                        return checkIdx; // Uski pasand ki video mil gayi!
+                        consecutiveInterestShown++; 
+                        return checkIdx; 
                     }
                 }
             }
 
-            // Rule 4: 3 videos dikha li, ab 1 video app (hamari) marzi ki chalegi
-            consecutiveInterestShown = 0; // Agli cycle ke liye counter reset
-            return (currentSlideIndex + 1) % promosData.length; // Next in line
+            consecutiveInterestShown = 0; 
+            
+            // 4th video kisi aisi category ki nikalo jo uski current pasand se alag ho
+            for (let i = 1; i < promosData.length; i++) {
+                let checkIdx = (currentSlideIndex + i) % promosData.length;
+                if (!userInterests.has(promosData[checkIdx].category)) {
+                    return checkIdx; 
+                }
+            }
+            return (currentSlideIndex + 1) % promosData.length; 
         }
 
         function activateSlide(index, autoScroll = true) {
-            // 1. PURANI SLIDE KA RESULT CHECK KARO (Approve ya Reject?)
+            // 1. PURANI SLIDE KA RESULT CHECK KARO
             if (slideStartTime > 0 && promosData[currentSlideIndex]) {
                 const outgoingPromo = promosData[currentSlideIndex];
                 const watchTime = (Date.now() - slideStartTime) / 1000;
                 const vid = document.getElementById(`vid_${currentSlideIndex}`);
                 const isUnmuted = vid && !vid.muted;
 
-                // Agar 4 second se zyada dekhi ya aawaz kholi (Matlab Reject NAHI ki)
                 if ((watchTime >= 4 || isUnmuted) && outgoingPromo.category) {
                     userInterests.add(outgoingPromo.category);
+                    consecutiveSwipes = 0; // Agar dilchaspi li hai toh swipe count bhi zero kar do
                 }
             }
 
             // 2. NAYI SLIDE SET KARO
             currentSlideIndex = index;
-            slideStartTime = Date.now(); // Timer start
+            slideStartTime = Date.now(); 
             
             const slider = document.getElementById('promoSlider');
             const dots = document.querySelectorAll('#promoDots div');
