@@ -142,7 +142,8 @@
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .promo-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: center; position: relative; }
+        /* NAYA: scroll-snap-stop always lagaya hai taake 1 swipe par strictly 1 hi video slide ho */
+        .promo-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
         .dot-active { width: 1.5rem !important; background-color: #f97316 !important; }
     </style>
 
