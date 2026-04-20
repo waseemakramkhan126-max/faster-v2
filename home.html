@@ -449,14 +449,13 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM MULTI-SLIDER BANNER LOGIC ---
+        // --- PREMIUM MULTI-SLIDER BANNER LOGIC (AUDIO FIX) ---
         let currentSlideIndex = 0;
         let slideTimer;
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             try {
-                // NAYA: 'promotions' table se saara active data mangwayen
                 const { data: promos, error } = await _supabase
                     .from('promotions')
                     .select('*')
@@ -483,7 +482,7 @@
                         if (promo.promo_type === 'video') {
                             mediaHTML = `
                                 <div class="relative w-full h-48">
-                                    <video id="vid_${index}" src="${promo.promo_url}" muted playsinline class="w-full h-48 object-cover"></video>
+                                    <video id="vid_${index}" src="${promo.promo_url}" muted playsinline class="promo-video w-full h-48 object-cover"></video>
                                     ${overlay}
                                     <button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full flex items-center justify-center z-30 backdrop-blur-md border border-white/20 shadow-lg">
                                         <i id="icon_vid_${index}" class="fas fa-volume-mute text-[10px]"></i>
@@ -493,19 +492,9 @@
                             mediaHTML = `<div class="w-full h-48 relative"><img src="${promo.promo_url}" class="w-full h-48 object-cover">${overlay}</div>`;
                         }
 
-                        slide.innerHTML = `
-                            ${mediaHTML}
-                            <div class="p-4 bg-gradient-to-br from-white to-orange-50">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span>
-                                    <h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3>
-                                </div>
-                                <p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p>
-                            </div>
-                        `;
+                        slide.innerHTML = `${mediaHTML} <div class="p-4 bg-gradient-to-br from-white to-orange-50"> <div class="flex items-center gap-2 mb-1"> <span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span> <h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3> </div> <p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p> </div>`;
                         slider.appendChild(slide);
 
-                        // Dots banana
                         const dot = document.createElement('div');
                         dot.className = `h-1.5 w-1.5 rounded-full bg-gray-300 transition-all duration-300`;
                         dot.id = `dot_${index}`;
@@ -519,46 +508,47 @@
         }
 
         function startAutoSlide(promos) {
-            updateSlideView(0);
+            updateSlideView(0, promos);
             
             function nextSlide() {
                 currentSlideIndex = (currentSlideIndex + 1) % promos.length;
-                updateSlideView(currentSlideIndex);
+                updateSlideView(currentSlideIndex, promos);
                 
-                const currentPromo = promos[currentSlideIndex];
-                // Yahan Seconds ko auto calculate kar raha hai (e.g. 60 sec = 1 min)
-                const delay = (currentPromo.duration || 5) * 1000; 
-                
-                if(currentPromo.promo_type === 'video') {
-                    const vid = document.getElementById(`vid_${currentSlideIndex}`);
-                    if(vid) { 
-                        vid.currentTime = 0;
-                        vid.play().catch(e => console.log(e));
-                    }
-                }
-
+                const delay = (promos[currentSlideIndex].duration || 5) * 1000;
                 slideTimer = setTimeout(nextSlide, delay);
             }
 
-            slideTimer = setTimeout(nextSlide, (promos[0].duration || 5) * 1000);
-            
-            if(promos[0].promo_type === 'video') {
-                const firstVid = document.getElementById('vid_0');
-                if(firstVid) firstVid.play().catch(e => console.log(e));
-            }
+            const initialDelay = (promos[0].duration || 5) * 1000;
+            slideTimer = setTimeout(nextSlide, initialDelay);
         }
 
-        function updateSlideView(index) {
+        function updateSlideView(index, promos) {
             const slider = document.getElementById('promoSlider');
             const dots = document.querySelectorAll('#promoDots div');
             
-            // Auto smooth scroll
             slider.scrollLeft = slider.offsetWidth * index;
             
             dots.forEach((dot, i) => {
                 if(i === index) dot.classList.add('dot-active');
                 else dot.classList.remove('dot-active');
             });
+
+            // FIX: Sab videos pause karo aur mute karo slide change hote hi
+            const allVideos = document.querySelectorAll('.promo-video');
+            allVideos.forEach(v => {
+                v.pause();
+                v.muted = true; 
+                const iconId = `icon_${v.id}`;
+                const icon = document.getElementById(iconId);
+                if(icon) icon.className = 'fas fa-volume-mute text-[10px]';
+            });
+
+            // Sirf nayi aane wali video ko play karo
+            const currentVid = document.getElementById(`vid_${index}`);
+            if(currentVid) {
+                currentVid.currentTime = 0; 
+                currentVid.play().catch(e => console.log("Autoplay block:", e));
+            }
         }
 
         function toggleSliderAudio(e, vidId) {
