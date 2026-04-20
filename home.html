@@ -583,9 +583,10 @@
                                     return; 
                                 }
 
+                                // Normal Swipe chalne do
                                 activateSlide(newIndex, false); 
                             }
-                        }, 150); 
+                        }, 40); // 🔥 FIX: 150 ki jagah 40 kar diya taake swipe rukte hi 0.04 second mein Play ho!
                     });
 
                     activateSlide(0, false);
