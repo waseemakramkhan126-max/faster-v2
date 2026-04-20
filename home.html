@@ -451,7 +451,7 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM PROMOTION BANNER LOGIC (SMART FIX) ---
+        // --- PREMIUM PROMOTION BANNER LOGIC (WITH AUDIO BUTTON) ---
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             
@@ -461,7 +461,6 @@
                 if (error) throw error;
 
                 if (data && data.length > 0) {
-                    // FIX: Ab code khud dhoondega ke kis line mein promo ON (true) hai
                     const promo = data.find(row => row.promo_active === true || row.promo_active === 'true' || row.promo_active === 1);
                     
                     if (promo) {
@@ -477,7 +476,13 @@
                             mediaBox.classList.remove('hidden');
                         } 
                         else if (promo.promo_type === 'video' && promo.promo_url) {
-                            mediaBox.innerHTML = `<video src="${promo.promo_url}" autoplay loop muted playsinline class="w-full h-48 object-cover"></video>` + shadowOverlay;
+                            // NAYA: Video ko ID di hai aur ek khoobsurat Audio Button add kiya hai
+                            const audioButton = `
+                            <button onclick="togglePromoAudio(event)" class="absolute bottom-3 right-3 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center z-30 backdrop-blur-md transition-all active:scale-90 shadow-lg border border-white/20">
+                                <i id="audioIcon" class="fas fa-volume-mute text-xs"></i>
+                            </button>`;
+
+                            mediaBox.innerHTML = `<video id="promoVideoPlayer" src="${promo.promo_url}" autoplay loop muted playsinline class="w-full h-48 object-cover"></video>` + shadowOverlay + audioButton;
                             mediaBox.classList.remove('hidden');
                         }
 
@@ -486,13 +491,33 @@
                             textBox.classList.remove('hidden');
                         }
 
-                        // Banner ko show kar do
                         banner.classList.remove('hidden');
                         banner.classList.add('animate-pop');
                     }
                 }
             } catch (err) {
                 console.log("Promo Error: ", err.message || err);
+            }
+        }
+
+        // NAYA FUNCTION: Speaker dabane par aawaz ON/OFF karne ke liye
+        function togglePromoAudio(e) {
+            e.preventDefault(); // Click ko sirf button tak mehdood rakhega
+            const video = document.getElementById('promoVideoPlayer');
+            const icon = document.getElementById('audioIcon');
+
+            if (video) {
+                if (video.muted) {
+                    // Agar mute hai toh aawaz khol do aur icon change kar do
+                    video.muted = false;
+                    icon.classList.remove('fa-volume-mute');
+                    icon.classList.add('fa-volume-up');
+                } else {
+                    // Agar aawaz khuli hai toh band kar do aur icon change kar do
+                    video.muted = true;
+                    icon.classList.remove('fa-volume-up');
+                    icon.classList.add('fa-volume-mute');
+                }
             }
         }
 
