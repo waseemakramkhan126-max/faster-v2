@@ -449,9 +449,16 @@
         // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM MULTI-SLIDER BANNER LOGIC (AUDIO FIX) ---
+        // --- PREMIUM MULTI-SLIDER (ULTIMATE 3:1 AI ALGORITHM) ---
         let currentSlideIndex = 0;
         let slideTimer;
+        let isAutoScrolling = false;
+        
+        // 🧠 AI TRACKING VARIABLES
+        let promosData = []; 
+        let userInterests = new Set(); 
+        let slideStartTime = 0;
+        let consecutiveInterestShown = 0; // Track karega ke pasand ki kitni chal chuki hain (3:1 rule)
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
@@ -465,6 +472,7 @@
                 if (error) throw error;
 
                 if (promos && promos.length > 0) {
+                    promosData = promos; 
                     const slider = document.getElementById('promoSlider');
                     const dotsContainer = document.getElementById('promoDots');
                     const container = document.getElementById('promoContainer');
@@ -502,52 +510,114 @@
                     });
 
                     container.classList.remove('hidden');
-                    startAutoSlide(promos);
+
+                    // CUSTOMER SWIPE KAREGA TOH YAHAN AAYEGA
+                    slider.addEventListener('scroll', () => {
+                        if (isAutoScrolling) return; 
+                        clearTimeout(slider.scrollTimeout);
+                        slider.scrollTimeout = setTimeout(() => {
+                            let newIndex = Math.round(slider.scrollLeft / slider.offsetWidth);
+                            if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
+                                // Agar customer ne swipe kar diya, toh ratio wapas zero (0) kar do 
+                                // Taake agli video dobara uski pasand ki dhoonde
+                                consecutiveInterestShown = 0; 
+                                activateSlide(newIndex, false); 
+                            }
+                        }, 150); 
+                    });
+
+                    activateSlide(0, false);
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
 
-        function startAutoSlide(promos) {
-            updateSlideView(0, promos);
-            
-            function nextSlide() {
-                currentSlideIndex = (currentSlideIndex + 1) % promos.length;
-                updateSlideView(currentSlideIndex, promos);
-                
-                const delay = (promos[currentSlideIndex].duration || 5) * 1000;
-                slideTimer = setTimeout(nextSlide, delay);
+        // 🧠 NEXT VIDEO DECISION ALGORITHM (3:1 RULE)
+        function getSmartNextIndex() {
+            // Agar customer ki koi pasand nahi mili abhi tak
+            if (userInterests.size === 0) {
+                return (currentSlideIndex + 1) % promosData.length;
             }
 
-            const initialDelay = (promos[0].duration || 5) * 1000;
-            slideTimer = setTimeout(nextSlide, initialDelay);
+            // Agar 3 videos se kam dikhayi hain uski pasand ki (Rule: 1, 2, 3)
+            if (consecutiveInterestShown < 3) {
+                for (let i = 1; i < promosData.length; i++) {
+                    let checkIdx = (currentSlideIndex + i) % promosData.length;
+                    if (userInterests.has(promosData[checkIdx].category)) {
+                        consecutiveInterestShown++; // Counter badhao
+                        return checkIdx; // Uski pasand ki video mil gayi!
+                    }
+                }
+            }
+
+            // Rule 4: 3 videos dikha li, ab 1 video app (hamari) marzi ki chalegi
+            consecutiveInterestShown = 0; // Agli cycle ke liye counter reset
+            return (currentSlideIndex + 1) % promosData.length; // Next in line
         }
 
-        function updateSlideView(index, promos) {
+        function activateSlide(index, autoScroll = true) {
+            // 1. PURANI SLIDE KA RESULT CHECK KARO (Approve ya Reject?)
+            if (slideStartTime > 0 && promosData[currentSlideIndex]) {
+                const outgoingPromo = promosData[currentSlideIndex];
+                const watchTime = (Date.now() - slideStartTime) / 1000;
+                const vid = document.getElementById(`vid_${currentSlideIndex}`);
+                const isUnmuted = vid && !vid.muted;
+
+                // Agar 4 second se zyada dekhi ya aawaz kholi (Matlab Reject NAHI ki)
+                if ((watchTime >= 4 || isUnmuted) && outgoingPromo.category) {
+                    userInterests.add(outgoingPromo.category);
+                }
+            }
+
+            // 2. NAYI SLIDE SET KARO
+            currentSlideIndex = index;
+            slideStartTime = Date.now(); // Timer start
+            
             const slider = document.getElementById('promoSlider');
             const dots = document.querySelectorAll('#promoDots div');
             
-            slider.scrollLeft = slider.offsetWidth * index;
+            if (autoScroll) {
+                isAutoScrolling = true;
+                slider.scrollLeft = slider.offsetWidth * index;
+                setTimeout(() => { isAutoScrolling = false; }, 500); 
+            }
             
             dots.forEach((dot, i) => {
                 if(i === index) dot.classList.add('dot-active');
                 else dot.classList.remove('dot-active');
             });
 
-            // FIX: Sab videos pause karo aur mute karo slide change hote hi
+            // Sab videos band karo
             const allVideos = document.querySelectorAll('.promo-video');
             allVideos.forEach(v => {
                 v.pause();
                 v.muted = true; 
-                const iconId = `icon_${v.id}`;
-                const icon = document.getElementById(iconId);
+                v.onended = null; 
+                const icon = document.getElementById(`icon_${v.id}`);
                 if(icon) icon.className = 'fas fa-volume-mute text-[10px]';
             });
 
-            // Sirf nayi aane wali video ko play karo
-            const currentVid = document.getElementById(`vid_${index}`);
-            if(currentVid) {
-                currentVid.currentTime = 0; 
-                currentVid.play().catch(e => console.log("Autoplay block:", e));
+            clearTimeout(slideTimer); 
+
+            const currentPromo = promosData[index];
+
+            // 3. NAYI VIDEO/IMAGE PLAY KARO
+            if (currentPromo.promo_type === 'video') {
+                const currentVid = document.getElementById(`vid_${index}`);
+                if(currentVid) {
+                    currentVid.currentTime = 0; 
+                    currentVid.play().catch(e => console.log("Autoplay block:", e));
+                    
+                    currentVid.onended = () => {
+                        const nextIdx = getSmartNextIndex();
+                        activateSlide(nextIdx, true);
+                    };
+                }
+            } else {
+                const delay = (currentPromo.duration || 5) * 1000;
+                slideTimer = setTimeout(() => {
+                    const nextIdx = getSmartNextIndex();
+                    activateSlide(nextIdx, true);
+                }, delay);
             }
         }
 
