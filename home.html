@@ -524,7 +524,7 @@
                         if (promo.promo_type === 'video') {
                             mediaHTML = `
                                 <div class="media-box relative w-full h-48 transition-all" onclick="handleMediaTap(event, ${index}, 'video')">
-                                    <video id="vid_${index}" src="${promo.promo_url}" preload="none" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>
+                                    <video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>
                                     ${overlay}
                                     <div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div>
                                     <button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg">
