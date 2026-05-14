@@ -67,25 +67,47 @@
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
-        async function loadWalletData() {
-            if (!userPhone) return;
+        async function loadWalletData(isManualRefresh = false) {
+            if (!navigator.onLine) {
+                if(isManualRefresh) alert("No internet connection!");
+                return;
+            }
+
+            const refreshIcon = document.getElementById('refreshIcon');
+            if(isManualRefresh) refreshIcon.classList.add('fa-spin', 'text-teal-500');
+
             try {
+                // 1. Transaction History (Orders table se laao)
                 const { data: orders, error } = await _supabase
                     .from('orders')
                     .select('*')
                     .eq('customer_phone', userPhone)
-                    .eq('status', 'completed')
+                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
                     .order('updated_at', { ascending: false });
 
                 if (error) throw error;
 
-                // Total Balance logic (Latest order's balance_amount is the current state)
-                const currentBal = orders.length > 0 ? parseFloat(orders[0].balance_amount || 0) : 0;
+                // 2. Exact Wallet Balance (Ab 'wallets' table se aayega)
+                const { data: walletData, error: walletErr } = await _supabase
+                    .from('wallets')
+                    .select('current_balance')
+                    .eq('phone_number', userPhone)
+                    .maybeSingle(); 
+
+                // Agar wallet me record hai to uska balance, warna 0
+                const currentBal = walletData ? parseFloat(walletData.current_balance || 0) : 0;
                 
                 updateBalanceUI(currentBal);
                 renderTransactions(orders);
 
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("Wallet Fetch Error:", err); 
+                document.getElementById('transactionList').innerHTML = `<div class="text-center py-10 text-red-500 text-xs font-bold">Failed to load data.</div>`;
+            } finally {
+                if(isManualRefresh) {
+                    setTimeout(() => refreshIcon.classList.remove('fa-spin', 'text-teal-500'), 500);
+                }
+            }
         }
 
         function updateBalanceUI(bal) {
