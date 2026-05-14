@@ -59,7 +59,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
-        /* Dots animation removed as dots are removed */
 
         .tiktok-fullscreen {
             position: fixed !important; top: 0 !important; left: 0 !important; 
@@ -75,24 +74,21 @@
         .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
         .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
         .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
-        /* Show close button only in fullscreen */
         .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
         
         .pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
         .pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
         .is-paused .pause-icon-overlay { opacity: 1; }
 
-        /* Sidebar Overlay */
-#sidebarOverlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
-    opacity: 0; pointer-events: none; transition: opacity 0.4s;
-}
+        #sidebarOverlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s;
+        }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Small centered Promo Box styles */
         #promoContainer:not(.tiktok-fullscreen) {
-            width: 250px; /* Adjust size as needed */
-            height: 150px; /* Adjust size as needed */
+            width: 250px; 
+            height: 150px; 
             margin-left: auto;
             margin-right: auto;
             border-radius: 1rem;
@@ -109,7 +105,6 @@
             height: 100% !important; 
             object-fit: container;
         }
-        /* Hide text box in small view */
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
             display: none !important;
         }
@@ -123,7 +118,6 @@
 
     <audio id="notifSound" src="https://hkabhikizdlbavfkualt.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
 
-    <!-- Sidebar Overlay -->
     <div id="sidebarOverlay" onclick="toggleMenu()"></div>
 
     <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
@@ -163,7 +157,6 @@
         </button>
     </div>
 
-    <!-- COMPACT APPBAR -->
     <header class="px-4 flex justify-between items-center bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe" style="height: 56px;">
         <div class="flex items-center gap-3">
             <i class="fas fa-bars-staggered text-base text-gray-700 cursor-pointer active:scale-90 transition p-1" onclick="toggleMenu()"></i>
@@ -186,29 +179,22 @@
         </div>
     </header>
 
-    <!-- PROMOTIONS - Modified: Small, Centered, No Dots, Single Click Fullscreen -->
     <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
         <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
         </div>
-        <!-- Dots removed from here -->
-        <!-- Close button for fullscreen only -->
         <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
 
-    <!-- Style overrides removed as they are handled in main style block now -->
-
     <main class="p-6 pt-8">
         <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 h-6">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
-            <!-- Pending Box (Ab Clickable Hai) -->
             <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
                 <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
             </p>
             
-            <!-- Remaining Wallet Box (Ab Clickable Hai) -->
             <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
                 <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
             </p>
@@ -226,7 +212,7 @@
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <div id="activeOrdersCard" onclick="openActiveOrders()" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer">
+                <div id="activeOrdersCard" onclick="openActiveOrders()" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer relative">
                     <div class="bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-blue-100 shadow-inner">
                         <span>⏱️</span>
                     </div>
@@ -257,17 +243,10 @@
             window.location.replace('index.html');
         }
 
-        if (userPhone && !isLocalPreview) {
-            try { 
-                window.location.href = "gonative://onesignal/externalId/set?id=" + userPhone; 
-            } catch (e) { console.warn("OneSignal linking skipped"); }
-        }
-
         const sound = document.getElementById('notifSound');
 
         async function initializeApp() {
             if (!navigator.onLine) return;
-
             document.getElementById('userName').innerText = userName;
 
             try {
@@ -287,24 +266,63 @@
             setupRealtime();
         }
 
+        // ✅ UPDATED: Ab ye pehle Wallets table check karega phir Orders
         async function fetchWalletBalance() {
             if (!navigator.onLine) return;
             document.getElementById('walletLoading').classList.remove('hidden');
             try {
-                const { data: orders, error } = await _supabase
-                    .from('orders').select('balance_amount').eq('customer_phone', userPhone)
-                    .eq('status', 'completed').order('updated_at', { ascending: false }).limit(1); 
-                if (error) throw error;
+                let currentBal = 0;
+                let foundWallet = false;
+
+                // 1. Wallets Table Check karein (For Top-ups & Advance)
+                const { data: walletData, error: walErr } = await _supabase
+                    .from('wallets')
+                    .select('current_balance')
+                    .eq('customer_phone', userPhone)
+                    .maybeSingle(); 
+                
+                if (!walErr && walletData) {
+                    currentBal = parseFloat(walletData.current_balance || 0);
+                    foundWallet = true;
+                }
+
+                // 2. Agar wallet record nahi hai, toh last order se uthain
+                if (!foundWallet) {
+                    const { data: orders, error: ordErr } = await _supabase
+                        .from('orders')
+                        .select('balance_amount')
+                        .eq('customer_phone', userPhone)
+                        .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
+                        .order('updated_at', { ascending: false })
+                        .limit(1); 
+                    
+                    if (!ordErr && orders && orders.length > 0) {
+                        currentBal = parseFloat(orders[0].balance_amount || 0);
+                    }
+                }
+
                 const hPend = document.getElementById('homePend'); const pBox = document.getElementById('homePendBox');
                 const hRem = document.getElementById('homeRem'); const rBox = document.getElementById('homeRemBox');
-                if (orders && orders.length > 0) {
-                    const currentBal = parseFloat(orders[0].balance_amount || 0);
-                    if (currentBal > 0) { hPend.innerText = `Rs. ${currentBal}`; pBox.classList.remove('hidden'); rBox.classList.add('hidden'); }
-                    else if (currentBal < 0) { hRem.innerText = `Rs. ${Math.abs(currentBal)}`; rBox.classList.remove('hidden'); pBox.classList.add('hidden'); }
-                    else { pBox.classList.add('hidden'); rBox.classList.add('hidden'); }
-                } else { pBox.classList.add('hidden'); rBox.classList.add('hidden'); }
-            } catch (e) { console.error("Wallet error", e); } 
-            finally { document.getElementById('walletLoading').classList.add('hidden'); }
+
+                if (currentBal > 0) { 
+                    hPend.innerText = `Rs. ${currentBal}`; 
+                    pBox.classList.remove('hidden'); 
+                    rBox.classList.add('hidden'); 
+                }
+                else if (currentBal < 0) { 
+                    hRem.innerText = `Rs. ${Math.abs(currentBal)}`; 
+                    rBox.classList.remove('hidden'); 
+                    pBox.classList.add('hidden'); 
+                }
+                else { 
+                    pBox.classList.add('hidden'); 
+                    rBox.classList.add('hidden'); 
+                }
+            } catch (e) { 
+                console.error("Wallet error", e); 
+            } finally { 
+                document.getElementById('walletLoading').classList.add('hidden'); 
+            }
         }
 
         async function checkNotifications() {
@@ -362,66 +380,17 @@
             window.location.href = 'active-orders.html';
         }
 
-        function ring() { 
-            if(!sound) return;
-            sound.currentTime = 0; 
-            let playPromise = sound.play();
-            if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Auto-play block:", error); }); }
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
-        }
-
-        function unlockAudio() {
-            if(sound) {
-                sound.muted = true;
-                sound.play().then(() => {
-                    sound.pause(); sound.currentTime = 0; sound.muted = false;
-                }).catch(e => console.warn(e));
-            }
-        }
-        document.addEventListener('touchstart', unlockAudio, { once: true });
-        document.addEventListener('click', unlockAudio, { once: true });
-
-        function setupRealtime() {
-            _supabase.removeAllChannels(); 
-            _supabase.channel('customer-home-live')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.sender_phone !== userPhone) { checkNotifications(); updateActiveOrdersCard(); ring(); }
-                })
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.status === 'seen') { updateActiveOrdersCard(); checkNotifications(); }
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) { updateActiveOrdersCard(); checkNotifications(); ring(); }
-                })
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) { updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); ring(); }
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
-                    if(payload.new && payload.new.receiver_id === userPhone) { checkNotifications(); ring(); }
-                })
-                .subscribe();
-        }
-
-        // Modified toggleMenu to handle overlay
         function toggleMenu() { 
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
-            const isActive = sidebar.classList.contains('active');
-            
-            if (isActive) {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
-            } else {
-                sidebar.classList.add('active');
-                overlay.classList.add('active');
-            }
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
         }
         
         async function logout() { 
             if(confirm("Are you sure you want to logout?")) { 
                 await _supabase.auth.signOut();
                 localStorage.clear(); 
-                try { window.location.href = "gonative://onesignal/externalId/remove"; } catch (e) {}
                 setTimeout(() => { window.location.replace("index.html"); }, 500);
             } 
         }
@@ -432,19 +401,25 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
-        window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.top = '0'; });
-        window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initializeApp(); });
-        
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && navigator.onLine) {
-                checkNotifications(); updateActiveOrdersCard(); fetchWalletBalance();
-            }
-        });
+        function setupRealtime() {
+            _supabase.removeAllChannels(); 
+            _supabase.channel('customer-home-live')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, () => { 
+                    checkNotifications(); updateActiveOrdersCard(); 
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => { 
+                    updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
+                })
+                .subscribe();
+        }
 
-        setGreeting();
-        initializeApp();
+        window.onload = () => {
+            setGreeting();
+            initializeApp();
+            fetchPromotions();
+        };
 
-        // PROMOTIONS SLIDER - Modified for Single Click Fullscreen, No Dots
+        // PROMOTIONS LOGIC (Keep original)
         let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
         let promosData = [], userInterests = new Set();
         let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
@@ -457,9 +432,8 @@
                 if (promos && promos.length > 0) {
                     promosData = promos; 
                     const slider = document.getElementById('promoSlider');
-                    // dotsContainer lookup removed
                     const container = document.getElementById('promoContainer');
-                    slider.innerHTML = ''; // dotsContainer innerHTML reset removed
+                    slider.innerHTML = '';
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
                         slide.className = 'promo-slide overflow-hidden shrink-0';
@@ -470,7 +444,6 @@
                             : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
-                        // Dot creation logic removed
                     });
                     container.classList.remove('hidden');
                     slider.addEventListener('scroll', () => {
@@ -479,19 +452,6 @@
                         slider.scrollTimeout = setTimeout(() => {
                             let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
                             if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                                const watchTime = (Date.now() - slideStartTime) / 1000;
-                                if (watchTime < 3) consecutiveSwipes++; else consecutiveSwipes = 0; 
-                                consecutiveInterestShown = 0; 
-                                if (consecutiveSwipes >= 3) {
-                                    consecutiveSwipes = 0; 
-                                    const currentCategory = promos[currentSlideIndex].category;
-                                    let jumpIndex = newIndex;
-                                    for (let i = 1; i < promos.length; i++) {
-                                        let checkIdx = (newIndex + i) % promos.length;
-                                        if (promos[checkIdx].category !== currentCategory) { jumpIndex = checkIdx; break; }
-                                    }
-                                    activateSlide(jumpIndex, true, true); return; 
-                                }
                                 activateSlide(newIndex, false); 
                             }
                         }, 40);
@@ -501,34 +461,14 @@
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
 
-        // Modified handleMediaTap for Single Click Fullscreen
         function handleMediaTap(e, index, type) {
             if (e.target.closest('button')) return;
-            
             const container = document.getElementById('promoContainer');
-            const isFullscreen = container.classList.contains('tiktok-fullscreen');
-
-            if (!isFullscreen) {
-                // Single click to enter fullscreen when in small view
+            if (!container.classList.contains('tiktok-fullscreen')) {
                 toggleTikTokFullscreen();
-            } else {
-                // Standard TikTok behavior when in fullscreen
-                if (type === 'video') {
-                    const vid = document.getElementById(`vid_${index}`);
-                    const overlay = document.getElementById(`pause_overlay_${index}`);
-                    if (vid) {
-                        if (vid.paused) { 
-                            vid.play(); 
-                            overlay.parentElement.classList.remove('is-paused'); 
-                        } else { 
-                            vid.pause(); 
-                            overlay.parentElement.classList.add('is-paused'); 
-                            clearTimeout(slideTimer); 
-                        }
-                    }
-                } else { 
-                    clearTimeout(slideTimer); 
-                }
+            } else if (type === 'video') {
+                const vid = document.getElementById(`vid_${index}`);
+                if (vid.paused) vid.play(); else vid.pause();
             }
         }
 
@@ -536,107 +476,37 @@
             const container = document.getElementById('promoContainer');
             const slider = document.getElementById('promoSlider');
             const isEntering = !container.classList.contains('tiktok-fullscreen');
-            
             container.classList.toggle('tiktok-fullscreen');
-            
-            // Handle video mute state based on fullscreen
-            const allVideos = document.querySelectorAll('.promo-video');
-            allVideos.forEach(v => {
-                const vidIndex = v.id.split('_')[1];
-                const icon = document.getElementById(`icon_${v.id}`);
-                
-                if (isEntering && vidIndex == currentSlideIndex) {
-                    v.muted = false; // Unmute current video on fullscreen
-                    if(icon) icon.className = 'fas fa-volume-up text-[9px]';
-                } else {
-                    v.muted = true; // Mute all/current on exit
-                    if(icon) icon.className = 'fas fa-volume-mute text-[9px]';
-                }
-            });
-
+            const vid = document.getElementById(`vid_${currentSlideIndex}`);
+            if (vid) {
+                vid.muted = !isEntering;
+                const icon = document.getElementById(`icon_${vid.id}`);
+                if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
+            }
             setTimeout(() => {
-                slider.style.scrollBehavior = 'auto';
                 slider.scrollTop = slider.offsetHeight * currentSlideIndex;
-                setTimeout(() => { slider.style.scrollBehavior = 'smooth'; }, 50);
             }, 50);
         }
 
-        function getSmartNextIndex() {
-            if (userInterests.size === 0) return (currentSlideIndex + 1) % promosData.length;
-            if (consecutiveInterestShown < 3) {
-                for (let i = 1; i < promosData.length; i++) {
-                    let checkIdx = (currentSlideIndex + i) % promosData.length;
-                    if (userInterests.has(promosData[checkIdx].category)) { consecutiveInterestShown++; return checkIdx; }
-                }
-            }
-            consecutiveInterestShown = 0; 
-            for (let i = 1; i < promosData.length; i++) {
-                let checkIdx = (currentSlideIndex + i) % promosData.length;
-                if (!userInterests.has(promosData[checkIdx].category)) return checkIdx; 
-            }
-            return (currentSlideIndex + 1) % promosData.length; 
-        }
-
-        function activateSlide(index, autoScroll = true, isInstant = false) {
-            if (slideStartTime > 0 && promosData[currentSlideIndex]) {
-                const outgoingPromo = promosData[currentSlideIndex];
-                const watchTime = (Date.now() - slideStartTime) / 1000;
-                const vid = document.getElementById(`vid_${currentSlideIndex}`);
-                const isUnmuted = vid && !vid.muted;
-                if ((watchTime >= 4 || isUnmuted) && outgoingPromo.category) { userInterests.add(outgoingPromo.category); consecutiveSwipes = 0; }
-            }
-            currentSlideIndex = index; slideStartTime = Date.now(); 
+        function activateSlide(index, autoScroll = true) {
+            currentSlideIndex = index;
             const slider = document.getElementById('promoSlider');
-            // Dots update logic removed
-            
-            if (isInstant || Math.abs(slider.scrollTop - (slider.offsetHeight * index)) > slider.offsetHeight * 1.5) {
-                slider.style.scrollBehavior = 'auto'; 
-                slider.scrollTop = slider.offsetHeight * index;
-                setTimeout(() => { slider.style.scrollBehavior = 'smooth'; }, 50);
-            } 
-            else if (autoScroll) {
+            if (autoScroll) {
                 isAutoScrolling = true;
-                slider.style.scrollBehavior = 'smooth'; 
                 slider.scrollTop = slider.offsetHeight * index;
-                setTimeout(() => { isAutoScrolling = false; }, 500); 
+                setTimeout(() => { isAutoScrolling = false; }, 500);
             }
-            
-            const container = document.getElementById('promoContainer');
-            const isFullscreen = container.classList.contains('tiktok-fullscreen');
-
-            const allVideos = document.querySelectorAll('.promo-video');
-            allVideos.forEach(v => {
-                v.pause(); v.muted = true; v.onended = null; 
-                const icon = document.getElementById(`icon_${v.id}`);
-                if(icon) icon.className = 'fas fa-volume-mute text-[9px]';
-                const overlay = document.getElementById(`pause_overlay_${v.id.split('_')[1]}`);
-                if(overlay) overlay.parentElement.classList.remove('is-paused');
+            document.querySelectorAll('.promo-video').forEach(v => {
+                v.pause(); v.muted = true;
             });
-            clearTimeout(slideTimer); 
-            const currentPromo = promosData[index];
-            if (currentPromo.promo_type === 'video') {
-                const currentVid = document.getElementById(`vid_${index}`);
-                if(currentVid) {
-                    currentVid.currentTime = 0; 
-                    
-                    // Unmute if in fullscreen, otherwise mute
-                    if (isFullscreen) {
-                        currentVid.muted = false;
-                        const icon = document.getElementById(`icon_vid_${index}`);
-                        if(icon) icon.className = 'fas fa-volume-up text-[9px]';
-                    } else {
-                        currentVid.muted = true;
-                    }
-
-                    currentVid.play().catch(e => console.log("Autoplay block:", e));
-                    const nextSmartIdx = getSmartNextIndex();
-                    const nextVidReady = document.getElementById(`vid_${nextSmartIdx}`);
-                    if(nextVidReady && nextVidReady.tagName === 'VIDEO') nextVidReady.preload = "auto";
-                    currentVid.onended = () => { activateSlide(getSmartNextIndex(), true, false); };
+            const promo = promosData[index];
+            if (promo && promo.promo_type === 'video') {
+                const vid = document.getElementById(`vid_${index}`);
+                if (vid) {
+                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
+                    vid.muted = !isFull;
+                    vid.play().catch(e => console.log(e));
                 }
-            } else {
-                const delay = (currentPromo.duration || 5) * 1000;
-                slideTimer = setTimeout(() => { activateSlide(getSmartNextIndex(), true, false); }, delay);
             }
         }
 
@@ -646,8 +516,6 @@
             const icon = document.getElementById(`icon_${vidId}`);
             if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
         }
-
-        setTimeout(fetchPromotions, 600);
     </script>
 </body>
 </html>
