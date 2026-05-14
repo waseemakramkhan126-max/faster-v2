@@ -51,9 +51,20 @@
             <div class="relative z-10">
                 <p id="balanceLabel" class="text-[10px] opacity-80 uppercase tracking-[0.2em] font-black mb-2">Net Wallet Balance</p>
                 <h2 id="balanceAmount" class="text-5xl font-extrabold mb-4 tracking-tighter">Rs. 0</h2>
-                <div id="statusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 border border-white/30 shadow-sm">
+                <div id="statusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 border border-white/30 shadow-sm mb-2">
                     <i class="fas fa-circle-notch fa-spin"></i> Syncing...
                 </div>
+                
+                <!-- NEW BUTTONS ADDED HERE -->
+                <div id="actionButtons" class="mt-4 flex gap-3">
+                    <button id="btnTopUp" class="hidden flex-1 bg-white/20 active:bg-white/30 border border-white/30 text-white py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm transition-colors">
+                        <i class="fas fa-arrow-up mr-1"></i> Top-Up
+                    </button>
+                    <button id="btnWithdraw" class="hidden flex-1 bg-white/20 active:bg-white/30 border border-white/30 text-white py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm transition-colors">
+                        <i class="fas fa-hand-holding-usd mr-1"></i> Withdraw
+                    </button>
+                </div>
+
             </div>
             <i class="fas fa-wallet absolute -right-6 -bottom-6 text-white/10 text-[12rem] rotate-12"></i>
         </div>
@@ -125,24 +136,38 @@
             const badge = document.getElementById('statusBadge');
             const label = document.getElementById('balanceLabel');
             const card = document.getElementById('balanceCard');
+            
+            // Buttons Logic Added Here
+            const btnTopUp = document.getElementById('btnTopUp');
+            const btnWithdraw = document.getElementById('btnWithdraw');
+
+            // Reset button visibility pehle se
+            btnTopUp.classList.add('hidden');
+            btnWithdraw.classList.add('hidden');
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
 
             if (bal > 0) {
                 badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> Pending Payment`;
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm mb-2";
                 label.innerText = "You Owe Us";
                 card.style.background = "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)";
+                
+                btnTopUp.classList.remove('hidden'); // Pending ke time Top-up zaroorat ban sakti hai
             } else if (bal < 0) {
                 badge.innerHTML = `<i class="fas fa-check-circle"></i> Advance Balance`;
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm";
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm mb-2";
                 label.innerText = "Your Remaining Credit";
                 card.style.background = "linear-gradient(135deg, #065f46 0%, #064e3b 100%)";
+                
+                btnWithdraw.classList.remove('hidden'); // Advance ho tab Withdraw allow
             } else {
                 badge.innerHTML = `<i class="fas fa-check-double"></i> All Clear`;
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white/60 border border-white/20 shadow-sm";
+                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white/60 border border-white/20 shadow-sm mb-2";
                 label.innerText = "Wallet Balance";
                 card.style.background = "linear-gradient(135deg, #0f172a 0%, #334155 100%)";
+                
+                btnTopUp.classList.remove('hidden'); // Jab 0 balance ho tab Top-up dikhao
             }
         }
 
