@@ -11,20 +11,16 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
         
-        /* Strict Mobile WebView & iOS Optimization */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            overscroll-behavior-y: none; /* Block Pull-to-refresh */
-            -webkit-tap-highlight-color: transparent; /* Block blue tap flash */
-            user-select: none; /* Block text highlighting */
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
             -webkit-user-select: none;
-            padding-top: env(safe-area-inset-top); /* iPhone Notch Fix */
+            padding-top: env(safe-area-inset-top);
             background-color: #f9fafb;
         }
         
-        /* --- ANIMATIONS --- */
-        
-        /* 1. Active Order Continuous Zoom & Green Glow */
         @keyframes order-continuous-pulse {
             0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
             50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
@@ -36,7 +32,6 @@
             background-color: #f0fdf4 !important; z-index: 40; 
         }
 
-        /* 2. Bell Icon Red Pulse Alert */
         @keyframes bell-pulse {
             0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
             50% { transform: scale(1.2) rotate(15deg); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); color: #ef4444; }
@@ -44,7 +39,6 @@
         }
         .bell-active { animation: bell-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; color: #ef4444 !important; }
 
-        /* Notification Dot Badge */
         .notif-badge { 
             position: absolute; top: -2px; right: -2px; 
             background: #ef4444; border: 2px solid white; 
@@ -54,14 +48,71 @@
         @keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
         .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
 
-        /* General UI Elements */
-        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); }
+        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
         .sidebar.active { transform: translateX(0); }
         .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
         .action-card { transition: all 0.2s ease; position: relative; }
         .action-card:active { transform: scale(0.95); }
         
         #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
+        /* Dots animation removed as dots are removed */
+
+        .tiktok-fullscreen {
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 100vh !important; 
+            z-index: 99999 !important; margin: 0 !important; 
+            background-color: black !important;
+            border-radius: 0 !important;
+        }
+        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
+        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
+        .tiktok-fullscreen .media-box { height: 100vh !important; }
+        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
+        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+        .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
+        .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
+        /* Show close button only in fullscreen */
+        .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
+        
+        .pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+        .pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
+        .is-paused .pause-icon-overlay { opacity: 1; }
+
+        /* Sidebar Overlay */
+#sidebarOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s;
+}
+        #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
+
+        /* Small centered Promo Box styles */
+        #promoContainer:not(.tiktok-fullscreen) {
+            width: 250px; /* Adjust size as needed */
+            height: 150px; /* Adjust size as needed */
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        #promoContainer:not(.tiktok-fullscreen) #promoSlider {
+            height: 100%;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
+            height: 100% !important; 
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
+            height: 100% !important; 
+            object-fit: container;
+        }
+        /* Hide text box in small view */
+        #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -70,20 +121,22 @@
         <i class="fas fa-wifi-slash"></i> No Internet Connection
     </div>
 
-    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+    <audio id="notifSound" src="https://hkabhikizdlbavfkualt.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
 
-    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[80%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
+    <!-- Sidebar Overlay -->
+    <div id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
         <div class="flex justify-between items-center mb-8 mt-2">
             <div class="flex items-center gap-3">
                 <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden">
-                <h2 class="text-xl font-black text-gray-800 tracking-tighter">FASTER <span class="text-orange-500 italic">APP</span></h2>
+                <h2 class="text-xl font-black text-blue-800 tracking-tighter">Faster <span class="text-blue-500 italic">App</span></h2>
             </div>
             <i class="fas fa-times text-xl text-gray-400 cursor-pointer p-2 active:scale-90 transition-transform" onclick="toggleMenu()"></i>
         </div>
 
         <nav class="space-y-3 flex-1">
-            
-            <div onclick="location.href='profile.html'" class="p-4 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
+            <div onclick="location.href='profile.html'" class="p-1 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-user-edit text-blue-500 text-lg"></i>
                     <span class="font-bold text-gray-700">My Profile</span>
@@ -91,7 +144,7 @@
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
 
-            <div onclick="location.href='wallet.html'" class="p-4 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
+            <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
                     <span class="font-bold text-gray-700">My Wallet</span>
@@ -99,94 +152,66 @@
                 <i class="fas fa-chevron-right text-[10px] text-orange-300"></i>
             </div>
 
-            <a href="csr-chat.html" class="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-2xl transition font-bold text-gray-600 border border-transparent active:border-gray-200 cursor-pointer">
-                <i class="fab fa-whatsapp text-green-500 text-2xl"></i>
+            <a href="csr-chat.html" class="flex items-center gap-4 p-1 hover:bg-gray-50 rounded-2xl transition font-bold text-gray-600 border border-transparent active:border-gray-200 cursor-pointer">
+                <i class="fas fa-comment-dots text-green-500 text-2xl"></i>
                 <span>CSR Help</span>
             </a>
         </nav>
 
-        <button onclick="logout()" class="w-full bg-red-50 text-red-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 mt-auto uppercase tracking-widest text-xs active:bg-red-100 transition border border-red-100 shadow-sm mb-4">
+        <button onclick="logout()" class="w-full bg-red-50 text-red-600 font-black py-2 rounded-2xl flex items-center justify-center gap-2 mt-auto uppercase tracking-widest text-xs active:bg-red-100 transition border border-red-100 shadow-sm mb-4">
             <i class="fas fa-power-off"></i> Logout Account
         </button>
     </div>
 
-    <header class="p-5 flex justify-between items-center bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe">
-        <div class="flex items-center gap-5">
-            <i class="fas fa-bars-staggered text-2xl text-gray-700 cursor-pointer active:scale-90 transition p-1" onclick="toggleMenu()"></i>
-            
-            <div class="relative cursor-pointer transition p-1 flex items-center justify-center w-10 h-10" onclick="openNotifications()">
-                <i id="notifBell" class="fas fa-bell text-2xl text-gray-400 transition-colors"></i>
+    <!-- COMPACT APPBAR -->
+    <header class="px-4 flex justify-between items-center bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe" style="height: 56px;">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-bars-staggered text-base text-gray-700 cursor-pointer active:scale-90 transition p-1" onclick="toggleMenu()"></i>
+            <div class="relative cursor-pointer p-1 flex items-center justify-center w-8 h-8" onclick="openNotifications()">
+                <i id="notifBell" class="fas fa-bell text-base text-gray-400 transition-colors"></i>
                 <div id="notifBadge" class="notif-badge"></div>
             </div>
         </div>
-        
+
+        <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style="line-height:1.15;">
+            <p id="appbarGreeting" class="text-[9px] font-black text-gray-400 uppercase tracking-widest"></p>
+            <p id="userName" class="text-sm font-black text-gray-800 tracking-tighter">...</p>
+        </div>
+
         <div class="w-11 h-11">
             <img id="appLogo" src="" alt="Logo" class="w-full h-full brand-logo-gol hidden">
             <div id="logoFallback" class="w-11 h-11 bg-orange-500 rounded-full flex items-center justify-center shadow-md">
-                <i class="fas fa-rocket text-white text-sm animate-pulse"></i>
+                <i class="fas fa-rocket text-white text-[10px] animate-pulse"></i>
             </div>
         </div>
     </header>
-    <div id="promoContainer" class="hidden mx-4 mt-5 relative group">
-        <div id="promoSlider" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
-            </div>
 
-        <div id="promoDots" class="absolute -bottom-4 left-0 right-0 flex justify-center gap-1.5 z-30">
-            </div>
-
-        <button onclick="document.getElementById('promoContainer').style.display='none'" class="absolute top-3 right-3 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md shadow-lg active:scale-90">
-            <i class="fas fa-times text-xs"></i>
+    <!-- PROMOTIONS - Modified: Small, Centered, No Dots, Single Click Fullscreen -->
+    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
+        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
+        </div>
+        <!-- Dots removed from here -->
+        <!-- Close button for fullscreen only -->
+        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
+            <i class="fas fa-times text-xl"></i>
         </button>
     </div>
 
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .promo-slide { flex: 0 0 100%; width: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
-        .dot-active { width: 1.5rem !important; background-color: #f97316 !important; }
+    <!-- Style overrides removed as they are handled in main style block now -->
 
-        /* --- TIKTOK FULLSCREEN STYLES --- */
-        .tiktok-fullscreen {
-            position: fixed !important; top: 0 !important; left: 0 !important; 
-            width: 100vw !important; height: 100vh !important; 
-            z-index: 99999 !important; margin: 0 !important; 
-            background-color: black !important;
-        }
-        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; }
-        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; }
-        .tiktok-fullscreen .media-box { height: 100vh !important; }
-        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: cover !important; }
-        
-        /* Fullscreen me Text neechay set karne k liye */
-        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
-        .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
-        .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
-        
-        /* --- PAUSE ICON ANIMATION --- */
-        .pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
-        .pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
-        .is-paused .pause-icon-overlay { opacity: 1; }
-    </style>
-
-    <main class="p-6">
-        <div class="mb-8 flex justify-between items-start">
-            <div>
-                <h2 id="greeting" class="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading...</h2>
-                <div class="flex items-center gap-2">
-                    <p id="userName" class="text-3xl font-black text-gray-800 tracking-tighter">...</p>
-                </div>
-                
-                <div id="walletMiniDisplay" class="mt-2 flex items-center gap-2 h-6">
-                    <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
-                    
-                    <p id="homePendBox" class="hidden text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
-                        <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
-                    </p>
-                    <p id="homeRemBox" class="hidden text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
-                        <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
-                    </p>
-                </div>
-            </div>
+    <main class="p-6 pt-8">
+        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 h-6">
+            <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
+            
+            <!-- Pending Box (Ab Clickable Hai) -->
+            <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
+                <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
+            </p>
+            
+            <!-- Remaining Wallet Box (Ab Clickable Hai) -->
+            <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
+                <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
+            </p>
         </div>
 
         <div class="grid grid-cols-1 gap-4">
@@ -206,7 +231,6 @@
                         <span>⏱️</span>
                     </div>
                     <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Active Orders</span>
-                    
                     <div id="activeChatBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg font-bold animate-bounce">0</div>
                 </div>
 
@@ -221,7 +245,6 @@
     </main>
 
     <script>
-        // --- SECURE INITIALIZATION ---
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
@@ -229,10 +252,12 @@
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
         const userName = localStorage.getItem('faster_name') || 'Customer';
         
-        if (!userPhone) {
+        const isLocalPreview = window.location.protocol === 'file:';
+        if (!userPhone && !isLocalPreview) {
             window.location.replace('index.html');
-        } else {
-            // Safe OneSignal External ID Registration for Median Webview
+        }
+
+        if (userPhone && !isLocalPreview) {
             try { 
                 window.location.href = "gonative://onesignal/externalId/set?id=" + userPhone; 
             } catch (e) { console.warn("OneSignal linking skipped"); }
@@ -240,14 +265,12 @@
 
         const sound = document.getElementById('notifSound');
 
-        // --- APP BOOT SEQUENCE ---
         async function initializeApp() {
-            if (!navigator.onLine) return; // Wait for connection
+            if (!navigator.onLine) return;
 
             document.getElementById('userName').innerText = userName;
 
             try {
-                // Background Global Logo Fetching
                 const { data: settings } = await _supabase.from('app_settings').select('logo_url').eq('id', 1).single();
                 if (settings && settings.logo_url) {
                     const imgH = document.getElementById('appLogo');
@@ -258,57 +281,42 @@
                 }
             } catch (err) { console.error("Logo Error:", err); }
 
-            // Fetch Real-time Dashboard Data
             checkNotifications();
             updateActiveOrdersCard();
             fetchWalletBalance();
             setupRealtime();
         }
 
-        // --- WALLET DATA (Proper Error Handling) ---
         async function fetchWalletBalance() {
             if (!navigator.onLine) return;
             document.getElementById('walletLoading').classList.remove('hidden');
-            
             try {
                 const { data: orders, error } = await _supabase
                     .from('orders').select('balance_amount').eq('customer_phone', userPhone)
                     .eq('status', 'completed').order('updated_at', { ascending: false }).limit(1); 
-
                 if (error) throw error;
-
                 const hPend = document.getElementById('homePend'); const pBox = document.getElementById('homePendBox');
                 const hRem = document.getElementById('homeRem'); const rBox = document.getElementById('homeRemBox');
-
                 if (orders && orders.length > 0) {
                     const currentBal = parseFloat(orders[0].balance_amount || 0);
-                    if (currentBal > 0) { 
-                        hPend.innerText = `Rs. ${currentBal}`; pBox.classList.remove('hidden'); rBox.classList.add('hidden'); 
-                    } else if (currentBal < 0) { 
-                        hRem.innerText = `Rs. ${Math.abs(currentBal)}`; rBox.classList.remove('hidden'); pBox.classList.add('hidden'); 
-                    } else { 
-                        pBox.classList.add('hidden'); rBox.classList.add('hidden'); 
-                    }
+                    if (currentBal > 0) { hPend.innerText = `Rs. ${currentBal}`; pBox.classList.remove('hidden'); rBox.classList.add('hidden'); }
+                    else if (currentBal < 0) { hRem.innerText = `Rs. ${Math.abs(currentBal)}`; rBox.classList.remove('hidden'); pBox.classList.add('hidden'); }
+                    else { pBox.classList.add('hidden'); rBox.classList.add('hidden'); }
                 } else { pBox.classList.add('hidden'); rBox.classList.add('hidden'); }
             } catch (e) { console.error("Wallet error", e); } 
             finally { document.getElementById('walletLoading').classList.add('hidden'); }
         }
 
-        // --- SMART BELL NOTIFICATION CHECKER ---
         async function checkNotifications() {
             if (!navigator.onLine) return;
             try {
                 const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
-                
-                // Concurrent efficient checking
                 const [chatRes, orderRes] = await Promise.all([
                     _supabase.from('chats').select('*', { count: 'exact', head: true }).eq('receiver_id', userPhone).gt('created_at', lastRead),
                     _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead)
                 ]);
-
                 const bell = document.getElementById('notifBell');
                 const badge = document.getElementById('notifBadge');
-                
                 if ((chatRes.count || 0) > 0 || (orderRes.count || 0) > 0) { 
                     badge.classList.add('active'); bell.classList.add('bell-active'); 
                 } else { 
@@ -322,45 +330,27 @@
             window.location.href = 'notifications.html';
         }
 
-        // --- SMART ACTIVE ORDERS CARD (Continuous Zoom & Hybrid Badges) ---
         async function updateActiveOrdersCard() {
             if (!navigator.onLine) return;
-            
             try {
                 const { data: activeOrders } = await _supabase
                     .from('orders').select('id, updated_at').eq('customer_phone', userPhone)
                     .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
-
                 const card = document.getElementById('activeOrdersCard');
                 const badge = document.getElementById('activeChatBadge');
-                
                 if (activeOrders && activeOrders.length > 0) {
-                    // Turn ON Continuous Green Pulsing
                     card.classList.add('active-order-continuous-glow');
-                    
                     const orderIds = activeOrders.map(o => o.id);
-                    
-                    // Count Unread Messages
                     const { data: unreadMsgs } = await _supabase
                         .from('order_chats').select('id').in('order_id', orderIds)
                         .neq('sender_phone', userPhone).neq('status', 'seen');
-                    
                     let unreadMsgCount = unreadMsgs ? unreadMsgs.length : 0;
-
-                    // Count New Status Changes since last visit
                     let lastVisit = localStorage.getItem('last_active_orders_visit') || '2000-01-01T00:00:00.000Z';
                     let unseenStatusCount = activeOrders.filter(o => o.updated_at > lastVisit).length;
-
                     let totalAlerts = unreadMsgCount + unseenStatusCount;
-
-                    if (totalAlerts > 0) {
-                        badge.innerText = totalAlerts;
-                        badge.classList.remove('hidden');
-                    } else {
-                        badge.classList.add('hidden');
-                    }
+                    if (totalAlerts > 0) { badge.innerText = totalAlerts; badge.classList.remove('hidden'); }
+                    else { badge.classList.add('hidden'); }
                 } else {
-                    // Turn OFF Pulsing (No Active Orders)
                     card.classList.remove('active-order-continuous-glow');
                     badge.classList.add('hidden');
                 }
@@ -372,272 +362,201 @@
             window.location.href = 'active-orders.html';
         }
 
-        // --- BULLETPROOF AUDIO & RINGTONE LOGIC ---
         function ring() { 
             if(!sound) return;
             sound.currentTime = 0; 
             let playPromise = sound.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => { console.warn("Auto-play strict block:", error); });
-            }
+            if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Auto-play block:", error); }); }
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
         }
 
-        // Unlock audio context on first interaction (Required for iOS & Android Webviews)
         function unlockAudio() {
             if(sound) {
                 sound.muted = true;
                 sound.play().then(() => {
                     sound.pause(); sound.currentTime = 0; sound.muted = false;
-                    document.removeEventListener('touchstart', unlockAudio);
-                    document.removeEventListener('click', unlockAudio);
                 }).catch(e => console.warn(e));
             }
         }
         document.addEventListener('touchstart', unlockAudio, { once: true });
         document.addEventListener('click', unlockAudio, { once: true });
 
-        // --- FLAWLESS REAL-TIME SYNC ---
         function setupRealtime() {
             _supabase.removeAllChannels(); 
-
             _supabase.channel('customer-home-live')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.sender_phone !== userPhone) {
-                        checkNotifications(); updateActiveOrdersCard(); ring(); 
-                    }
+                    if(payload.new && payload.new.sender_phone !== userPhone) { checkNotifications(); updateActiveOrdersCard(); ring(); }
                 })
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.status === 'seen') {
-                        updateActiveOrdersCard(); checkNotifications();
-                    }
+                    if(payload.new && payload.new.status === 'seen') { updateActiveOrdersCard(); checkNotifications(); }
                 })
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) {
-                        updateActiveOrdersCard(); checkNotifications(); ring(); 
-                    }
+                    if(payload.new && payload.new.customer_phone === userPhone) { updateActiveOrdersCard(); checkNotifications(); ring(); }
                 })
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) {
-                        updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); ring(); 
-                    }
+                    if(payload.new && payload.new.customer_phone === userPhone) { updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); ring(); }
                 })
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
-                    if(payload.new && payload.new.receiver_id === userPhone) {
-                        checkNotifications(); ring(); 
-                    }
+                    if(payload.new && payload.new.receiver_id === userPhone) { checkNotifications(); ring(); }
                 })
                 .subscribe();
         }
 
-        // --- UI & STATE INTERACTIONS ---
-        function toggleMenu() { document.getElementById('sidebar').classList.toggle('active'); }
+        // Modified toggleMenu to handle overlay
+        function toggleMenu() { 
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isActive = sidebar.classList.contains('active');
+            
+            if (isActive) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            } else {
+                sidebar.classList.add('active');
+                overlay.classList.add('active');
+            }
+        }
         
-        // SECURE LOGOUT WITH SUPABASE CLEAR
         async function logout() { 
             if(confirm("Are you sure you want to logout?")) { 
-                await _supabase.auth.signOut(); // Supabase session clear
+                await _supabase.auth.signOut();
                 localStorage.clear(); 
                 try { window.location.href = "gonative://onesignal/externalId/remove"; } catch (e) {}
                 setTimeout(() => { window.location.replace("index.html"); }, 500);
             } 
         }
 
-        // Dynamic Greeting Based on Device Time
         function setGreeting() {
             const hour = new Date().getHours();
-            const greetingEl = document.getElementById('greeting');
-            if (hour < 12) greetingEl.innerHTML = '<i class="fas fa-sun text-yellow-500 mr-1"></i> Good Morning,';
-            else if (hour < 17) greetingEl.innerHTML = '<i class="fas fa-cloud-sun text-orange-400 mr-1"></i> Good Afternoon,';
-            else greetingEl.innerHTML = '<i class="fas fa-moon text-indigo-400 mr-1"></i> Good Evening,';
+            let text = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
+            document.getElementById('appbarGreeting').innerText = text;
         }
 
-        // Offline / Online Fallbacks
         window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.top = '0'; });
-        window.addEventListener('online', () => {
-            document.getElementById('offlineBanner').style.top = '-50px';
-            initializeApp();
-        });
+        window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initializeApp(); });
         
-        // Page Visibility Recovery (If app comes back from background)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && navigator.onLine) {
-                checkNotifications();
-                updateActiveOrdersCard();
-                fetchWalletBalance();
+                checkNotifications(); updateActiveOrdersCard(); fetchWalletBalance();
             }
         });
 
-        // Initialize Everything
         setGreeting();
         initializeApp();
-        // --- PREMIUM MULTI-SLIDER (FULLSCREEN, DOUBLE-TAP, INSTANT JUMP) ---
-        let currentSlideIndex = 0;
-        let slideTimer;
-        let isAutoScrolling = false;
-        
-        let promosData = []; 
-        let userInterests = new Set(); 
-        let slideStartTime = 0;
-        let consecutiveInterestShown = 0; 
-        let consecutiveSwipes = 0; 
-        let tapTimer = null; // Double-Tap detect karne k liye
+
+        // PROMOTIONS SLIDER - Modified for Single Click Fullscreen, No Dots
+        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
+        let promosData = [], userInterests = new Set();
+        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
             try {
-                const { data: promos, error } = await _supabase
-                    .from('promotions')
-                    .select('*')
-                    .eq('promo_active', true)
-                    .order('sort_order', { ascending: true });
-
+                const { data: promos, error } = await _supabase.from('promotions').select('*').eq('promo_active', true).order('sort_order', { ascending: true });
                 if (error) throw error;
-
                 if (promos && promos.length > 0) {
                     promosData = promos; 
                     const slider = document.getElementById('promoSlider');
-                    const dotsContainer = document.getElementById('promoDots');
+                    // dotsContainer lookup removed
                     const container = document.getElementById('promoContainer');
-                    
-                    slider.innerHTML = ''; 
-                    dotsContainer.innerHTML = '';
-
+                    slider.innerHTML = ''; // dotsContainer innerHTML reset removed
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
                         slide.className = 'promo-slide overflow-hidden shrink-0';
-                        
-                        let mediaHTML = '';
                         const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
-                        
-                        // Text Box ka HTML alag kar diya taake Fullscreen mein theek lagay
-                        const textHTML = `
-                            <div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span>
-                                    <h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3>
-                                </div>
-                                <p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p>
-                            </div>
-                        `;
-
-                        if (promo.promo_type === 'video') {
-                            mediaHTML = `
-                                <div class="media-box relative w-full h-48 transition-all" onclick="handleMediaTap(event, ${index}, 'video')">
-                                    <video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>
-                                    ${overlay}
-                                    <div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div>
-                                    <button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-3 right-3 w-8 h-8 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg">
-                                        <i id="icon_vid_${index}" class="fas fa-volume-mute text-[10px]"></i>
-                                    </button>
-                                </div>`;
-                        } else {
-                            mediaHTML = `
-                                <div class="media-box relative w-full h-48 transition-all" onclick="handleMediaTap(event, ${index}, 'image')">
-                                    <img src="${promo.promo_url}" class="w-full h-full object-cover">
-                                    ${overlay}
-                                </div>`;
-                        }
-
+                        const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
+                        let mediaHTML = promo.promo_type === 'video'
+                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
+                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
-
-                        const dot = document.createElement('div');
-                        dot.className = `h-1.5 w-1.5 rounded-full bg-gray-300 transition-all duration-300`;
-                        dot.id = `dot_${index}`;
-                        dotsContainer.appendChild(dot);
+                        // Dot creation logic removed
                     });
-
                     container.classList.remove('hidden');
-
-                    // 🧠 SWIPE BOREDOM DETECTION
                     slider.addEventListener('scroll', () => {
                         if (isAutoScrolling) return; 
                         clearTimeout(slider.scrollTimeout);
                         slider.scrollTimeout = setTimeout(() => {
-                            let newIndex = Math.round(slider.scrollLeft / slider.offsetWidth);
+                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
                             if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                                
                                 const watchTime = (Date.now() - slideStartTime) / 1000;
-                                if (watchTime < 3) consecutiveSwipes++; 
-                                else consecutiveSwipes = 0; 
-
+                                if (watchTime < 3) consecutiveSwipes++; else consecutiveSwipes = 0; 
                                 consecutiveInterestShown = 0; 
-                                
-                                // AGAR BORE HO GAYA HAI (Jaldi skip kiya)
                                 if (consecutiveSwipes >= 3) {
                                     consecutiveSwipes = 0; 
                                     const currentCategory = promos[currentSlideIndex].category;
                                     let jumpIndex = newIndex;
-                                    
                                     for (let i = 1; i < promos.length; i++) {
                                         let checkIdx = (newIndex + i) % promos.length;
-                                        if (promos[checkIdx].category !== currentCategory) {
-                                            jumpIndex = checkIdx;
-                                            break;
-                                        }
+                                        if (promos[checkIdx].category !== currentCategory) { jumpIndex = checkIdx; break; }
                                     }
-                                    
-                                    // isInstant = true bhej rahe hain taake background mein chhupe huye skip ho
-                                    activateSlide(jumpIndex, true, true); 
-                                    return; 
+                                    activateSlide(jumpIndex, true, true); return; 
                                 }
-
-                                // Normal Swipe chalne do
                                 activateSlide(newIndex, false); 
                             }
-                        }, 40); // 🔥 FIX: 150 ki jagah 40 kar diya taake swipe rukte hi 0.04 second mein Play ho!
+                        }, 40);
                     });
-
                     activateSlide(0, false);
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
 
-        // --- NAYA: SINGLE & DOUBLE TAP LOGIC ---
+        // Modified handleMediaTap for Single Click Fullscreen
         function handleMediaTap(e, index, type) {
-            // Agar mute/unmute button par click kiya hai toh video ko pause mat karna
             if (e.target.closest('button')) return;
+            
+            const container = document.getElementById('promoContainer');
+            const isFullscreen = container.classList.contains('tiktok-fullscreen');
 
-            if (tapTimer === null) {
-                tapTimer = setTimeout(() => {
-                    tapTimer = null; // Single Tap (Pause/Play)
-                    
-                    if (type === 'video') {
-                        const vid = document.getElementById(`vid_${index}`);
-                        const overlay = document.getElementById(`pause_overlay_${index}`);
-                        if (vid) {
-                            if (vid.paused) {
-                                vid.play();
-                                overlay.parentElement.classList.remove('is-paused');
-                            } else {
-                                vid.pause();
-                                overlay.parentElement.classList.add('is-paused');
-                                clearTimeout(slideTimer); // Auto-slider rok do taake araam se dekh sake
-                            }
-                        }
-                    } else {
-                        clearTimeout(slideTimer); // Image par tap kare toh bhi slider ruk jaye
-                    }
-                }, 250); // 250 millisecond wait karega double tap check karne ke liye
-            } else {
-                // Double Tap (Fullscreen)
-                clearTimeout(tapTimer);
-                tapTimer = null;
+            if (!isFullscreen) {
+                // Single click to enter fullscreen when in small view
                 toggleTikTokFullscreen();
+            } else {
+                // Standard TikTok behavior when in fullscreen
+                if (type === 'video') {
+                    const vid = document.getElementById(`vid_${index}`);
+                    const overlay = document.getElementById(`pause_overlay_${index}`);
+                    if (vid) {
+                        if (vid.paused) { 
+                            vid.play(); 
+                            overlay.parentElement.classList.remove('is-paused'); 
+                        } else { 
+                            vid.pause(); 
+                            overlay.parentElement.classList.add('is-paused'); 
+                            clearTimeout(slideTimer); 
+                        }
+                    }
+                } else { 
+                    clearTimeout(slideTimer); 
+                }
             }
         }
 
         function toggleTikTokFullscreen() {
             const container = document.getElementById('promoContainer');
             const slider = document.getElementById('promoSlider');
+            const isEntering = !container.classList.contains('tiktok-fullscreen');
             
             container.classList.toggle('tiktok-fullscreen');
             
-            // Screen ka size badalne ke baad center mein wapas lana
+            // Handle video mute state based on fullscreen
+            const allVideos = document.querySelectorAll('.promo-video');
+            allVideos.forEach(v => {
+                const vidIndex = v.id.split('_')[1];
+                const icon = document.getElementById(`icon_${v.id}`);
+                
+                if (isEntering && vidIndex == currentSlideIndex) {
+                    v.muted = false; // Unmute current video on fullscreen
+                    if(icon) icon.className = 'fas fa-volume-up text-[9px]';
+                } else {
+                    v.muted = true; // Mute all/current on exit
+                    if(icon) icon.className = 'fas fa-volume-mute text-[9px]';
+                }
+            });
+
             setTimeout(() => {
-                slider.style.scrollBehavior = 'auto'; // Instant
-                slider.scrollLeft = slider.offsetWidth * currentSlideIndex;
+                slider.style.scrollBehavior = 'auto';
+                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
                 setTimeout(() => { slider.style.scrollBehavior = 'smooth'; }, 50);
             }, 50);
         }
@@ -647,10 +566,7 @@
             if (consecutiveInterestShown < 3) {
                 for (let i = 1; i < promosData.length; i++) {
                     let checkIdx = (currentSlideIndex + i) % promosData.length;
-                    if (userInterests.has(promosData[checkIdx].category)) {
-                        consecutiveInterestShown++; 
-                        return checkIdx; 
-                    }
+                    if (userInterests.has(promosData[checkIdx].category)) { consecutiveInterestShown++; return checkIdx; }
                 }
             }
             consecutiveInterestShown = 0; 
@@ -661,99 +577,74 @@
             return (currentSlideIndex + 1) % promosData.length; 
         }
 
-        // Master Activate Function (With Instant Background Jump)
         function activateSlide(index, autoScroll = true, isInstant = false) {
             if (slideStartTime > 0 && promosData[currentSlideIndex]) {
                 const outgoingPromo = promosData[currentSlideIndex];
                 const watchTime = (Date.now() - slideStartTime) / 1000;
                 const vid = document.getElementById(`vid_${currentSlideIndex}`);
                 const isUnmuted = vid && !vid.muted;
-
-                if ((watchTime >= 4 || isUnmuted) && outgoingPromo.category) {
-                    userInterests.add(outgoingPromo.category);
-                    consecutiveSwipes = 0; 
-                }
+                if ((watchTime >= 4 || isUnmuted) && outgoingPromo.category) { userInterests.add(outgoingPromo.category); consecutiveSwipes = 0; }
             }
-
-            currentSlideIndex = index;
-            slideStartTime = Date.now(); 
-            
+            currentSlideIndex = index; slideStartTime = Date.now(); 
             const slider = document.getElementById('promoSlider');
-            const dots = document.querySelectorAll('#promoDots div');
+            // Dots update logic removed
             
-            // 🔥 INVISIBLE JUMP LOGIC 🔥
-            // Agar zabardasti AI jump kara raha hai, toh smooth ki jagah "Auto" speed se jaye ga
-            if (isInstant || Math.abs(slider.scrollLeft - (slider.offsetWidth * index)) > slider.offsetWidth * 1.5) {
+            if (isInstant || Math.abs(slider.scrollTop - (slider.offsetHeight * index)) > slider.offsetHeight * 1.5) {
                 slider.style.scrollBehavior = 'auto'; 
-                slider.scrollLeft = slider.offsetWidth * index;
-                // Wapas smooth karna taake customer ki ungli wala swipe kharab na ho
+                slider.scrollTop = slider.offsetHeight * index;
                 setTimeout(() => { slider.style.scrollBehavior = 'smooth'; }, 50);
             } 
             else if (autoScroll) {
                 isAutoScrolling = true;
                 slider.style.scrollBehavior = 'smooth'; 
-                slider.scrollLeft = slider.offsetWidth * index;
+                slider.scrollTop = slider.offsetHeight * index;
                 setTimeout(() => { isAutoScrolling = false; }, 500); 
             }
             
-            dots.forEach((dot, i) => {
-                if(i === index) dot.classList.add('dot-active');
-                else dot.classList.remove('dot-active');
-            });
+            const container = document.getElementById('promoContainer');
+            const isFullscreen = container.classList.contains('tiktok-fullscreen');
 
             const allVideos = document.querySelectorAll('.promo-video');
             allVideos.forEach(v => {
-                v.pause();
-                v.muted = true; 
-                v.onended = null; 
+                v.pause(); v.muted = true; v.onended = null; 
                 const icon = document.getElementById(`icon_${v.id}`);
-                if(icon) icon.className = 'fas fa-volume-mute text-[10px]';
-                
-                // Pause icon bhi reset kar do agli slide ke liye
+                if(icon) icon.className = 'fas fa-volume-mute text-[9px]';
                 const overlay = document.getElementById(`pause_overlay_${v.id.split('_')[1]}`);
                 if(overlay) overlay.parentElement.classList.remove('is-paused');
             });
-
             clearTimeout(slideTimer); 
-
             const currentPromo = promosData[index];
-
             if (currentPromo.promo_type === 'video') {
                 const currentVid = document.getElementById(`vid_${index}`);
                 if(currentVid) {
-                    // Current video chalayen
                     currentVid.currentTime = 0; 
-                    currentVid.play().catch(e => console.log("Autoplay block:", e));
                     
-                    // 🔥 NAYA: Sirf Agli 1 Video ko background me ready karo taake next swipe instant ho!
-                    const nextSmartIdx = getSmartNextIndex();
-                    const nextVidReady = document.getElementById(`vid_${nextSmartIdx}`);
-                    if(nextVidReady && nextVidReady.tagName === 'VIDEO') {
-                        nextVidReady.preload = "auto";
+                    // Unmute if in fullscreen, otherwise mute
+                    if (isFullscreen) {
+                        currentVid.muted = false;
+                        const icon = document.getElementById(`icon_vid_${index}`);
+                        if(icon) icon.className = 'fas fa-volume-up text-[9px]';
+                    } else {
+                        currentVid.muted = true;
                     }
 
-                    currentVid.onended = () => {
-                        const nextIdx = getSmartNextIndex();
-                        activateSlide(nextIdx, true, false);
-                    };
+                    currentVid.play().catch(e => console.log("Autoplay block:", e));
+                    const nextSmartIdx = getSmartNextIndex();
+                    const nextVidReady = document.getElementById(`vid_${nextSmartIdx}`);
+                    if(nextVidReady && nextVidReady.tagName === 'VIDEO') nextVidReady.preload = "auto";
+                    currentVid.onended = () => { activateSlide(getSmartNextIndex(), true, false); };
                 }
             } else {
                 const delay = (currentPromo.duration || 5) * 1000;
-                slideTimer = setTimeout(() => {
-                    const nextIdx = getSmartNextIndex();
-                    activateSlide(nextIdx, true, false);
-                }, delay);
+                slideTimer = setTimeout(() => { activateSlide(getSmartNextIndex(), true, false); }, delay);
             }
         }
 
         function toggleSliderAudio(e, vidId) {
-            e.stopPropagation(); // Double tap aur pause wale event ko rokega
+            e.stopPropagation();
             const vid = document.getElementById(vidId);
             const icon = document.getElementById(`icon_${vidId}`);
-            if (vid) {
-                vid.muted = !vid.muted;
-                icon.className = vid.muted ? 'fas fa-volume-mute text-[10px]' : 'fas fa-volume-up text-[10px]';
-            }
+            if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
         }
 
         setTimeout(fetchPromotions, 600);
