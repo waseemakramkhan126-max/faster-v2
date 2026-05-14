@@ -180,7 +180,7 @@
                     <div class="flex justify-between text-sm font-bold text-gray-600"><span>Items + DC:</span><span class="text-gray-900">Rs. ${parseFloat(o.item_price||0) + parseFloat(o.dc_amount||0)}</span></div>
                     ${o.previous_due ? `<div class="flex justify-between text-sm font-bold text-orange-500 bg-orange-50 p-2 rounded-lg"><span>Old Dues:</span><span>+ Rs. ${o.previous_due}</span></div>` : ''}
                     <div class="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center"><span class="font-black text-gray-800 uppercase text-[10px]">Total Bill:</span><span class="font-black text-lg text-slate-900">Rs. ${o.bill_amount}</span></div>
-                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl"><span>Cash Paid:</span><span>Rs. ${o.final_amount || 0}</span></div>
+                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl"><span>Cash Paid To Rider:</span><span>Rs. ${o.final_amount || 0}</span></div>
                     <div class="mt-2 pt-3 border-t border-gray-100 flex justify-between items-center text-[10px] font-black">
                         <span class="text-gray-500 uppercase tracking-wide">${finalStatusLabel}</span>
                         <span class="${finalStatusColor}">Rs. ${Math.abs(balNum)}</span>
