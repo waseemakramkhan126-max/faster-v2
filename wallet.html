@@ -65,6 +65,7 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
+        // Phone number get karein
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
         async function loadWalletData(isManualRefresh = false) {
@@ -73,45 +74,61 @@
                 return;
             }
 
+            // Agar user login nahi hai ya phone number missing hai
+            if (!userPhone) {
+                alert("Customer phone number missing! Please Login again.");
+                document.getElementById('balanceAmount').innerText = "Rs. 0";
+                return;
+            }
+
             const refreshIcon = document.getElementById('refreshIcon');
-            if(isManualRefresh) refreshIcon.classList.add('fa-spin', 'text-teal-500');
+            if(isManualRefresh && refreshIcon) refreshIcon.classList.add('fa-spin', 'text-teal-500');
 
             try {
-                // 1. Transaction History (Orders table se laao)
-                const { data: orders, error } = await _supabase
+                let currentBal = 0;
+                let ordersList = [];
+
+                // 1. PEHLE WALLET BALANCE LAO (Taake history error se balance na rukay)
+                const { data: walletData, error: walErr } = await _supabase
+                    .from('wallets')
+                    .select('current_balance')
+                    .eq('customer_phone', userPhone)
+                    .maybeSingle(); 
+
+                if (walErr) {
+                    alert("Wallets Table Error: " + walErr.message);
+                } else if (walletData) {
+                    currentBal = parseFloat(walletData.current_balance || 0);
+                }
+
+                // 2. PHIR TRANSACTIONS HISTORY LAO
+                const { data: orders, error: ordErr } = await _supabase
                     .from('orders')
                     .select('*')
                     .eq('customer_phone', userPhone)
                     .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
                     .order('updated_at', { ascending: false });
 
-                if (error) throw error;
-
-                // 2. Fetch from Wallets Table
-                const { data: walletData } = await _supabase
-                    .from('wallets')
-                    .select('current_balance')
-                    .eq('customer_phone', userPhone)
-                    .maybeSingle(); 
-
-                let currentBal = 0;
-
-                // 3. Smart Fallback Logic
-                if (walletData) {
-                    currentBal = parseFloat(walletData.current_balance || 0);
-                } else if (orders && orders.length > 0) {
-                    // Agar wallets table me record nahi mila, toh aakhri order se uthao (Home screen ki tarah)
-                    currentBal = parseFloat(orders[0].balance_amount || 0);
+                if (ordErr) {
+                    console.error("Orders Table Error: ", ordErr.message);
+                    document.getElementById('transactionList').innerHTML = `<div class="text-center py-10 text-red-500 text-xs font-bold">Could not load history.</div>`;
+                } else {
+                    ordersList = orders || [];
+                    // Fallback logic: Agar wallet table khali hai par purane orders hain
+                    if (!walletData && ordersList.length > 0) {
+                        currentBal = parseFloat(ordersList[0].balance_amount || 0);
+                    }
                 }
-                
+
+                // 3. UI KO UPDATE KARO
                 updateBalanceUI(currentBal);
-                renderTransactions(orders);
+                if (!ordErr) renderTransactions(ordersList);
 
             } catch (err) { 
-                console.error("Wallet Fetch Error:", err); 
-                document.getElementById('transactionList').innerHTML = `<div class="text-center py-10 text-red-500 text-xs font-bold">Failed to load data.</div>`;
+                console.error("Unexpected Error:", err);
+                alert("Error: " + err.message);
             } finally {
-                if(isManualRefresh) {
+                if(isManualRefresh && refreshIcon) {
                     setTimeout(() => refreshIcon.classList.remove('fa-spin', 'text-teal-500'), 500);
                 }
             }
@@ -123,13 +140,11 @@
             const label = document.getElementById('balanceLabel');
             const card = document.getElementById('balanceCard');
             
-            // Buttons Fetch kiye hain
             const btnTopUp = document.getElementById('btnTopUp');
             const btnWithdraw = document.getElementById('btnWithdraw');
 
-            // Default state mein dono buttons hide kardiye hain
-            btnTopUp.classList.add('hidden');
-            btnWithdraw.classList.add('hidden');
+            if(btnTopUp) btnTopUp.classList.add('hidden');
+            if(btnWithdraw) btnWithdraw.classList.add('hidden');
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
 
@@ -138,25 +153,19 @@
                 badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-red-500/30 text-white border border-red-400/50";
                 label.innerText = "You Owe Us";
                 card.style.background = "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)";
-                
-                // Pending payment mein Top-up button dikhayega
-                btnTopUp.classList.remove('hidden');
+                if(btnTopUp) btnTopUp.classList.remove('hidden');
             } else if (bal < 0) {
                 badge.innerText = "Advance Balance";
                 badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50";
                 label.innerText = "Your Remaining Credit";
                 card.style.background = "linear-gradient(135deg, #065f46 0%, #064e3b 100%)";
-                
-                // Advance balance mein Withdraw button dikhayega
-                btnWithdraw.classList.remove('hidden');
+                if(btnWithdraw) btnWithdraw.classList.remove('hidden');
             } else {
                 badge.innerText = "All Clear";
                 badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white/60 border border-white/20";
                 label.innerText = "Wallet Balance";
                 card.style.background = "linear-gradient(135deg, #0f172a 0%, #334155 100%)";
-                
-                // Zero balance mein bhi Top-up button dikhayega
-                btnTopUp.classList.remove('hidden');
+                if(btnTopUp) btnTopUp.classList.remove('hidden');
             }
         }
 
@@ -172,8 +181,6 @@
                 const itemPlusDc = (parseFloat(o.item_price) || 0) + (parseFloat(o.dc_amount) || 0);
                 const totalPayable = parseFloat(o.bill_amount) || 0;
                 const paid = parseFloat(o.final_amount) || 0;
-                
-                // Calculate Previous History used in this order
                 const prevHist = totalPayable - itemPlusDc;
 
                 return `
