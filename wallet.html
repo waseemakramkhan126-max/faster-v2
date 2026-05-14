@@ -91,7 +91,7 @@
                 const { data: walletData } = await _supabase
                     .from('wallets')
                     .select('current_balance')
-                    .eq('phone_number', userPhone)
+                    .eq('customer_phone', userPhone)
                     .maybeSingle(); 
 
                 let currentBal = 0;
