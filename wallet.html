@@ -87,15 +87,22 @@
 
                 if (error) throw error;
 
-                // 2. Exact Wallet Balance (Ab 'wallets' table se aayega)
-                const { data: walletData, error: walletErr } = await _supabase
+                // 2. Fetch from Wallets Table
+                const { data: walletData } = await _supabase
                     .from('wallets')
                     .select('current_balance')
                     .eq('phone_number', userPhone)
                     .maybeSingle(); 
 
-                // Agar wallet me record hai to uska balance, warna 0
-                const currentBal = walletData ? parseFloat(walletData.current_balance || 0) : 0;
+                let currentBal = 0;
+
+                // 3. Smart Fallback Logic
+                if (walletData) {
+                    currentBal = parseFloat(walletData.current_balance || 0);
+                } else if (orders && orders.length > 0) {
+                    // Agar wallets table me record nahi mila, toh aakhri order se uthao (Home screen ki tarah)
+                    currentBal = parseFloat(orders[0].balance_amount || 0);
+                }
                 
                 updateBalanceUI(currentBal);
                 renderTransactions(orders);
