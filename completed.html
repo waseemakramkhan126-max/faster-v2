@@ -49,24 +49,30 @@
         <div id="billModalContent" class="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
             <div class="bg-slate-900 p-5 text-white flex justify-between items-center shrink-0">
                 <div>
-                    <h3 class="font-black uppercase text-[10px] tracking-widest opacity-60">Payment Proof</h3>
-                    <p class="text-base font-bold">Transaction Receipt</p>
+                    <h3 class="font-black uppercase text-[10px] tracking-widest opacity-60">Order Summary</h3>
+                    <p class="text-base font-bold">Details & Receipt</p>
                 </div>
                 <button onclick="closeBillModal()" class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center active:scale-90 transition">
                     <i class="fas fa-times text-sm"></i>
                 </button>
             </div>
             
-            <div class="overflow-y-auto p-5 space-y-4">
-                <div id="receiptPhotoContainer" class="hidden">
-                    <p class="text-[10px] font-black text-gray-400 uppercase mb-2">Rider Uploaded Receipt:</p>
-                    <img id="receiptImg" src="" class="w-full h-48 object-cover rounded-2xl border border-gray-100 shadow-sm" onclick="window.open(this.src)">
+            <div class="overflow-y-auto p-5 space-y-5">
+                <div id="orderItemsSection">
+                    <p class="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Items Ordered:</p>
+                    <div id="itemsList" class="space-y-2">
+                        </div>
                 </div>
 
-                <div id="modalBreakdown"></div>
+                <div id="receiptPhotoContainer" class="hidden pt-2">
+                    <p class="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Rider Receipt:</p>
+                    <img id="receiptImg" src="" class="w-full h-44 object-cover rounded-2xl border border-gray-100 shadow-sm" onclick="window.open(this.src)">
+                </div>
+
+                <div id="modalBreakdown" class="pt-2"></div>
             </div>
 
-            <button onclick="closeBillModal()" class="w-full py-4 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-100 transition shrink-0">Close Receipt</button>
+            <button onclick="closeBillModal()" class="w-full py-4 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-100 transition shrink-0">Close</button>
         </div>
     </div>
 
@@ -108,9 +114,8 @@
                 
                 let statusBadge = '';
                 if (balAmount > 0) {
-                    // Agar order pending tha par wallet zero ya negative hai (matlab topup ho gaya)
                     if (liveWalletBal <= 0) {
-                        statusBadge = `<span class="px-3 py-1 settled-badge rounded-full text-[9px] font-black uppercase tracking-tighter"><i class="fas fa-check-double mr-1"></i> Settled (Top-up)</span>`;
+                        statusBadge = `<span class="px-3 py-1 settled-badge rounded-full text-[9px] font-black uppercase tracking-tighter"><i class="fas fa-check-double mr-1"></i> Settled</span>`;
                     } else {
                         statusBadge = `<span class="px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Pending</span>`;
                     }
@@ -128,7 +133,7 @@
                         </div>
                         <div class="flex justify-between items-end">
                             <div class="space-y-1"><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total Bill</p><p class="text-lg font-black text-slate-800">Rs. ${o.bill_amount}</p></div>
-                            <p class="text-[9px] text-blue-500 font-black uppercase underline">View Bill <i class="fas fa-chevron-right ml-1"></i></p>
+                            <p class="text-[9px] text-blue-500 font-black uppercase underline">Details <i class="fas fa-chevron-right ml-1"></i></p>
                         </div>
                     </div>`;
             }).join('');
@@ -139,10 +144,22 @@
             if (!o) return;
 
             const modal = document.getElementById('billModal');
+            
+            // ✅ 1. Items List Logic (Yahan add ki hai list)
+            const itemsContainer = document.getElementById('itemsList');
+            const detailsText = o.order_details || "No details available";
+            const items = detailsText.split(/[|\n]/).map(i => i.trim()).filter(i => i !== "");
+            
+            itemsContainer.innerHTML = items.map(item => `
+                <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <i class="fas fa-shopping-basket text-orange-400 text-xs"></i>
+                    <span class="text-xs font-bold text-gray-700 leading-tight">${item}</span>
+                </div>
+            `).join('');
+
+            // ✅ 2. Receipt Image Logic
             const receiptContainer = document.getElementById('receiptPhotoContainer');
             const receiptImg = document.getElementById('receiptImg');
-            
-            // ✅ PICTURE LOGIC
             if (o.bill_image) {
                 receiptImg.src = o.bill_image;
                 receiptContainer.classList.remove('hidden');
@@ -150,6 +167,7 @@
                 receiptContainer.classList.add('hidden');
             }
 
+            // ✅ 3. Breakdown Logic
             const balNum = parseFloat(o.balance_amount || 0);
             const { data: wallet } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle();
             const liveBal = wallet ? parseFloat(wallet.current_balance || 0) : 0;
@@ -158,11 +176,11 @@
             let finalStatusColor = balNum > 0 ? (liveBal <= 0 ? "text-emerald-600" : "text-red-600") : "text-gray-400";
 
             let breakdownHTML = `
-                <div class="space-y-3 pt-2">
+                <div class="space-y-3 pt-2 border-t border-gray-100">
                     <div class="flex justify-between text-sm font-bold text-gray-600"><span>Items + DC:</span><span class="text-gray-900">Rs. ${parseFloat(o.item_price||0) + parseFloat(o.dc_amount||0)}</span></div>
                     ${o.previous_due ? `<div class="flex justify-between text-sm font-bold text-orange-500 bg-orange-50 p-2 rounded-lg"><span>Old Dues:</span><span>+ Rs. ${o.previous_due}</span></div>` : ''}
                     <div class="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center"><span class="font-black text-gray-800 uppercase text-[10px]">Total Bill:</span><span class="font-black text-lg text-slate-900">Rs. ${o.bill_amount}</span></div>
-                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl"><span>Cash Paid to Rider:</span><span>Rs. ${o.final_amount || 0}</span></div>
+                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl"><span>Cash Paid:</span><span>Rs. ${o.final_amount || 0}</span></div>
                     <div class="mt-2 pt-3 border-t border-gray-100 flex justify-between items-center text-[10px] font-black">
                         <span class="text-gray-500 uppercase tracking-wide">${finalStatusLabel}</span>
                         <span class="${finalStatusColor}">Rs. ${Math.abs(balNum)}</span>
