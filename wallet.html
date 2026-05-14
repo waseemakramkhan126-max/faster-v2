@@ -26,7 +26,6 @@
     </header>
 
     <main class="flex-1 p-5 max-w-md mx-auto w-full">
-        <!-- Card padding py-5 px-6 kar di gayi hai taake height compact rahe -->
         <div id="balanceCard" class="wallet-card rounded-[2.5rem] py-5 px-6 text-white shadow-2xl mb-8 relative overflow-hidden">
             <div class="relative z-10">
                 <p id="balanceLabel" class="text-[10px] opacity-80 uppercase tracking-[0.2em] font-black mb-1">Net Wallet Balance</p>
@@ -35,7 +34,6 @@
                     Syncing...
                 </div>
                 
-                <!-- NEW BUTTONS ADDED HERE -->
                 <div id="actionButtons" class="mt-4 flex gap-3">
                     <button id="btnTopUp" onclick="location.href='top-up.html'" class="hidden flex-1 bg-green-600 active:bg-green-700 border border-green-500 text-white py-2 rounded-full text-[11px] font-bold uppercase tracking-widest shadow-sm transition-colors">
                         <i class="fas fa-arrow-up mr-1"></i> Top-Up
@@ -49,6 +47,8 @@
             <i class="fas fa-wallet absolute -right-6 -bottom-6 text-white/10 text-[10rem] rotate-12"></i>
         </div>
 
+        <div id="topupHistoryContainer" class="mb-6"></div>
+
         <div class="flex justify-between items-center mb-6 px-2">
             <div>
                 <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest">Transaction History</h3>
@@ -57,7 +57,7 @@
         </div>
 
         <div id="transactionList" class="space-y-4 pb-10">
-            </div>
+        </div>
     </main>
 
     <script>
@@ -65,7 +65,6 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // Phone number get karein
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
         async function loadWalletData(isManualRefresh = false) {
@@ -74,21 +73,17 @@
                 return;
             }
 
-            // Agar user login nahi hai ya phone number missing hai
             if (!userPhone) {
                 alert("Customer phone number missing! Please Login again.");
                 document.getElementById('balanceAmount').innerText = "Rs. 0";
                 return;
             }
 
-            const refreshIcon = document.getElementById('refreshIcon');
-            if(isManualRefresh && refreshIcon) refreshIcon.classList.add('fa-spin', 'text-teal-500');
-
             try {
                 let currentBal = 0;
                 let ordersList = [];
 
-                // 1. PEHLE WALLET BALANCE LAO (Taake history error se balance na rukay)
+                // 1. WALLET BALANCE
                 const { data: walletData, error: walErr } = await _supabase
                     .from('wallets')
                     .select('current_balance')
@@ -96,12 +91,12 @@
                     .maybeSingle(); 
 
                 if (walErr) {
-                    alert("Wallets Table Error: " + walErr.message);
+                    console.error("Wallets Table Error: " + walErr.message);
                 } else if (walletData) {
                     currentBal = parseFloat(walletData.current_balance || 0);
                 }
 
-                // 2. PHIR TRANSACTIONS HISTORY LAO
+                // 2. TRANSACTIONS HISTORY (Orders)
                 const { data: orders, error: ordErr } = await _supabase
                     .from('orders')
                     .select('*')
@@ -111,26 +106,45 @@
 
                 if (ordErr) {
                     console.error("Orders Table Error: ", ordErr.message);
-                    document.getElementById('transactionList').innerHTML = `<div class="text-center py-10 text-red-500 text-xs font-bold">Could not load history.</div>`;
                 } else {
                     ordersList = orders || [];
-                    // Fallback logic: Agar wallet table khali hai par purane orders hain
                     if (!walletData && ordersList.length > 0) {
                         currentBal = parseFloat(ordersList[0].balance_amount || 0);
                     }
                 }
 
-                // 3. UI KO UPDATE KARO
+                // 3. UI UPDATE (Balance & Orders)
                 updateBalanceUI(currentBal);
                 if (!ordErr) renderTransactions(ordersList);
 
+                // ---> YAHAN AAPKA TOP-UP LOGS WALA CODE ADD KIYA HAI <---
+                const { data: topupLogs } = await _supabase
+                    .from('topup_requests')
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .order('created_at', { ascending: false });
+
+                if (topupLogs && topupLogs.length > 0) {
+                    let topupHtml = `<h3 class="font-black text-gray-800 uppercase text-xs tracking-widest mb-4 px-2">Top-up Logs</h3>`;
+                    topupLogs.forEach(log => {
+                        topupHtml += `
+                            <div class="bg-white p-4 rounded-2xl mb-3 shadow-sm border-l-4 ${log.status === 'approved' ? 'border-emerald-500' : (log.status === 'rejected' ? 'border-red-500' : 'border-orange-500')}">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <p class="text-[10px] font-black text-gray-800 uppercase">Top-up: Rs. ${log.amount}</p>
+                                        <p class="text-[8px] text-gray-400">${new Date(log.created_at).toLocaleDateString()} | ${log.status.toUpperCase()}</p>
+                                    </div>
+                                    <i class="fas ${log.status === 'approved' ? 'fa-check-circle text-emerald-500' : (log.status === 'rejected' ? 'fa-times-circle text-red-500' : 'fa-clock text-orange-500')}"></i>
+                                </div>
+                                <p class="text-[8px] text-gray-400 mt-2 italic">${log.bank_snapshot || 'Direct Deposit'}</p>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('topupHistoryContainer').innerHTML = topupHtml;
+                }
+
             } catch (err) { 
                 console.error("Unexpected Error:", err);
-                alert("Error: " + err.message);
-            } finally {
-                if(isManualRefresh && refreshIcon) {
-                    setTimeout(() => refreshIcon.classList.remove('fa-spin', 'text-teal-500'), 500);
-                }
             }
         }
 
