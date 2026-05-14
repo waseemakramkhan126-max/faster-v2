@@ -23,16 +23,12 @@
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        .modal-enter { display: flex; animation: fadeIn 0.3s ease-out forwards; }
+        .modal-enter { display: flex !important; animation: fadeIn 0.3s ease-out forwards; }
         .modal-leave { animation: fadeOut 0.3s ease-in forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-        .settled-badge {
-            background: #ecfdf5;
-            color: #059669;
-            border: 1px solid #10b981;
-        }
+        .settled-badge { background: #ecfdf5; color: #059669; border: 1px solid #10b981; }
     </style>
 </head>
 <body class="bg-gray-50 flex flex-col min-h-screen">
@@ -50,18 +46,27 @@
     </main>
 
     <div id="billModal" class="hidden fixed inset-0 bg-black/60 z-[100] items-center justify-center p-6 backdrop-blur-sm">
-        <div id="billModalContent" class="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl">
-            <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
+        <div id="billModalContent" class="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="bg-slate-900 p-5 text-white flex justify-between items-center shrink-0">
                 <div>
-                    <h3 class="font-black uppercase text-xs tracking-widest opacity-60">Payment Proof</h3>
-                    <p class="text-lg font-bold">Transaction Bill</p>
+                    <h3 class="font-black uppercase text-[10px] tracking-widest opacity-60">Payment Proof</h3>
+                    <p class="text-base font-bold">Transaction Receipt</p>
                 </div>
-                <button onclick="closeBillModal()" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center active:scale-90 transition">
-                    <i class="fas fa-times"></i>
+                <button onclick="closeBillModal()" class="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center active:scale-90 transition">
+                    <i class="fas fa-times text-sm"></i>
                 </button>
             </div>
-            <div id="modalBreakdown" class="p-6"></div>
-            <button onclick="closeBillModal()" class="w-full py-5 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-100 transition">Close Receipt</button>
+            
+            <div class="overflow-y-auto p-5 space-y-4">
+                <div id="receiptPhotoContainer" class="hidden">
+                    <p class="text-[10px] font-black text-gray-400 uppercase mb-2">Rider Uploaded Receipt:</p>
+                    <img id="receiptImg" src="" class="w-full h-48 object-cover rounded-2xl border border-gray-100 shadow-sm" onclick="window.open(this.src)">
+                </div>
+
+                <div id="modalBreakdown"></div>
+            </div>
+
+            <button onclick="closeBillModal()" class="w-full py-4 bg-gray-50 text-gray-400 font-black uppercase text-[10px] tracking-[0.2em] hover:bg-gray-100 transition shrink-0">Close Receipt</button>
         </div>
     </div>
 
@@ -78,28 +83,14 @@
 
         async function fetchCompletedOrders() {
             try {
-                // 1. Pehle Wallet ka live balance uthao (Proof ke liye)
-                const { data: walletData } = await _supabase
-                    .from('wallets')
-                    .select('current_balance')
-                    .eq('customer_phone', userPhone)
-                    .maybeSingle();
-
+                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle();
                 const currentWalletBal = walletData ? parseFloat(walletData.current_balance || 0) : 0;
 
-                // 2. Completed orders fetch karo
-                const { data: orders, error } = await _supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('customer_phone', userPhone)
-                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
-                    .order('updated_at', { ascending: false });
+                const { data: orders, error } = await _supabase.from('orders').select('*').eq('customer_phone', userPhone).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']).order('updated_at', { ascending: false });
 
                 if (error) throw error;
                 renderOrders(orders, currentWalletBal);
-
             } catch (err) {
-                console.error("Fetch Error:", err);
                 document.getElementById('ordersContainer').innerHTML = `<p class="text-center py-20 text-red-500 font-bold uppercase text-[10px]">Error Loading History</p>`;
             }
         }
@@ -115,83 +106,66 @@
                 const balAmount = parseFloat(o.balance_amount || 0);
                 const orderIdShort = o.id.toString().slice(-6).toUpperCase();
                 
-                // ✅ SMART LOGIC: Agar order pending tha par wallet clear hai toh "Settled" dikhao
                 let statusBadge = '';
                 if (balAmount > 0) {
+                    // Agar order pending tha par wallet zero ya negative hai (matlab topup ho gaya)
                     if (liveWalletBal <= 0) {
-                        // Proof: Wallet clear ho chuka hai
-                        statusBadge = `<span class="px-3 py-1 settled-badge rounded-full text-[9px] font-black uppercase tracking-tighter"><i class="fas fa-check-double mr-1"></i> Settled (Via Topup)</span>`;
+                        statusBadge = `<span class="px-3 py-1 settled-badge rounded-full text-[9px] font-black uppercase tracking-tighter"><i class="fas fa-check-double mr-1"></i> Settled (Top-up)</span>`;
                     } else {
-                        statusBadge = `<span class="px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded-full text-[9px] font-black uppercase tracking-tighter"><i class="fas fa-clock mr-1"></i> Still Pending</span>`;
+                        statusBadge = `<span class="px-3 py-1 bg-red-50 text-red-600 border border-red-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Pending</span>`;
                     }
                 } else if (balAmount < 0) {
-                    statusBadge = `<span class="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Advance Order</span>`;
+                    statusBadge = `<span class="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Advance</span>`;
                 } else {
-                    statusBadge = `<span class="px-3 py-1 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Full Paid</span>`;
+                    statusBadge = `<span class="px-3 py-1 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-[9px] font-black uppercase tracking-tighter">Paid</span>`;
                 }
 
                 return `
                     <div onclick="showBillDetails('${o.id}')" class="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 animate-pop cursor-pointer active:scale-95 transition-all">
                         <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="font-black text-gray-800 text-sm">Order #${orderIdShort}</h3>
-                                <p class="text-[10px] text-gray-400 font-bold">${new Date(o.updated_at).toLocaleDateString()}</p>
-                            </div>
+                            <div><h3 class="font-black text-gray-800 text-sm">Order #${orderIdShort}</h3><p class="text-[10px] text-gray-400 font-bold">${new Date(o.updated_at).toLocaleDateString()}</p></div>
                             ${statusBadge}
                         </div>
-                        
                         <div class="flex justify-between items-end">
-                            <div class="space-y-1">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total Bill</p>
-                                <p class="text-lg font-black text-slate-800">Rs. ${o.bill_amount}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[9px] text-blue-500 font-black uppercase underline">View Details <i class="fas fa-chevron-right ml-1"></i></p>
-                            </div>
+                            <div class="space-y-1"><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total Bill</p><p class="text-lg font-black text-slate-800">Rs. ${o.bill_amount}</p></div>
+                            <p class="text-[9px] text-blue-500 font-black uppercase underline">View Bill <i class="fas fa-chevron-right ml-1"></i></p>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         }
 
-        // Bill Details Modal (Purani design same rakhi hai)
         async function showBillDetails(id) {
             const { data: o } = await _supabase.from('orders').select('*').eq('id', id).single();
             if (!o) return;
 
             const modal = document.getElementById('billModal');
-            const content = document.getElementById('billModalContent');
+            const receiptContainer = document.getElementById('receiptPhotoContainer');
+            const receiptImg = document.getElementById('receiptImg');
             
+            // ✅ PICTURE LOGIC
+            if (o.bill_image) {
+                receiptImg.src = o.bill_image;
+                receiptContainer.classList.remove('hidden');
+            } else {
+                receiptContainer.classList.add('hidden');
+            }
+
             const balNum = parseFloat(o.balance_amount || 0);
-            const balLabel = balNum > 0 ? "Amount Pending" : (balNum < 0 ? "Advance Adjusted" : "Payment Clear");
-            const balColor = balNum > 0 ? "text-red-600" : (balNum < 0 ? "text-emerald-600" : "text-gray-400");
+            const { data: wallet } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle();
+            const liveBal = wallet ? parseFloat(wallet.current_balance || 0) : 0;
+
+            let finalStatusLabel = balNum > 0 ? (liveBal <= 0 ? "Settled via Top-up" : "Pending Payment") : "Payment Clear";
+            let finalStatusColor = balNum > 0 ? (liveBal <= 0 ? "text-emerald-600" : "text-red-600") : "text-gray-400";
 
             let breakdownHTML = `
-                <div class="space-y-3">
-                    <div class="flex justify-between text-sm font-bold text-gray-600">
-                        <span>Items Bill:</span>
-                        <span class="text-gray-900">Rs. ${o.item_price || 0}</span>
-                    </div>
-                    <div class="flex justify-between text-sm font-bold text-gray-600">
-                        <span>Delivery Fee:</span>
-                        <span class="text-gray-900">Rs. ${o.dc_amount || 0}</span>
-                    </div>
-                    ${o.previous_due ? `
-                    <div class="flex justify-between text-sm font-bold text-orange-500 bg-orange-50 p-2 rounded-lg">
-                        <span>Previous Dues:</span>
-                        <span>+ Rs. ${o.previous_due}</span>
-                    </div>` : ''}
-                    <div class="pt-3 border-t border-dashed border-gray-200 flex justify-between items-center">
-                        <span class="font-black text-gray-800 uppercase text-xs">Total Payable:</span>
-                        <span class="font-black text-xl text-slate-900">Rs. ${o.bill_amount}</span>
-                    </div>
-                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl">
-                        <span>Paid to Rider:</span>
-                        <span>Rs. ${o.final_amount || 0}</span>
-                    </div>
-                    <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-xs font-black">
-                        <span class="text-gray-500 uppercase tracking-wide">${balLabel}</span>
-                        <span class="font-mono text-sm ${balColor}">Rs. ${Math.abs(balNum)}</span>
+                <div class="space-y-3 pt-2">
+                    <div class="flex justify-between text-sm font-bold text-gray-600"><span>Items + DC:</span><span class="text-gray-900">Rs. ${parseFloat(o.item_price||0) + parseFloat(o.dc_amount||0)}</span></div>
+                    ${o.previous_due ? `<div class="flex justify-between text-sm font-bold text-orange-500 bg-orange-50 p-2 rounded-lg"><span>Old Dues:</span><span>+ Rs. ${o.previous_due}</span></div>` : ''}
+                    <div class="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center"><span class="font-black text-gray-800 uppercase text-[10px]">Total Bill:</span><span class="font-black text-lg text-slate-900">Rs. ${o.bill_amount}</span></div>
+                    <div class="flex justify-between text-sm font-bold text-blue-600 bg-blue-50 p-3 rounded-2xl"><span>Cash Paid to Rider:</span><span>Rs. ${o.final_amount || 0}</span></div>
+                    <div class="mt-2 pt-3 border-t border-gray-100 flex justify-between items-center text-[10px] font-black">
+                        <span class="text-gray-500 uppercase tracking-wide">${finalStatusLabel}</span>
+                        <span class="${finalStatusColor}">Rs. ${Math.abs(balNum)}</span>
                     </div>
                 </div>`;
             
@@ -202,10 +176,7 @@
         function closeBillModal() {
             const modal = document.getElementById('billModal');
             modal.classList.add('modal-leave');
-            setTimeout(() => {
-                modal.classList.replace('modal-leave', 'hidden');
-                modal.classList.remove('modal-enter');
-            }, 300);
+            setTimeout(() => { modal.classList.replace('modal-leave', 'hidden'); modal.classList.remove('modal-enter'); }, 300);
         }
 
         window.onload = initPage;
