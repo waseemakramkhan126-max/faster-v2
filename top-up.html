@@ -11,7 +11,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            background: rgba(0,0,0,0.5); /* Modal jaisa dark background */
+            background: rgba(0,0,0,0.5); 
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -34,12 +34,11 @@
         }
 
         .input-focus:focus {
-            border-color: #f97316; /* Orange border on focus */
+            border-color: #f97316;
             box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
             outline: none;
         }
 
-        /* Custom Modal for Alerts */
         .custom-alert { z-index: 99999; }
     </style>
 </head>
@@ -139,7 +138,6 @@
         const userPhone = localStorage.getItem('faster_phone');
         let selectedFile = null;
 
-        // Custom Alert Logic
         function customAlert(message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customModal');
@@ -163,7 +161,6 @@
             }
 
             try {
-                // Fetch dynamic bank details from app_settings
                 const { data, error } = await _supabase.from('app_settings').select('bank_name, bank_account_title, bank_account_number, support_phone').eq('id', 1).single();
                 
                 if (data) {
@@ -211,7 +208,7 @@
 
             if (amount > 0 && selectedFile) {
                 btn.disabled = false;
-                btn.classList.replace('bg-orange-300', 'bg-[#f97316]'); // Active orange
+                btn.classList.replace('bg-orange-300', 'bg-[#f97316]'); 
                 btn.classList.replace('cursor-not-allowed', 'cursor-pointer');
                 btn.classList.add('hover:bg-orange-600', 'active:bg-orange-700');
             } else {
@@ -235,7 +232,7 @@
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`;
 
             try {
-                // 1. Upload Image to Storage (Reusing order-files bucket)
+                // 1. Upload Image to Storage 
                 const fileExt = selectedFile.name.split('.').pop();
                 const fileName = `topups/proof_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
                 
@@ -246,11 +243,15 @@
                 const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
                 const proofUrl = urlData.publicUrl;
 
-                // 2. Insert record in topup_requests
+                // 2. Bank details snapshot capture
+                const bankInfo = `Bank: ${document.getElementById('bankName').innerText} | Acc: ${document.getElementById('bankAccNo').innerText}`;
+
+                // 3. Insert record in topup_requests
                 const { error: dbError } = await _supabase.from('topup_requests').insert([{
                     customer_phone: userPhone,
                     amount: parseFloat(amount),
                     proof_image: proofUrl,
+                    bank_snapshot: bankInfo, // Naya column yahan add kiya hai
                     status: 'pending'
                 }]);
 
