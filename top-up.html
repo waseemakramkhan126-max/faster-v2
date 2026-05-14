@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Wallet Top-up</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: rgba(0,0,0,0.5); /* Modal jaisa dark background */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        
+        .modal-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 1.25rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp { 
+            from { transform: translateY(20px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+
+        .input-focus:focus {
+            border-color: #f97316; /* Orange border on focus */
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+            outline: none;
+        }
+
+        /* Custom Modal for Alerts */
+        .custom-alert { z-index: 99999; }
+    </style>
+</head>
+<body>
+
+    <div class="modal-card flex flex-col max-h-[90vh]">
+        <div class="p-5 flex justify-between items-start border-b border-gray-100 shrink-0">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">+ Wallet Top-up</h2>
+                <p class="text-[11px] text-gray-500 mt-1 leading-relaxed pr-4">
+                    Transfer amount to company's bank account and upload proof
+                </p>
+            </div>
+            <button onclick="location.href='wallet.html'" class="text-gray-400 hover:text-gray-600 p-1">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-5 overflow-y-auto no-scrollbar flex-1 space-y-5">
+            
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 shadow-sm">
+                <h3 class="text-blue-800 font-bold flex items-center gap-2 mb-3 text-sm">
+                    <i class="fas fa-file-invoice text-blue-600"></i> Bank Account Details
+                </h3>
+                
+                <div class="space-y-2 text-xs text-gray-700">
+                    <div class="flex items-center gap-2">
+                        <i class="far fa-credit-card text-blue-400 w-4"></i>
+                        <span>Account Number: </span>
+                        <span id="bankAccNo" class="font-bold tracking-widest text-gray-900">Loading...</span>
+                        <button onclick="copyAccountNo()" class="ml-2 text-blue-500 hover:text-blue-700 active:scale-90 transition" title="Copy">
+                            <i class="far fa-copy text-sm"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="far fa-user text-blue-400 w-4"></i>
+                        <span>Account Title: </span>
+                        <span id="bankTitle" class="font-bold text-gray-900 uppercase">Loading...</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-university text-blue-400 w-4"></i>
+                        <span>Bank: </span>
+                        <span id="bankName" class="font-bold text-gray-900 uppercase">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 shadow-sm text-xs text-yellow-800 leading-relaxed">
+                <span class="font-bold text-yellow-900">Instructions:</span> Transfer the amount to the above account and upload the payment proof below. Wait for verification from admin.
+                <div class="mt-2 font-semibold">
+                    <i class="fas fa-phone-alt mr-1"></i> For support, contact: <span id="supportPhone">Loading...</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">Amount (Rs)</label>
+                <input type="number" id="amountInput" placeholder="Enter amount" oninput="validateForm()"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm input-focus transition-all text-gray-800 font-bold">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">Payment Proof</label>
+                <input type="file" id="proofInput" accept="image/*" class="hidden" onchange="handleFileSelect()">
+                <button type="button" onclick="document.getElementById('proofInput').click()" id="uploadBtn"
+                    class="w-full border border-gray-300 border-dashed rounded-lg px-4 py-3 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center gap-2 font-bold justify-center">
+                    <i class="fas fa-arrow-up-from-bracket"></i> <span id="uploadText">Upload Screenshot</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-white rounded-b-xl">
+            <button onclick="location.href='wallet.html'" 
+                class="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
+                Cancel
+            </button>
+            <button id="submitBtn" onclick="submitTopup()" disabled
+                class="px-6 py-2.5 rounded-lg text-sm font-bold text-white bg-orange-300 cursor-not-allowed transition-colors flex items-center gap-2 shadow-sm">
+                Continue
+            </button>
+        </div>
+    </div>
+
+    <div id="customModal" class="hidden fixed inset-0 bg-black/60 custom-alert items-center justify-center backdrop-blur-sm p-4 transition-opacity duration-300">
+        <div class="w-full max-w-sm rounded-[2rem] p-6 border border-white/20 shadow-2xl text-center relative overflow-hidden" style="background: rgba(30, 41, 59, 0.95);">
+            <h3 id="modalTitle" class="text-white font-black text-[13px] mb-5 uppercase tracking-widest leading-relaxed">Message</h3>
+            <div class="flex gap-3 relative z-10">
+                <button id="modalOk" class="w-full py-4 rounded-2xl font-black text-white bg-gradient-to-r from-orange-500 to-orange-600 shadow-xl active:scale-95 transition-all uppercase text-[10px] tracking-widest">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        const userPhone = localStorage.getItem('faster_phone');
+        let selectedFile = null;
+
+        // Custom Alert Logic
+        function customAlert(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customModal');
+                document.getElementById('modalTitle').innerText = message;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                document.getElementById('modalOk').onclick = () => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    resolve(true);
+                };
+            });
+        }
+
+        async function initPage() {
+            if (!userPhone) {
+                await customAlert("Please login to continue!");
+                window.location.replace('index.html');
+                return;
+            }
+
+            try {
+                // Fetch dynamic bank details from app_settings
+                const { data, error } = await _supabase.from('app_settings').select('bank_name, bank_account_title, bank_account_number, support_phone').eq('id', 1).single();
+                
+                if (data) {
+                    document.getElementById('bankAccNo').innerText = data.bank_account_number || "12345678901";
+                    document.getElementById('bankTitle').innerText = data.bank_account_title || "Company Account";
+                    document.getElementById('bankName').innerText = data.bank_name || "SADA PAY";
+                    document.getElementById('supportPhone').innerText = data.support_phone || "03000000000";
+                }
+            } catch (err) {
+                console.error("Error fetching bank details:", err);
+            }
+        }
+
+        function copyAccountNo() {
+            const accNo = document.getElementById('bankAccNo').innerText;
+            navigator.clipboard.writeText(accNo).then(() => {
+                customAlert(`Account Number ${accNo} copied to clipboard!`);
+            });
+        }
+
+        function handleFileSelect() {
+            const input = document.getElementById('proofInput');
+            const uploadText = document.getElementById('uploadText');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            if (input.files && input.files[0]) {
+                selectedFile = input.files[0];
+                uploadText.innerText = selectedFile.name;
+                uploadBtn.classList.replace('text-gray-600', 'text-orange-600');
+                uploadBtn.classList.replace('bg-gray-50', 'bg-orange-50');
+                uploadBtn.classList.replace('border-gray-300', 'border-orange-300');
+            } else {
+                selectedFile = null;
+                uploadText.innerText = "Upload Screenshot";
+                uploadBtn.classList.replace('text-orange-600', 'text-gray-600');
+                uploadBtn.classList.replace('bg-orange-50', 'bg-gray-50');
+                uploadBtn.classList.replace('border-orange-300', 'border-gray-300');
+            }
+            validateForm();
+        }
+
+        function validateForm() {
+            const amount = document.getElementById('amountInput').value;
+            const btn = document.getElementById('submitBtn');
+
+            if (amount > 0 && selectedFile) {
+                btn.disabled = false;
+                btn.classList.replace('bg-orange-300', 'bg-[#f97316]'); // Active orange
+                btn.classList.replace('cursor-not-allowed', 'cursor-pointer');
+                btn.classList.add('hover:bg-orange-600', 'active:bg-orange-700');
+            } else {
+                btn.disabled = true;
+                btn.classList.replace('bg-[#f97316]', 'bg-orange-300');
+                btn.classList.replace('cursor-pointer', 'cursor-not-allowed');
+                btn.classList.remove('hover:bg-orange-600', 'active:bg-orange-700');
+            }
+        }
+
+        async function submitTopup() {
+            if (!navigator.onLine) {
+                await customAlert("No internet connection!");
+                return;
+            }
+
+            const amount = document.getElementById('amountInput').value;
+            const btn = document.getElementById('submitBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`;
+
+            try {
+                // 1. Upload Image to Storage (Reusing order-files bucket)
+                const fileExt = selectedFile.name.split('.').pop();
+                const fileName = `topups/proof_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                
+                const { error: uploadError } = await _supabase.storage.from('order-files').upload(fileName, selectedFile);
+                if (uploadError) throw new Error("Image Upload Failed!");
+
+                // Get Public URL
+                const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
+                const proofUrl = urlData.publicUrl;
+
+                // 2. Insert record in topup_requests
+                const { error: dbError } = await _supabase.from('topup_requests').insert([{
+                    customer_phone: userPhone,
+                    amount: parseFloat(amount),
+                    proof_image: proofUrl,
+                    status: 'pending'
+                }]);
+
+                if (dbError) throw new Error("Database saving failed!");
+
+                await customAlert("Success! Your top-up request has been sent for admin verification.");
+                window.location.href = 'wallet.html';
+
+            } catch (error) {
+                await customAlert("❌ Error: " + error.message);
+                btn.disabled = false;
+                btn.innerHTML = `Continue`;
+            }
+        }
+
+        window.onload = initPage;
+    </script>
+</body>
+</html>
