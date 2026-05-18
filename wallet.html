@@ -20,9 +20,30 @@
 <body class="flex flex-col min-h-screen select-none">
 
     <header class="bg-white p-4 flex items-center shadow-sm sticky top-0 z-50">
-        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="history.back()"></i>
+        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="handleHeaderBack()"></i>
         <h1 class="font-bold text-lg text-gray-800">My Smart Wallet</h1>
     </header>
+
+    <div id="sidebarMenu" class="hidden fixed inset-0 z-[150] flex animate-fade-in">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="toggleSidebar(false)"></div>
+        <div class="relative w-64 max-w-xs bg-white h-full shadow-2xl p-6 flex flex-col justify-between transform -translate-x-full transition-transform duration-300 ease-in-out z-10" id="sidebarContent">
+            <div>
+                <div class="flex items-center justify-between border-b pb-4 mb-6">
+                    <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest">Navigation Menu</h3>
+                    <button onclick="toggleSidebar(false)" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full"><i class="fas fa-times text-xs"></i></button>
+                </div>
+                <nav class="space-y-4 text-sm font-bold text-gray-600">
+                    <a href="home.html" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-home text-gray-400 w-5"></i> Home Screen</a>
+                    <a href="withdraw-requests.html" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-hand-holding-usd text-gray-400 w-5"></i> Withdraw Panel</a>
+                    <a href="#" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-user text-gray-400 w-5"></i> My Profile</a>
+                    <a href="#" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-headset text-gray-400 w-5"></i> Help Support</a>
+                </nav>
+            </div>
+            <div class="border-t pt-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
+                Faster Wallet v2.5
+            </div>
+        </div>
+    </div>
 
     <main class="flex-1 p-5 max-w-md mx-auto w-full">
         
@@ -58,8 +79,8 @@
         </div>
     </main>
 
-    <div id="previewModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
-        <div class="bg-white w-full max-w-sm rounded-[2.2rem] p-6 shadow-2xl relative animate-pop max-h-[85vh] overflow-y-auto border border-gray-100">
+    <div id="previewModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onclick="closeModal()">
+        <div class="bg-white w-full max-w-sm rounded-[2.2rem] p-6 shadow-2xl relative animate-pop max-h-[85vh] overflow-y-auto border border-gray-100" onclick="event.stopPropagation()">
             <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 active:bg-gray-200 text-gray-500 rounded-full transition-colors">
                 <i class="fas fa-times text-xs"></i>
             </button>
@@ -68,12 +89,11 @@
         </div>
     </div>
 
-    <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in">
-        <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50">
-            <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm">
-                </div>
+    <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in" onclick="closeNotificationModal()">
+        <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50" onclick="event.stopPropagation()">
+            <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm"></div>
             <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
-            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Message details go here.</p>
+            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Details...</p>
             <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
                 Acknowledge
             </button>
@@ -87,9 +107,9 @@
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
-        // Safe Memory Global Cache for Unified Tracking
         window.unifiedCache = [];
-        window.currentGlobalBalance = 0; // Global reference tracker for live balance state
+        window.currentGlobalBalance = 0;
+        let isModalHistoryPushed = false; // Tracks internal state history overrides
 
         async function loadWalletData() {
             if (!navigator.onLine || !userPhone) return;
@@ -97,7 +117,6 @@
             try {
                 let currentBal = 0;
 
-                // 1. FETCH LIVE WALLET BALANCE
                 const { data: walletData } = await _supabase
                     .from('wallets')
                     .select('current_balance')
@@ -109,7 +128,6 @@
                 }
                 window.currentGlobalBalance = currentBal;
 
-                // 2. FETCH ALL DATA SOURCES TO UNIFY
                 const { data: orders } = await _supabase
                     .from('orders')
                     .select('*')
@@ -150,7 +168,6 @@
                     }));
                 }
 
-                // Sort everything unified by date descending (Latest First)
                 tempTimeline.sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
                 window.unifiedCache = tempTimeline;
 
@@ -172,8 +189,16 @@
             const badge = document.getElementById('statusBadge');
             const label = document.getElementById('balanceLabel');
             const card = document.getElementById('balanceCard');
+            const withdrawBtn = document.getElementById('btnWithdraw');
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
+
+            // Requirement 4: Hide withdraw button if wallet balance is 0 or user owes money
+            if (bal >= 0) {
+                withdrawBtn.classList.add('hidden');
+            } else {
+                withdrawBtn.classList.remove('hidden');
+            }
 
             if (bal > 0) {
                 badge.innerText = "Pending Payment";
@@ -193,7 +218,6 @@
             }
         }
 
-        // Render Single Unified Transaction History
         function renderUnifiedTimeline(list) {
             const container = document.getElementById('transactionList');
             if (!list || list.length === 0) {
@@ -209,11 +233,12 @@
 
                 if (tx.txType === 'order') {
                     const bal = parseFloat(tx.balance_amount || 0);
+                    const paid = parseFloat(tx.final_amount || 0);
+                    const totalPayable = parseFloat(tx.bill_amount || 0);
                     title = `Order #${tx.id.toString().slice(-5)}`;
                     subtext = new Date(tx.sortDate).toLocaleDateString();
                     
-                    // Advanced Check: Detect if order was pending but cleared via Top-up wallet sync
-                    const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && parseFloat(tx.final_amount) < parseFloat(tx.bill_amount) && parseFloat(tx.bill_amount) > 0);
+                    const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
 
                     if (isSettledViaTopUp) {
                         stateBadge = `<span class="text-[11px] font-black text-indigo-600 flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
@@ -232,7 +257,6 @@
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
                     
                     if (status === 'approved') {
-                        // Green color for approved topup amount text + check mark icon
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Rs. ${tx.amount} <i class="fas fa-check-circle"></i></span>`;
                         borderClass = "border-l-emerald-500";
                     } else if (status === 'rejected') {
@@ -248,7 +272,6 @@
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
                     
-                    // Always Red color for withdraw amount text as requested
                     stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
                     borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'cancelled' ? "border-l-red-500" : "border-l-sky-500";
                 }
@@ -268,12 +291,20 @@
             }).join('');
         }
 
-        // Full Screen Preview Modal Controller
         function openPreviewModal(index) {
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalContent');
             const tx = window.unifiedCache[index];
             let html = "";
+
+            // Requirement 2: Freeze the background window view scrolling
+            document.body.classList.add('overflow-hidden');
+
+            // Requirement 3: History pushed to close modal on back key gesture
+            if (!isModalHistoryPushed) {
+                history.pushState({ modalActive: true }, '');
+                isModalHistoryPushed = true;
+            }
 
             if (tx.txType === 'order') {
                 const bal = parseFloat(tx.balance_amount || 0);
@@ -281,15 +312,19 @@
                 const totalPayable = parseFloat(tx.bill_amount) || 0;
                 const paid = parseFloat(tx.final_amount) || 0;
 
-                // Smart Check for dynamic notification badge variables inside overview
                 const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
 
                 let stateHtml = "";
-                let topupExplanation = "";
+                let originalPendingLayout = "";
 
+                // Requirement 1 & Labels update implementation
                 if (isSettledViaTopUp) {
                     stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
-                    topupExplanation = `
+                    originalPendingLayout = `
+                        <div class="flex justify-between border-b pb-1.5 text-red-500 font-bold">
+                            <span>Pending Amount:</span>
+                            <span>Rs. ${totalPayable - paid}</span>
+                        </div>
                         <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-2">
                             <span class="text-indigo-800 font-black text-[9px] uppercase block mb-0.5">Settlement Info:</span>
                             <p class="text-indigo-900 text-[11px] font-bold leading-tight"><i class="fas fa-wallet mr-1"></i> This order was previously pending but has been successfully cleared using your wallet Top-Up balance.</p>
@@ -326,11 +361,11 @@
                             <span class="flex items-center gap-1.5"><i class="fas fa-hand-holding-dollar text-slate-400 text-sm"></i> Paid To Rider:</span>
                             <span class="text-xs text-slate-900">Rs. ${paid}</span>
                         </div>
+                        ${originalPendingLayout}
                         <div class="flex justify-between border-t border-slate-100 pt-2 items-center">
                             <span class="text-gray-500 font-black uppercase text-[9px]">Status:</span>
                             ${stateHtml}
                         </div>
-                        ${topupExplanation}
                     </div>
                 `;
             } 
@@ -391,16 +426,6 @@
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
-                        ${tx.admin_reference ? `
-                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <span class="text-emerald-800 font-black text-[9px] uppercase block mb-0.5">Admin Reference Memo:</span>
-                            <p class="text-emerald-900 text-[11px] font-bold"><i class="fas fa-receipt mr-1"></i> ${tx.admin_reference}</p>
-                        </div>` : ''}
-                        ${tx.cancel_reason ? `
-                        <div class="p-3 bg-red-50 rounded-xl border border-red-100">
-                            <span class="text-red-800 font-black text-[9px] uppercase block mb-0.5">Reason for Cancellation:</span>
-                            <p class="text-red-900 text-[11px] font-bold"><i class="fas fa-exclamation-circle mr-1"></i> ${tx.cancel_reason}</p>
-                        </div>` : ''}
                     </div>
                 `;
             }
@@ -409,11 +434,58 @@
             modal.classList.remove('hidden');
         }
 
-        function closeModal() {
+        function closeModal(fromPopState = false) {
             document.getElementById('previewModal').classList.add('hidden');
+            
+            // Re-enable screen scrolls safely if no sidebar menu panels block the action
+            if (document.getElementById('sidebarMenu').classList.contains('hidden')) {
+                document.body.classList.remove('overflow-hidden');
+            }
+            
+            if (!fromPopState && isModalHistoryPushed) {
+                isModalHistoryPushed = false;
+                if (history.state && history.state.modalActive) {
+                    history.back();
+                }
+            } else {
+                isModalHistoryPushed = false;
+            }
         }
 
-        // Custom High-End App Notification Trigger Box (No Browser Headers / No GitHub URLs)
+        // Requirement 5: Header Back navigation arrow control rules
+        function handleHeaderBack() {
+            if (window.location.search.includes('from=home')) {
+                location.href = 'home.html';
+            } else {
+                toggleSidebar(true);
+            }
+        }
+
+        function toggleSidebar(open) {
+            const sidebar = document.getElementById('sidebarMenu');
+            const content = document.getElementById('sidebarContent');
+            if (open) {
+                sidebar.classList.remove('hidden');
+                setTimeout(() => { content.classList.remove('-translate-x-full'); }, 10);
+                document.body.classList.add('overflow-hidden');
+            } else {
+                content.classList.add('-translate-x-full');
+                setTimeout(() => { sidebar.classList.add('hidden'); }, 300);
+                if (document.getElementById('previewModal').classList.contains('hidden') === false) return;
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+
+        // Intercept Android hardware back buttons or browser back navigation
+        window.addEventListener('popstate', () => {
+            if (document.getElementById('previewModal').classList.contains('hidden') === false) {
+                closeModal(true);
+            }
+            if (document.getElementById('sidebarMenu').classList.contains('hidden') === false) {
+                toggleSidebar(false);
+            }
+        });
+
         function triggerCustomNotification(title, message, statusType = 'info') {
             const modal = document.getElementById('appNotificationModal');
             const titleEl = document.getElementById('notificationTitle');
@@ -422,6 +494,8 @@
 
             titleEl.innerText = title;
             msgEl.innerText = message;
+
+            document.body.classList.add('overflow-hidden');
 
             if (title.includes('Approved') || statusType === 'success') {
                 iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
@@ -439,30 +513,27 @@
 
         function closeNotificationModal() {
             document.getElementById('appNotificationModal').classList.add('hidden');
+            if (document.getElementById('previewModal').classList.contains('hidden') && document.getElementById('sidebarMenu').classList.contains('hidden')) {
+                document.body.classList.remove('overflow-hidden');
+            }
         }
 
-        // Realtime Pipelines Multi-Stream Sync Subscriptions
         function setupLiveSync() {
-            
-            // Tracker 1: WALLET ENTRY BALANCE REFRESH
             _supabase.channel('wallet-balance-tracker')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 2: TOP-UPS LINE PIPELINE
             _supabase.channel('topup-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'topup_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 3: WITHDRAWAL APPLICATION RESPONSES
             _supabase.channel('withdraw-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdraw_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 4: CUSTOM IN-APP ALERTS BROADCAST (Uses Premium Modal Dialog popup directly)
             _supabase.channel('customer-notifications')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, (payload) => {
                     if (payload.new) {
