@@ -84,9 +84,15 @@
             <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 active:bg-gray-200 text-gray-500 rounded-full transition-colors">
                 <i class="fas fa-times text-xs"></i>
             </button>
-            <div id="modalContent" class="space-y-4 pt-2">
-                </div>
+            <div id="modalContent" class="space-y-4 pt-2"></div>
         </div>
+    </div>
+
+    <div id="fullImageOverlay" class="hidden fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4 animate-fade-in" onclick="closeFullImagePreview()">
+        <button class="absolute top-5 right-5 text-white text-2xl w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md active:scale-90 transition-transform">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="fullImageView" src="" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-pop">
     </div>
 
     <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in" onclick="closeNotificationModal()">
@@ -109,7 +115,7 @@
 
         window.unifiedCache = [];
         window.currentGlobalBalance = 0;
-        let isModalHistoryPushed = false; // Tracks internal state history overrides
+        let isModalHistoryPushed = false; 
 
         async function loadWalletData() {
             if (!navigator.onLine || !userPhone) return;
@@ -193,7 +199,6 @@
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
 
-            // Requirement 4: Hide withdraw button if wallet balance is 0 or user owes money
             if (bal >= 0) {
                 withdrawBtn.classList.add('hidden');
             } else {
@@ -297,10 +302,8 @@
             const tx = window.unifiedCache[index];
             let html = "";
 
-            // Requirement 2: Freeze the background window view scrolling
             document.body.classList.add('overflow-hidden');
 
-            // Requirement 3: History pushed to close modal on back key gesture
             if (!isModalHistoryPushed) {
                 history.pushState({ modalActive: true }, '');
                 isModalHistoryPushed = true;
@@ -317,7 +320,6 @@
                 let stateHtml = "";
                 let originalPendingLayout = "";
 
-                // Requirement 1 & Labels update implementation
                 if (isSettledViaTopUp) {
                     stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
                     originalPendingLayout = `
@@ -348,6 +350,14 @@
                         <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-1.5">
+                            <span class="text-gray-400 font-bold">Rider Name:</span>
+                            <span class="font-bold text-gray-700">${tx.rider_name || 'Not Assigned'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-1.5">
+                            <span class="text-gray-400 font-bold">Rider ID:</span>
+                            <span class="font-bold text-gray-700">${tx.rider_id || 'N/A'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Items & DC Subtotal:</span>
@@ -382,7 +392,7 @@
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
+                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : tx.status === 'orange-500'}">${tx.status || 'pending'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
@@ -396,6 +406,25 @@
                 `;
             } 
             else if (tx.txType === 'withdraw') {
+                const status = (tx.status || 'pending').toLowerCase();
+                let adminApprovedHtml = "";
+
+                // Condition for adding Admin reference info and small picture if status is approved
+                if (status === 'approved') {
+                    adminApprovedHtml = `
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Admin Ref ID:</span>
+                            <span class="font-black text-slate-800">${tx.admin_ref_id || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2 items-center">
+                            <span class="text-gray-400 font-bold">Transfer Snapshot:</span>
+                            ${tx.admin_snapshot_url ? `
+                                <img src="${tx.admin_snapshot_url}" style="width: 40px; height: 40px;" class="object-cover rounded-lg border border-slate-200 cursor-pointer active:scale-90 transition-transform shadow-sm" onclick="openFullImagePreview('${tx.admin_snapshot_url}')" alt="Receipt">
+                            ` : '<span class="font-bold text-gray-400 italic">No image available</span>'}
+                        </div>
+                    `;
+                }
+
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
                         <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
@@ -408,8 +437,9 @@
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : tx.status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${tx.status || 'pending'}</span>
+                            <span class="font-black uppercase ${status === 'approved' ? 'text-emerald-600' : status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${tx.status || 'pending'}</span>
                         </div>
+                        ${adminApprovedHtml}
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Bank Name:</span>
                             <span class="font-black text-slate-800">${tx.bank_name}</span>
@@ -434,10 +464,19 @@
             modal.classList.remove('hidden');
         }
 
+        // Functions for Full Screen Image Preview Logic
+        function openFullImagePreview(url) {
+            document.getElementById('fullImageView').src = url;
+            document.getElementById('fullImageOverlay').classList.remove('hidden');
+        }
+
+        function closeFullImagePreview() {
+            document.getElementById('fullImageOverlay').classList.add('hidden');
+        }
+
         function closeModal(fromPopState = false) {
             document.getElementById('previewModal').classList.add('hidden');
             
-            // Re-enable screen scrolls safely if no sidebar menu panels block the action
             if (document.getElementById('sidebarMenu').classList.contains('hidden')) {
                 document.body.classList.remove('overflow-hidden');
             }
@@ -452,7 +491,6 @@
             }
         }
 
-        // Requirement 5: Header Back navigation arrow control rules
         function handleHeaderBack() {
             if (window.location.search.includes('from=home')) {
                 location.href = 'home.html';
@@ -476,8 +514,10 @@
             }
         }
 
-        // Intercept Android hardware back buttons or browser back navigation
         window.addEventListener('popstate', () => {
+            if (document.getElementById('fullImageOverlay').classList.contains('hidden') === false) {
+                closeFullImagePreview();
+            }
             if (document.getElementById('previewModal').classList.contains('hidden') === false) {
                 closeModal(true);
             }
