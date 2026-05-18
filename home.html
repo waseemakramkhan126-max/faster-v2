@@ -60,6 +60,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
 
+        /* Full Screen Video / WebView Layer Fixes */
         .tiktok-fullscreen {
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 100vh !important; 
@@ -69,8 +70,20 @@
         }
         .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
         .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
-        .tiktok-fullscreen .media-box { height: 100vh !important; }
-        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
+        .tiktok-fullscreen .media-box { height: 100vh !important; width: 100vw !important; }
+        
+        .tiktok-fullscreen video { 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            object-fit: contain !important; 
+            background-color: black !important;
+        }
+        .tiktok-fullscreen img { 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            object-fit: contain !important; 
+        }
+        
         .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
         .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
         .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
@@ -86,7 +99,7 @@
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Stable Placeholder Sizing Rules (Prevents Layout Shifting) */
+        /* Hardware Accelerated Sizing Fix for Mobile GPU Layers */
         #promoContainer {
             width: 250px; 
             height: 150px; 
@@ -94,18 +107,26 @@
             margin-right: auto;
             border-radius: 1rem;
             overflow: hidden;
-            display: block !important; /* Fixed dimension display grid */
+            display: block !important;
+            will-change: transform;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
         }
         #promoContainer:not(.tiktok-fullscreen) #promoSlider {
             height: 100%;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
             height: 100% !important; 
+            width: 100% !important;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
         #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
             height: 100% !important; 
+            width: 100% !important;
             object-fit: cover;
+            will-change: transform;
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
             display: none !important;
@@ -261,8 +282,6 @@
         if (!userPhone && !isLocalPreview) {
             window.location.replace('index.html');
         }
-
-        const sound = document.getElementById('notifSound');
 
         async function initializeApp() {
             if (!navigator.onLine) return;
@@ -422,7 +441,6 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
-        // Professional Custom Premium App Notification Dialog Box
         function triggerCustomNotification(title, message, statusType = 'info') {
             const modal = document.getElementById('appNotificationModal');
             const titleEl = document.getElementById('notificationTitle');
@@ -451,7 +469,6 @@
             document.body.classList.remove('overflow-hidden');
         }
 
-        // Realtime Pipelines Multi-Stream Master Sync Subscriptions
         function setupRealtime() {
             _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
@@ -473,10 +490,8 @@
                 .subscribe();
         }
 
-        // PROMOTIONS LOGIC (Layout Stabilization Enhancement Patched)
-        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
-        let promosData = [], userInterests = new Set();
-        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
+        let currentSlideIndex = 0, isAutoScrolling = false;
+        let promosData = [];
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
@@ -486,16 +501,19 @@
                 if (promos && promos.length > 0) {
                     promosData = promos; 
                     const slider = document.getElementById('promoSlider');
-                    slider.innerHTML = ''; // Wipe out the shimmer element cleanly
+                    slider.innerHTML = ''; 
                     
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
                         slide.className = 'promo-slide overflow-hidden shrink-0';
                         const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
                         const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
+                        
+                        // FIX: Added explicit 'h-full' to media-box and 'webkit-playsinline' to fix WebView rendering crash states
                         let mediaHTML = promo.promo_type === 'video'
-                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
-                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
+                            ? `<div class="media-box relative w-full h-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline webkit-playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
+                            : `<div class="media-box relative w-full h-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
+                        
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
                     });
@@ -512,7 +530,7 @@
                     });
                     activateSlide(0, false);
                 } else {
-                    document.getElementById('promoContainer').style.display = 'none'; // Clear if empty
+                    document.getElementById('promoContainer').style.display = 'none'; 
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
