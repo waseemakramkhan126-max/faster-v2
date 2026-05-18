@@ -89,6 +89,7 @@
 
         // Safe Memory Global Cache for Unified Tracking
         window.unifiedCache = [];
+        window.currentGlobalBalance = 0; // Global reference tracker for live balance state
 
         async function loadWalletData() {
             if (!navigator.onLine || !userPhone) return;
@@ -106,6 +107,7 @@
                 if (walletData) {
                     currentBal = parseFloat(walletData.current_balance || 0);
                 }
+                window.currentGlobalBalance = currentBal;
 
                 // 2. FETCH ALL DATA SOURCES TO UNIFY
                 const { data: orders } = await _supabase
@@ -124,7 +126,6 @@
                     .select('*')
                     .eq('customer_phone', userPhone);
 
-                // Clear and combine inside cache pipeline
                 let tempTimeline = [];
 
                 if (orders) {
@@ -153,9 +154,9 @@
                 tempTimeline.sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
                 window.unifiedCache = tempTimeline;
 
-                // Sync Fallback Balance if wallet entry hasn't initialized yet
                 if (!walletData && tempTimeline.filter(x => x.txType === 'order').length > 0) {
                     currentBal = parseFloat(tempTimeline.filter(x => x.txType === 'order')[0].balance_amount || 0);
+                    window.currentGlobalBalance = currentBal;
                 }
 
                 updateBalanceUI(currentBal);
@@ -211,8 +212,13 @@
                     title = `Order #${tx.id.toString().slice(-5)}`;
                     subtext = new Date(tx.sortDate).toLocaleDateString();
                     
-                    // Double check logical optimization for 0 balance settled status
-                    if (bal === 0) {
+                    // Advanced Check: Detect if order was pending but cleared via Top-up wallet sync
+                    const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && parseFloat(tx.final_amount) < parseFloat(tx.bill_amount) && parseFloat(tx.bill_amount) > 0);
+
+                    if (isSettledViaTopUp) {
+                        stateBadge = `<span class="text-[11px] font-black text-indigo-600 flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
+                        borderClass = "border-l-indigo-500";
+                    } else if (bal === 0) {
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
                         borderClass = "border-l-emerald-500";
                     } else {
@@ -224,14 +230,26 @@
                     title = `Top-Up Wallet`;
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
-                    stateBadge = `<span class="text-[11px] font-black text-orange-600">Rs. ${tx.amount}</span>`;
-                    borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'rejected' ? "border-l-red-500" : "border-l-orange-500";
+                    
+                    if (status === 'approved') {
+                        // Green color for approved topup amount text + check mark icon
+                        stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Rs. ${tx.amount} <i class="fas fa-check-circle"></i></span>`;
+                        borderClass = "border-l-emerald-500";
+                    } else if (status === 'rejected') {
+                        stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
+                        borderClass = "border-l-red-500";
+                    } else {
+                        stateBadge = `<span class="text-[11px] font-black text-orange-600">Rs. ${tx.amount}</span>`;
+                        borderClass = "border-l-orange-500";
+                    }
                 } 
                 else if (tx.txType === 'withdraw') {
                     title = `Withdraw Funds`;
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
-                    stateBadge = `<span class="text-[11px] font-black text-blue-600">Rs. ${tx.amount}</span>`;
+                    
+                    // Always Red color for withdraw amount text as requested
+                    stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
                     borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'cancelled' ? "border-l-red-500" : "border-l-sky-500";
                 }
 
@@ -250,7 +268,7 @@
             }).join('');
         }
 
-        // Full Screen Preview Modal Controller (With Requested Label Alterations)
+        // Full Screen Preview Modal Controller
         function openPreviewModal(index) {
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalContent');
@@ -263,10 +281,22 @@
                 const totalPayable = parseFloat(tx.bill_amount) || 0;
                 const paid = parseFloat(tx.final_amount) || 0;
 
-                // Result state calculation logic mappings based on criteria
+                // Smart Check for dynamic notification badge variables inside overview
+                const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
+
                 let stateHtml = "";
-                if (bal === 0) {
-                    stateHtml = `<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700 flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
+                let topupExplanation = "";
+
+                if (isSettledViaTopUp) {
+                    stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
+                    topupExplanation = `
+                        <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-2">
+                            <span class="text-indigo-800 font-black text-[9px] uppercase block mb-0.5">Settlement Info:</span>
+                            <p class="text-indigo-900 text-[11px] font-bold leading-tight"><i class="fas fa-wallet mr-1"></i> This order was previously pending but has been successfully cleared using your wallet Top-Up balance.</p>
+                        </div>
+                    `;
+                } else if (bal === 0) {
+                    stateHtml = `<span class="text-emerald-600 font-black text-xs flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
                 } else if (bal > 0) {
                     stateHtml = `<span class="text-red-600 font-black text-xs">Pending Amount: Rs. ${Math.abs(bal)}</span>`;
                 } else {
@@ -300,6 +330,7 @@
                             <span class="text-gray-500 font-black uppercase text-[9px]">Status:</span>
                             ${stateHtml}
                         </div>
+                        ${topupExplanation}
                     </div>
                 `;
             } 
@@ -312,7 +343,7 @@
                     <div class="space-y-3 pt-2 text-xs">
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Top-Up Amount:</span>
-                            <span class="font-black text-orange-600">Rs. ${tx.amount}</span>
+                            <span class="font-black text-emerald-600">Rs. ${tx.amount}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
@@ -323,8 +354,8 @@
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
                         <div>
-                            <span class="text-gray-400 font-bold block mb-1">Payment Method Reference:</span>
-                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${tx.bank_snapshot || 'Direct Deposit / Standard'}</p>
+                            <span class="text-gray-400 font-bold block mb-1">Reference Snapshot Detail:</span>
+                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${tx.bank_snapshot || 'Direct Deposit'}</p>
                         </div>
                     </div>
                 `;
@@ -338,7 +369,7 @@
                     <div class="space-y-3 pt-2 text-xs">
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Withdraw Amount:</span>
-                            <span class="font-black text-blue-600">Rs. ${tx.amount}</span>
+                            <span class="font-black text-red-600">Rs. ${tx.amount}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
@@ -392,7 +423,6 @@
             titleEl.innerText = title;
             msgEl.innerText = message;
 
-            // Set dynamic status background vectors
             if (title.includes('Approved') || statusType === 'success') {
                 iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
                 iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
