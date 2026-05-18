@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw Funds - Smart Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
+        .input-field { width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.875rem; transition: all 0.2s; }
+        .input-field:focus { outline: none; border-color: #0ea5e9; background: #ffffff; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-white p-4 flex items-center shadow-sm sticky top-0 z-50">
+        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="history.back()"></i>
+        <h1 class="font-bold text-lg text-gray-800">Withdraw Funds</h1>
+    </header>
+
+    <main class="flex-1 p-5 w-full max-w-lg mx-auto animate-pop">
+        
+        <div class="bg-gradient-to-br from-sky-600 to-blue-800 rounded-3xl p-6 text-white shadow-lg mb-6 relative overflow-hidden">
+            <div class="relative z-10">
+                <p class="text-[10px] opacity-80 uppercase tracking-widest font-black mb-1">Available for Withdrawal</p>
+                <h2 id="availableBalance" class="text-3xl font-extrabold tracking-tighter">Rs. 0</h2>
+            </div>
+            <i class="fas fa-money-bill-wave absolute -right-4 -bottom-4 text-white/10 text-7xl rotate-12"></i>
+        </div>
+
+        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+            <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest mb-5">Bank Details</h3>
+            
+            <form id="withdrawForm" class="space-y-4" onsubmit="submitWithdrawal(event)">
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 pl-1">Select Bank / Wallet</label>
+                    <select id="bankName" required class="input-field appearance-none">
+                        <option value="" disabled selected>Select an option...</option>
+                        <option value="Easypaisa">Easypaisa</option>
+                        <option value="JazzCash">JazzCash</option>
+                        <option value="Meezan Bank">Meezan Bank</option>
+                        <option value="HBL">HBL</option>
+                        <option value="Bank Alfalah">Bank Alfalah</option>
+                        <option value="Other">Other Bank</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 pl-1">Account Title</label>
+                    <input type="text" id="accountTitle" required placeholder="e.g. Ali Raza" class="input-field">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 pl-1">Account Number</label>
+                    <input type="number" id="accountNumber" required placeholder="03XXXXXXXXX or IBAN" class="input-field">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 pl-1">Withdrawal Amount (Rs.)</label>
+                    <input type="number" id="withdrawAmount" required placeholder="Enter amount" min="1" class="input-field">
+                </div>
+
+                <div id="messageBox" class="hidden text-center text-xs font-bold p-3 rounded-xl mt-2"></div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="history.back()" class="flex-1 bg-gray-100 active:bg-gray-200 text-gray-600 py-3 rounded-full text-xs font-bold uppercase tracking-widest transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="submitBtn" class="flex-1 bg-blue-600 active:bg-blue-700 text-white py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-md transition-colors flex items-center justify-center">
+                        <i class="fas fa-paper-plane mr-2"></i> Submit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+        
+        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        let maxWithdrawable = 0;
+
+        async function loadAvailableBalance() {
+            if (!userPhone) return alert("Phone number missing! Please login again.");
+
+            try {
+                const { data, error } = await _supabase
+                    .from('wallets')
+                    .select('current_balance')
+                    .eq('customer_phone', userPhone)
+                    .maybeSingle();
+
+                if (data) {
+                    let bal = parseFloat(data.current_balance || 0);
+                    // Agar balance < 0 hai matlab user ka advance/credit pada hai jo wo nikalwa sakta hai
+                    if (bal < 0) {
+                        maxWithdrawable = Math.abs(bal);
+                    } else {
+                        maxWithdrawable = 0;
+                    }
+                    document.getElementById('availableBalance').innerText = `Rs. ${maxWithdrawable}`;
+                }
+            } catch (err) {
+                console.error("Balance Error:", err);
+            }
+        }
+
+        async function submitWithdrawal(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const msgBox = document.getElementById('messageBox');
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            
+            // Validation: Agar amount balance se zyada hai ya balance 0 hai
+            if (amount > maxWithdrawable || maxWithdrawable === 0) {
+                showMessage("Insufficient balance for this withdrawal.", "error");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Processing...`;
+
+            const requestData = {
+                customer_phone: userPhone,
+                bank_name: document.getElementById('bankName').value,
+                account_title: document.getElementById('accountTitle').value,
+                account_number: document.getElementById('accountNumber').value,
+                amount: amount,
+                status: 'pending' // Admin panel ke liye
+            };
+
+            try {
+                // Supabase me withdraw_requests table me data save karna
+                const { error } = await _supabase
+                    .from('withdraw_requests')
+                    .insert([requestData]);
+
+                if (error) throw error;
+
+                showMessage("Withdrawal request sent successfully!", "success");
+                document.getElementById('withdrawForm').reset();
+                
+                // 2 second baad wapis wallet page pe bhej dein
+                setTimeout(() => { location.href = 'wallet.html'; }, 2000);
+
+            } catch (err) {
+                console.error(err);
+                showMessage("Failed to send request. Try again.", "error");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-paper-plane mr-2"></i> Submit`;
+            }
+        }
+
+        function showMessage(text, type) {
+            const msgBox = document.getElementById('messageBox');
+            msgBox.classList.remove('hidden', 'bg-red-100', 'text-red-600', 'bg-green-100', 'text-green-600');
+            
+            if (type === 'error') {
+                msgBox.classList.add('bg-red-100', 'text-red-600');
+            } else {
+                msgBox.classList.add('bg-green-100', 'text-green-600');
+            }
+            msgBox.innerText = text;
+        }
+
+        window.onload = loadAvailableBalance;
+    </script>
+</body>
+</html>
