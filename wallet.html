@@ -313,7 +313,7 @@
                 const bal = parseFloat(tx.balance_amount || 0);
                 const itemPlusDc = (parseFloat(tx.item_price) || 0) + (parseFloat(tx.dc_amount) || 0);
                 const totalPayable = parseFloat(tx.bill_amount) || 0;
-                const paid = parseFloat(tx.final_amount) || 0;
+                const paid = parseFloat(tx.final_amount || 0);
 
                 const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
 
@@ -356,6 +356,10 @@
                             <span class="font-bold text-gray-700">${tx.rider_name || 'Not Assigned'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-1.5">
+                            <span class="text-gray-400 font-bold">Rider Phone:</span>
+                            <span class="font-bold text-gray-700">${tx.rider_phone || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Rider ID:</span>
                             <span class="font-bold text-gray-700">${tx.rider_id || 'N/A'}</span>
                         </div>
@@ -392,7 +396,7 @@
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : tx.status === 'orange-500'}">${tx.status || 'pending'}</span>
+                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
@@ -409,12 +413,11 @@
                 const status = (tx.status || 'pending').toLowerCase();
                 let adminApprovedHtml = "";
 
-                // Condition for adding Admin reference info and small picture if status is approved
                 if (status === 'approved') {
                     adminApprovedHtml = `
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Admin Ref ID:</span>
-                            <span class="font-black text-slate-800">${tx.admin_ref_id || 'N/A'}</span>
+                            <span class="font-black text-slate-800">${tx.admin_reference || 'N/A'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2 items-center">
                             <span class="text-gray-400 font-bold">Transfer Snapshot:</span>
@@ -464,7 +467,6 @@
             modal.classList.remove('hidden');
         }
 
-        // Functions for Full Screen Image Preview Logic
         function openFullImagePreview(url) {
             document.getElementById('fullImageView').src = url;
             document.getElementById('fullImageOverlay').classList.remove('hidden');
