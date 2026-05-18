@@ -20,30 +20,9 @@
 <body class="flex flex-col min-h-screen select-none">
 
     <header class="bg-white p-4 flex items-center shadow-sm sticky top-0 z-50">
-        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="handleHeaderBack()"></i>
+        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="location.href='home.html'"></i>
         <h1 class="font-bold text-lg text-gray-800">My Smart Wallet</h1>
     </header>
-
-    <div id="sidebarMenu" class="hidden fixed inset-0 z-[150] flex animate-fade-in">
-        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="toggleSidebar(false)"></div>
-        <div class="relative w-64 max-w-xs bg-white h-full shadow-2xl p-6 flex flex-col justify-between transform -translate-x-full transition-transform duration-300 ease-in-out z-10" id="sidebarContent">
-            <div>
-                <div class="flex items-center justify-between border-b pb-4 mb-6">
-                    <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest">Navigation Menu</h3>
-                    <button onclick="toggleSidebar(false)" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full"><i class="fas fa-times text-xs"></i></button>
-                </div>
-                <nav class="space-y-4 text-sm font-bold text-gray-600">
-                    <a href="home.html" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-home text-gray-400 w-5"></i> Home Screen</a>
-                    <a href="withdraw-requests.html" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-hand-holding-usd text-gray-400 w-5"></i> Withdraw Panel</a>
-                    <a href="#" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-user text-gray-400 w-5"></i> My Profile</a>
-                    <a href="#" class="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-colors"><i class="fas fa-headset text-gray-400 w-5"></i> Help Support</a>
-                </nav>
-            </div>
-            <div class="border-t pt-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">
-                Faster Wallet v2.5
-            </div>
-        </div>
-    </div>
 
     <main class="flex-1 p-5 max-w-md mx-auto w-full">
         
@@ -477,56 +456,30 @@
         }
 
         function closeModal(fromPopState = false) {
-            document.getElementById('previewModal').classList.add('hidden');
-            
-            if (document.getElementById('sidebarMenu').classList.contains('hidden')) {
-                document.body.classList.remove('overflow-hidden');
-            }
-            
-            if (!fromPopState && isModalHistoryPushed) {
-                isModalHistoryPushed = false;
-                if (history.state && history.state.modalActive) {
-                    history.back();
-                }
-            } else {
-                isModalHistoryPushed = false;
-            }
+    document.getElementById('previewModal').classList.add('hidden');
+    
+    // Sidebar ka check remove karke humne body scroll ko normal kar diya hai
+    document.body.classList.remove('overflow-hidden');
+    
+    if (!fromPopState && isModalHistoryPushed) {
+        isModalHistoryPushed = false;
+        if (history.state && history.state.modalActive) {
+            history.back();
         }
-
-        function handleHeaderBack() {
-            if (window.location.search.includes('from=home')) {
-                location.href = 'home.html';
-            } else {
-                toggleSidebar(true);
-            }
-        }
-
-        function toggleSidebar(open) {
-            const sidebar = document.getElementById('sidebarMenu');
-            const content = document.getElementById('sidebarContent');
-            if (open) {
-                sidebar.classList.remove('hidden');
-                setTimeout(() => { content.classList.remove('-translate-x-full'); }, 10);
-                document.body.classList.add('overflow-hidden');
-            } else {
-                content.classList.add('-translate-x-full');
-                setTimeout(() => { sidebar.classList.add('hidden'); }, 300);
-                if (document.getElementById('previewModal').classList.contains('hidden') === false) return;
-                document.body.classList.remove('overflow-hidden');
-            }
-        }
-
+    } else {
+        isModalHistoryPushed = false;
+    }
+}
+        
         window.addEventListener('popstate', () => {
-            if (document.getElementById('fullImageOverlay').classList.contains('hidden') === false) {
-                closeFullImagePreview();
-            }
-            if (document.getElementById('previewModal').classList.contains('hidden') === false) {
-                closeModal(true);
-            }
-            if (document.getElementById('sidebarMenu').classList.contains('hidden') === false) {
-                toggleSidebar(false);
-            }
-        });
+    if (document.getElementById('fullImageOverlay').classList.contains('hidden') === false) {
+        closeFullImagePreview();
+    }
+    if (document.getElementById('previewModal').classList.contains('hidden') === false) {
+        closeModal(true);
+    }
+    // Sidebar wali condition yahan se remove kar di gayi hai
+});
 
         function triggerCustomNotification(title, message, statusType = 'info') {
             const modal = document.getElementById('appNotificationModal');
