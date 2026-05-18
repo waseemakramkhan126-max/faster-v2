@@ -9,15 +9,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        
-        /* Pull-to-refresh & Zooming Fix for WebView APK */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             overscroll-behavior-y: none; 
             -webkit-tap-highlight-color: transparent; 
         }
-        
-        /* 3D Claymorphism Design Elements */
         .brand-logo-gol { 
             object-fit: cover; 
             border-radius: 9999px; 
@@ -25,37 +21,31 @@
             background: white;
             box-shadow: 6px 6px 12px #e5e7eb, -6px -6px 12px #ffffff;
         }
-
         .clay-card {
             background: #ffffff;
             border-radius: 2.5rem;
             box-shadow: 10px 10px 20px #e5e7eb, -10px -10px 20px #ffffff;
         }
-
         .clay-input {
             background: #f9fafb;
             box-shadow: inset 4px 4px 8px #e5e7eb, inset -4px -4px 8px #ffffff;
             border: 2px solid transparent;
             transition: all 0.3s ease;
         }
-        
         .clay-input:focus {
             box-shadow: inset 6px 6px 10px #e5e7eb, inset -6px -6px 10px #ffffff;
             border-color: #f97316; 
             background: #ffffff;
         }
-
         .clay-btn {
             background: #3b82f6;
             box-shadow: 6px 6px 12px #93c5fd, -6px -6px 12px #ffffff;
             transition: all 0.2s ease;
         }
-
         .clay-btn:active {
             box-shadow: inset 4px 4px 8px #2563eb, inset -4px -4px 8px #60a5fa;
             transform: scale(0.97);
         }
-        
         .clay-btn:disabled {
             background: #9ca3af;
             box-shadow: none;
@@ -74,7 +64,6 @@
                     <i class="fas fa-rocket text-white text-3xl"></i>
                 </div>
             </div>
-            
             <h1 id="brandName" class="text-2xl font-black text-gray-800 uppercase tracking-tighter">
                 Faster <span class="text-orange-500">Delivery</span>
             </h1>
@@ -141,7 +130,24 @@
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-        // Fetch Branding safely
+        // Mobile Device Fail-Safe Storage Wrapper
+        function getSafeStorage(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                console.warn("Storage restricted on this mobile device view:", e);
+                return null;
+            }
+        }
+
+        function setSafeStorage(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                console.error("Failed to write state storage:", e);
+            }
+        }
+
         async function fetchBranding() {
             try {
                 if(!navigator.onLine) return;
@@ -153,11 +159,10 @@
                     document.getElementById('logoFallback').classList.add('hidden');
                 }
             } catch (err) { 
-                console.warn("Branding failed to load gracefully", err); 
+                console.warn("Branding asset failed to load:", err); 
             }
         }
 
-        // Google OAuth configuration
         async function loginWithGoogle() {
             if (!navigator.onLine) {
                 alert("No internet connection! Please check your network and try again.");
@@ -174,20 +179,23 @@
             }
         }
 
-        // Production-Grade Fail-Safe Auth Router
         async function checkAuthState() {
-            // Fast UI check: Agar local state valid hai to bina delay redirect karein
-            if (localStorage.getItem('faster_phone')) {
+            // Safe helper call to prevent code freeze on strict mobile browsers
+            if (getSafeStorage('faster_phone')) {
                 window.location.replace('home.html');
                 return;
             }
 
             try {
-                // Network check fallback
                 if (!navigator.onLine) {
-                    document.getElementById('mainLoader').classList.add('hidden');
                     document.getElementById('googleLoginSection').classList.remove('hidden');
                     return;
+                }
+
+                // Parse the hash parameters manually if the WebView drops redirect listeners
+                if (window.location.hash && window.location.hash.includes('access_token')) {
+                    // Short brief delay to let Supabase Client digest the tokens from hash
+                    await new Promise(res => setTimeout(res, 500));
                 }
 
                 const { data: { session }, error } = await _supabase.auth.getSession();
@@ -200,34 +208,31 @@
                 const userEmail = session.user.email.toLowerCase();
                 const googleName = session.user.user_metadata.full_name;
 
-                const { data: customerRecord, error: dbError } = await _supabase
+                const { data: customerRecord } = await _supabase
                     .from('customers')
                     .select('phone, name')
                     .eq('email', userEmail)
                     .maybeSingle();
 
                 if (customerRecord && customerRecord.phone) {
-                    localStorage.setItem('faster_phone', customerRecord.phone);
-                    localStorage.setItem('faster_name', customerRecord.name);
+                    setSafeStorage('faster_phone', customerRecord.phone);
+                    setSafeStorage('faster_name', customerRecord.name);
                     window.location.replace('home.html');
                 } else {
-                    // Pre-fill profile creation form
                     document.getElementById('nameInput').value = googleName || "";
                     document.getElementById('subTitle').innerText = "Complete Your Profile";
                     document.getElementById('profileFormSection').classList.remove('hidden');
                 }
 
             } catch (err) {
-                console.error("Auth Exception handled:", err);
-                // Fallback option in case of connection drop
+                console.error("Auth Exception caught:", err);
                 document.getElementById('googleLoginSection').classList.remove('hidden');
             } finally {
-                // Yeh block hamesha chalega aur loader ko crash state me bhi khatam kar dega
+                // Ensure loader hides no matter what happens inside the async pipe
                 document.getElementById('mainLoader').classList.add('hidden');
             }
         }
 
-        // Save Profile Pipeline
         async function saveProfile() {
             const name = document.getElementById('nameInput').value.trim();
             const phone = document.getElementById('phoneInput').value.trim();
@@ -243,7 +248,7 @@
             }
 
             if (!navigator.onLine) {
-                alert("No internet connection! Please check your network and try again.");
+                alert("No internet connection!");
                 return;
             }
 
@@ -270,8 +275,8 @@
 
                 if (error) throw error;
 
-                localStorage.setItem('faster_phone', phone);
-                localStorage.setItem('faster_name', name);
+                setSafeStorage('faster_phone', phone);
+                setSafeStorage('faster_name', name);
                 window.location.replace('home.html');
                 
             } catch (err) {
