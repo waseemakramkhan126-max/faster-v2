@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;800&display=swap');
         
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -48,7 +48,7 @@
         @keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
         .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
 
-        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
+        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 150; }
         .sidebar.active { transform: translateX(0); }
         .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
         .action-card { transition: all 0.2s ease; position: relative; }
@@ -81,18 +81,20 @@
         .is-paused .pause-icon-overlay { opacity: 1; }
 
         #sidebarOverlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 140;
             opacity: 0; pointer-events: none; transition: opacity 0.4s;
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        #promoContainer:not(.tiktok-fullscreen) {
+        /* Stable Placeholder Sizing Rules (Prevents Layout Shifting) */
+        #promoContainer {
             width: 250px; 
             height: 150px; 
             margin-left: auto;
             margin-right: auto;
             border-radius: 1rem;
             overflow: hidden;
+            display: block !important; /* Fixed dimension display grid */
         }
         #promoContainer:not(.tiktok-fullscreen) #promoSlider {
             height: 100%;
@@ -103,14 +105,19 @@
         #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
         #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
             height: 100% !important; 
-            object-fit: container;
+            object-fit: cover;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
             display: none !important;
         }
+        
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="text-gray-800 select-none">
 
     <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
         <i class="fas fa-wifi-slash"></i> No Internet Connection
@@ -120,7 +127,7 @@
 
     <div id="sidebarOverlay" onclick="toggleMenu()"></div>
 
-    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-[150] shadow-2xl p-6 flex flex-col pt-safe">
         <div class="flex justify-between items-center mb-8 mt-2">
             <div class="flex items-center gap-3">
                 <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden">
@@ -138,7 +145,7 @@
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
 
-            <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
+            <div onclick="location.href='wallet.html?from=home'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
                     <span class="font-bold text-gray-700">My Wallet</span>
@@ -179,23 +186,24 @@
         </div>
     </header>
 
-    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
-        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
+    <div id="promoContainer" class="mt-4 relative group bg-white shadow-lg border border-white">
+        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-slate-100 rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all justify-center items-center">
+            <div id="promoPlaceholder" class="text-center opacity-30 text-[10px] font-black uppercase tracking-widest"><i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing Promos...</div>
         </div>
         <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
 
-    <main class="p-6 pt-8">
+    <main class="p-6 pt-6">
         <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 h-6">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
-            <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
+            <p id="homePendBox" onclick="location.href='wallet.html?from=home'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
                 <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
             </p>
             
-            <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
+            <p id="homeRemBox" onclick="location.href='wallet.html?from=home'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
                 <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
             </p>
         </div>
@@ -229,6 +237,17 @@
             </div>
         </div>
     </main>
+
+    <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in" onclick="closeNotificationModal()">
+        <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50" onclick="event.stopPropagation()">
+            <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm"></div>
+            <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
+            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Details...</p>
+            <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
+                Acknowledge
+            </button>
+        </div>
+    </div>
 
     <script>
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
@@ -266,7 +285,6 @@
             setupRealtime();
         }
 
-        // ✅ UPDATED: Ab ye pehle Wallets table check karega phir Orders
         async function fetchWalletBalance() {
             if (!navigator.onLine) return;
             document.getElementById('walletLoading').classList.remove('hidden');
@@ -274,7 +292,6 @@
                 let currentBal = 0;
                 let foundWallet = false;
 
-                // 1. Wallets Table Check karein (For Top-ups & Advance)
                 const { data: walletData, error: walErr } = await _supabase
                     .from('wallets')
                     .select('current_balance')
@@ -286,7 +303,6 @@
                     foundWallet = true;
                 }
 
-                // 2. Agar wallet record nahi hai, toh last order se uthain
                 if (!foundWallet) {
                     const { data: orders, error: ordErr } = await _supabase
                         .from('orders')
@@ -385,6 +401,11 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
+            if(sidebar.classList.contains('active')) {
+                document.body.classList.add('overflow-hidden');
+            } else {
+                document.body.classList.remove('overflow-hidden');
+            }
         }
         
         async function logout() { 
@@ -401,6 +422,36 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
+        // Professional Custom Premium App Notification Dialog Box
+        function triggerCustomNotification(title, message, statusType = 'info') {
+            const modal = document.getElementById('appNotificationModal');
+            const titleEl = document.getElementById('notificationTitle');
+            const msgEl = document.getElementById('notificationMessage');
+            const iconContainer = document.getElementById('notificationIconContainer');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+            document.body.classList.add('overflow-hidden');
+
+            if (title.includes('Approved') || statusType === 'success') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
+            } else if (title.includes('Cancelled') || statusType === 'error') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-times-circle"></i>`;
+            } else {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-bell"></i>`;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeNotificationModal() {
+            document.getElementById('appNotificationModal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // Realtime Pipelines Multi-Stream Master Sync Subscriptions
         function setupRealtime() {
             _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
@@ -410,16 +461,19 @@
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => { 
                     updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
                 })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
+                    fetchWalletBalance();
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, (payload) => {
+                    if (payload.new) {
+                        triggerCustomNotification(payload.new.title, payload.new.message);
+                        fetchWalletBalance();
+                    }
+                })
                 .subscribe();
         }
 
-        window.onload = () => {
-            setGreeting();
-            initializeApp();
-            fetchPromotions();
-        };
-
-        // PROMOTIONS LOGIC (Keep original)
+        // PROMOTIONS LOGIC (Layout Stabilization Enhancement Patched)
         let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
         let promosData = [], userInterests = new Set();
         let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
@@ -432,8 +486,8 @@
                 if (promos && promos.length > 0) {
                     promosData = promos; 
                     const slider = document.getElementById('promoSlider');
-                    const container = document.getElementById('promoContainer');
-                    slider.innerHTML = '';
+                    slider.innerHTML = ''; // Wipe out the shimmer element cleanly
+                    
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
                         slide.className = 'promo-slide overflow-hidden shrink-0';
@@ -445,7 +499,7 @@
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
                     });
-                    container.classList.remove('hidden');
+
                     slider.addEventListener('scroll', () => {
                         if (isAutoScrolling) return; 
                         clearTimeout(slider.scrollTimeout);
@@ -457,6 +511,8 @@
                         }, 40);
                     });
                     activateSlide(0, false);
+                } else {
+                    document.getElementById('promoContainer').style.display = 'none'; // Clear if empty
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
@@ -477,6 +533,13 @@
             const slider = document.getElementById('promoSlider');
             const isEntering = !container.classList.contains('tiktok-fullscreen');
             container.classList.toggle('tiktok-fullscreen');
+            
+            if(container.classList.contains('tiktok-fullscreen')) {
+                document.body.classList.add('overflow-hidden');
+            } else {
+                document.body.classList.remove('overflow-hidden');
+            }
+            
             const vid = document.getElementById(`vid_${currentSlideIndex}`);
             if (vid) {
                 vid.muted = !isEntering;
@@ -516,6 +579,12 @@
             const icon = document.getElementById(`icon_${vidId}`);
             if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
         }
+
+        window.onload = () => {
+            setGreeting();
+            initializeApp();
+            fetchPromotions();
+        };
     </script>
 </body>
 </html>
