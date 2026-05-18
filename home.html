@@ -322,7 +322,7 @@
             }
         }
 
-        // UPDATED: Now fetches from orders, notifications, promotions, topup_requests, and withdraw_requests (No chats table)
+        // PERFECTED: Checks exactly the 5 requested tables based on correct columns
         async function checkNotifications() {
             if (!navigator.onLine) return;
             try {
@@ -333,7 +333,7 @@
                     _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
                     _supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('promo_active', true).gt('created_at', lastRead),
                     _supabase.from('topup_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead),
-                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead).then(r => r, e => ({ count: 0 }))
+                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead)
                 ]);
 
                 const totalUpdates = (orderRes.count || 0) + 
@@ -413,7 +413,7 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
-        // UPDATED: Now triggers on notifications, promotions, topup, and withdraw tables to refresh bell and play ringtone
+        // PERFECTED REALTIME LISTENER: Plays ringtone and triggers red bell on any match
         function setupRealtime() {
             _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
@@ -423,7 +423,9 @@
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => { 
                     updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        sound.play().catch(e => console.log("Sound error:", e));
+                        if (payload.new && payload.new.customer_phone === userPhone) {
+                            sound.play().catch(e => console.log("Sound error:", e));
+                        }
                     }
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => { 
