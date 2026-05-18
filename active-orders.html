@@ -30,7 +30,7 @@
         #offlineBanner { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateY(-100%); }
         #offlineBanner.show { transform: translateY(0); }
 
-        /* Beautiful Modal Animations (From Completed.html) */
+        /* Beautiful Modal Animations */
         .modal-enter { opacity: 1; pointer-events: auto; display: flex !important; }
         .modal-leave { opacity: 0; pointer-events: none; }
         .modal-content-enter { transform: scale(1); opacity: 1; }
@@ -65,7 +65,7 @@
     <div id="billModal" class="modal-leave fixed inset-0 bg-black/80 z-[1000] hidden items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300" onclick="closeBillModal()">
         <div id="billModalContent" class="modal-content-leave bg-white rounded-[1.5rem] w-full max-w-sm overflow-hidden shadow-2xl transition-all duration-300 flex flex-col max-h-[90vh]" onclick="event.stopPropagation()">
             
-            <div class="bg-[#075e54] p-4 text-white flex justify-between items-center shrink-0">
+            <div class="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
                 <span class="font-black text-sm uppercase tracking-widest">Order Summary</span>
                 <i class="fas fa-times cursor-pointer text-xl opacity-80 active:opacity-100 transition active:scale-90" onclick="closeBillModal()"></i>
             </div>
@@ -87,7 +87,6 @@
     </div>
 
     <script>
-        // 🚨 NAYE PROJECT KI KEYS YAHAN BHI DALIYE GA 🚨
         const SUPABASE_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -99,7 +98,6 @@
         let globalDeliveryTime = 30;
         let unreadCounts = {}; 
 
-        // --- 100% WEBVIEW AUDIO UNLOCKER ---
         const notifSound = document.getElementById('notifSound');
         let isAudioUnlocked = false;
 
@@ -134,7 +132,6 @@
             }
         }
 
-        // --- CORE INITIALIZATION ---
         async function init() {
             if(!userPhone) {
                 window.location.replace('index.html');
@@ -152,7 +149,6 @@
             setupRealtime();
         }
 
-        // --- FLAWLESS REAL-TIME LOGIC ---
         function setupRealtime() {
             _supabase.removeAllChannels();
 
@@ -160,7 +156,7 @@
                 event: 'UPDATE', schema: 'public', table: 'orders' 
             }, (payload) => {
                 if (payload.new && payload.new.customer_phone === userPhone) {
-                    const oldOrder = currentOrders.find(o => o.id === payload.new.id);
+                    const oldOrder = currentOrders.find(o => o.id.toString() === payload.new.id.toString());
                     if (oldOrder && (oldOrder.status !== payload.new.status || oldOrder.rider_status !== payload.new.rider_status)) {
                         ring(); 
                     }
@@ -186,7 +182,6 @@
             }).subscribe();
         }
 
-        // --- DATA FETCHING ---
         async function fetchOrders() {
             if(!navigator.onLine) return; 
 
@@ -242,7 +237,6 @@
             }
         }
 
-        // --- UI RENDERING ---
         function renderOrders(orders) {
             const list = document.getElementById('activeList');
             
@@ -291,14 +285,15 @@
                     }
                 }
 
+                // FIX: .slice() ko remove kiya kyunki ID ab direct Number (bigint) ban chuki hai
                 return `
-                <div class="order-card bg-white rounded-[2rem] p-5 shadow-sm border ${isStatusNew ? 'border-red-400 bg-red-50' : 'border-gray-100'} cursor-pointer" onclick="openBillModal('${order.id}')">
+                <div class="order-card bg-white rounded-[2rem] p-5 shadow-sm border ${isStatusNew ? 'border-red-400 bg-red-50' : 'border-gray-100'} cursor-pointer" onclick="openBillModal(${order.id})">
                     <div class="flex justify-between items-center mb-4">
                         <div class="flex items-center gap-2">
                             <span class="px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${statusColor}">${displayStatus}</span>
                             ${isStatusNew ? `<span class="px-2 py-1 bg-red-500 text-white text-[9px] font-bold rounded-full animate-pulse shadow-md shadow-red-500/50"><i class="fas fa-exclamation-circle"></i> UPDATED</span>` : ''}
                         </div>
-                        <p class="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest">ID: #${order.id.slice(-6)}</p>
+                        <p class="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest">ID: #${order.id}</p>
                     </div>
                     
                     <h3 class="text-lg font-black text-gray-800 mb-1 leading-tight">${statusMsg}</h3>
@@ -358,12 +353,12 @@
             activeTimers[id] = setInterval(update, 1000);
         }
 
-        // --- NEW BEAUTIFUL MODAL LOGIC ---
         function openBillModal(orderId) {
             localStorage.setItem('last_active_orders_visit', new Date().toISOString());
             renderOrders(currentOrders); 
 
-            const order = currentOrders.find(o => o.id === orderId);
+            // FIX: Comparison ko robust kiya string aur number dono states matching handle karne k liye
+            const order = currentOrders.find(o => o.id.toString() === orderId.toString());
             if (!order) return;
 
             const modal = document.getElementById('billModal');
@@ -381,7 +376,6 @@
             const pending = parseFloat(order.previous_due || 0);
             const totalBill = parseFloat(order.bill_amount || 0);
 
-            // Conditional Active Order Messages
             let statusBadge = "Calculating Bill...";
             let statusColor = "text-amber-600 bg-amber-50 border-amber-200 animate-pulse";
             if (totalBill > 0) {
@@ -389,7 +383,6 @@
                 statusColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
             }
 
-            // Media Extractor for Order Details
             const mediaHelper = (str, type) => {
                 if(!str) return '';
                 return str.split(',').map(url => {
@@ -468,7 +461,6 @@
                 `<video src="${url}" controls autoplay playsinline class="max-w-[95%] max-h-[85vh] rounded-2xl shadow-2xl border-4 border-white"></video>`;
         }
         
-        // --- OFFLINE & VISIBILITY HANDLING ---
         const offlineBanner = document.getElementById('offlineBanner');
         
         window.addEventListener('offline', () => offlineBanner.classList.add('show'));
