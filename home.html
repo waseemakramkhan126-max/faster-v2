@@ -322,20 +322,35 @@
             }
         }
 
+        // UPDATED: Now fetches from orders, notifications, promotions, topup_requests, and withdraw_requests (No chats table)
         async function checkNotifications() {
             if (!navigator.onLine) return;
             try {
                 const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
-                const [chatRes, orderRes] = await Promise.all([
-                    _supabase.from('chats').select('*', { count: 'exact', head: true }).eq('receiver_id', userPhone).gt('created_at', lastRead),
-                    _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead)
+                
+                const [orderRes, notifRes, promoRes, topupRes, withdrawRes] = await Promise.all([
+                    _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead),
+                    _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
+                    _supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('promo_active', true).gt('created_at', lastRead),
+                    _supabase.from('topup_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead),
+                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead).then(r => r, e => ({ count: 0 }))
                 ]);
+
+                const totalUpdates = (orderRes.count || 0) + 
+                                     (notifRes.count || 0) + 
+                                     (promoRes.count || 0) + 
+                                     (topupRes.count || 0) + 
+                                     (withdrawRes.count || 0);
+
                 const bell = document.getElementById('notifBell');
                 const badge = document.getElementById('notifBadge');
-                if ((chatRes.count || 0) > 0 || (orderRes.count || 0) > 0) { 
-                    badge.classList.add('active'); bell.classList.add('bell-active'); 
+                
+                if (totalUpdates > 0) { 
+                    badge.classList.add('active'); 
+                    bell.classList.add('bell-active'); 
                 } else { 
-                    badge.classList.remove('active'); bell.classList.remove('bell-active'); 
+                    badge.classList.remove('active'); 
+                    bell.classList.remove('bell-active'); 
                 }
             } catch (e) { console.error("Notification sync failed", e); }
         }
@@ -398,18 +413,43 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
-        // FIXED: Expanded Realtime Listener for true automatic syncing
+        // UPDATED: Now triggers on notifications, promotions, topup, and withdraw tables to refresh bell and play ringtone
         function setupRealtime() {
             _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => { 
-                    checkNotifications(); updateActiveOrdersCard(); 
+                    updateActiveOrdersCard(); 
                 })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { 
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => { 
                     updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        sound.play().catch(e => console.log("Sound error:", e));
+                    }
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => { 
                     fetchWalletBalance(); 
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+                    if (payload.new && (payload.new.customer_phone === userPhone || payload.new.phone === userPhone)) {
+                        checkNotifications();
+                        sound.play().catch(e => console.log("Sound error:", e));
+                    }
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'promotions' }, () => {
+                    checkNotifications();
+                    sound.play().catch(e => console.log("Sound error:", e));
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'topup_requests' }, (payload) => {
+                    if (payload.new && payload.new.customer_phone === userPhone) {
+                        checkNotifications();
+                        sound.play().catch(e => console.log("Sound error:", e));
+                    }
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'withdraw_requests' }, (payload) => {
+                    if (payload.new && payload.new.customer_phone === userPhone) {
+                        checkNotifications();
+                        sound.play().catch(e => console.log("Sound error:", e));
+                    }
                 })
                 .subscribe();
         }
