@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
         
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -48,7 +48,7 @@
         @keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
         .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
 
-        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 150; }
+        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
         .sidebar.active { transform: translateX(0); }
         .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
         .action-card { transition: all 0.2s ease; position: relative; }
@@ -58,8 +58,6 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Fixed Horizontal Slider Engine to solve Android Black Box Rendering */
         .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
 
         .tiktok-fullscreen {
@@ -69,25 +67,11 @@
             background-color: black !important;
             border-radius: 0 !important;
         }
-        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; flex-direction: column !important; overflow-y: auto !important; overflow-x: hidden !important; snap-type: y mandatory !important; }
-        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important; scroll-snap-align: center !important;}
-        .tiktok-fullscreen .media-box { height: 100vh !important; width: 100vw !important; }
-        
-        .tiktok-fullscreen video { 
-            width: 100vw !important; 
-            height: 100vh !important; 
-            object-fit: contain !important; 
-            background-color: black !important;
-            -webkit-transform: none !important;
-            transform: none !important;
-        }
-        .tiktok-fullscreen img { 
-            width: 100vw !important; 
-            height: 100vh !important; 
-            object-fit: contain !important; 
-        }
-        
-        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); display: block !important; }
+        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
+        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
+        .tiktok-fullscreen .media-box { height: 100vh !important; }
+        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
+        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
         .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
         .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
         .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
@@ -97,64 +81,36 @@
         .is-paused .pause-icon-overlay { opacity: 1; }
 
         #sidebarOverlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 140;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
             opacity: 0; pointer-events: none; transition: opacity 0.4s;
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Hardware Accelerated Rigid Container Fix */
-        #promoContainer {
-            width: 250px !important; 
-            height: 150px !important; 
+        #promoContainer:not(.tiktok-fullscreen) {
+            width: 250px; 
+            height: 150px; 
             margin-left: auto;
             margin-right: auto;
-            border-radius: 1.5rem;
+            border-radius: 1rem;
             overflow: hidden;
-            display: block !important;
-            background-color: #f1f5f9;
-            will-change: transform;
-            transform: translate3d(0,0,0);
-            -webkit-transform: translate3d(0,0,0);
         }
         #promoContainer:not(.tiktok-fullscreen) #promoSlider {
-            height: 100% !important;
-            width: 100% !important;
-            display: flex !important;
-            flex-direction: row !important; /* Horizontal layout maps inline cleanly */
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            scroll-snap-type: x mandatory !important;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide {
-            width: 250px !important;
-            height: 150px !important;
+            height: 100%;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
-            height: 150px !important; 
-            width: 250px !important;
-            position: relative;
+            height: 100% !important; 
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
         #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
-            height: 150px !important; 
-            width: 250px !important;
-            object-fit: cover !important;
-            background-color: transparent !important;
-            will-change: transform;
-            transform: translate3d(0,0,0) !important;
-            -webkit-transform: translate3d(0,0,0) !important;
+            height: 100% !important; 
+            object-fit: container;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
             display: none !important;
         }
-        
-        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
-        @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
     </style>
 </head>
-<body class="text-gray-800 select-none">
+<body class="text-gray-800">
 
     <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
         <i class="fas fa-wifi-slash"></i> No Internet Connection
@@ -164,7 +120,7 @@
 
     <div id="sidebarOverlay" onclick="toggleMenu()"></div>
 
-    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-[150] shadow-2xl p-6 flex flex-col pt-safe">
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
         <div class="flex justify-between items-center mb-8 mt-2">
             <div class="flex items-center gap-3">
                 <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden">
@@ -182,7 +138,7 @@
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
 
-            <div onclick="location.href='wallet.html?from=home'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
+            <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
                     <span class="font-bold text-gray-700">My Wallet</span>
@@ -223,24 +179,23 @@
         </div>
     </header>
 
-    <div id="promoContainer" class="mt-4 relative group bg-white shadow-lg border border-white">
-        <div id="promoSlider" class="no-scrollbar bg-slate-100 rounded-[1.5rem] transition-all">
-            <div id="promoPlaceholder" class="text-center opacity-30 text-[10px] font-black uppercase tracking-widest"><i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing Promos...</div>
+    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
+        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
         </div>
-        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-[100000] backdrop-blur-md shadow-lg active:scale-90 hidden">
+        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
 
-    <main class="p-6 pt-6">
-        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 h-6">
+    <main class="p-6 pt-8">
+        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 min-h-[32px]">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
-            <p id="homePendBox" onclick="location.href='wallet.html?from=home'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
+            <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
                 <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
             </p>
             
-            <p id="homeRemBox" onclick="location.href='wallet.html?from=home'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
+            <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
                 <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
             </p>
         </div>
@@ -275,17 +230,6 @@
         </div>
     </main>
 
-    <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in" onclick="closeNotificationModal()">
-        <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50" onclick="event.stopPropagation()">
-            <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm"></div>
-            <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
-            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Details...</p>
-            <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
-                Acknowledge
-            </button>
-        </div>
-    </div>
-
     <script>
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
@@ -298,6 +242,8 @@
         if (!userPhone && !isLocalPreview) {
             window.location.replace('index.html');
         }
+
+        const sound = document.getElementById('notifSound');
 
         async function initializeApp() {
             if (!navigator.onLine) return;
@@ -436,11 +382,6 @@
             const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
-            if(sidebar.classList.contains('active')) {
-                document.body.classList.add('overflow-hidden');
-            } else {
-                document.body.classList.remove('overflow-hidden');
-            }
         }
         
         async function logout() { 
@@ -457,57 +398,31 @@
             document.getElementById('appbarGreeting').innerText = text;
         }
 
-        function triggerCustomNotification(title, message, statusType = 'info') {
-            const modal = document.getElementById('appNotificationModal');
-            const titleEl = document.getElementById('notificationTitle');
-            const msgEl = document.getElementById('notificationMessage');
-            const iconContainer = document.getElementById('notificationIconContainer');
-
-            titleEl.innerText = title;
-            msgEl.innerText = message;
-            document.body.classList.add('overflow-hidden');
-
-            if (title.includes('Approved') || statusType === 'success') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
-                iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
-            } else if (title.includes('Cancelled') || statusType === 'error') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm";
-                iconContainer.innerHTML = `<i class="fas fa-times-circle"></i>`;
-            } else {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm";
-                iconContainer.innerHTML = `<i class="fas fa-bell"></i>`;
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeNotificationModal() {
-            document.getElementById('appNotificationModal').classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-
+        // FIXED: Expanded Realtime Listener for true automatic syncing
         function setupRealtime() {
             _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, () => { 
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => { 
                     checkNotifications(); updateActiveOrdersCard(); 
                 })
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => { 
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { 
                     updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
                 })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
-                    fetchWalletBalance();
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, (payload) => {
-                    if (payload.new) {
-                        triggerCustomNotification(payload.new.title, payload.new.message);
-                        fetchWalletBalance();
-                    }
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => { 
+                    fetchWalletBalance(); 
                 })
                 .subscribe();
         }
 
-        let currentSlideIndex = 0, isAutoScrolling = false;
-        let promosData = [];
+        window.onload = () => {
+            setGreeting();
+            initializeApp();
+            fetchPromotions();
+        };
+
+        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
+        let promosData = [], userInterests = new Set();
+        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
@@ -517,41 +432,31 @@
                 if (promos && promos.length > 0) {
                     promosData = promos; 
                     const slider = document.getElementById('promoSlider');
-                    slider.innerHTML = ''; 
-                    
+                    const container = document.getElementById('promoContainer');
+                    slider.innerHTML = '';
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
                         slide.className = 'promo-slide overflow-hidden shrink-0';
                         const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
                         const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
-                        
-                        // Strict WebView Render Patch for Absolute Inline Media Drawing Mechanics
                         let mediaHTML = promo.promo_type === 'video'
-                            ? `<div class="media-box relative transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline webkit-playsinline class="promo-video w-full h-full object-cover bg-black" style="background-color: transparent;"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
-                            : `<div class="media-box relative transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
-                        
+                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
+                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
                     });
-
+                    container.classList.remove('hidden');
                     slider.addEventListener('scroll', () => {
                         if (isAutoScrolling) return; 
-                        const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
                         clearTimeout(slider.scrollTimeout);
                         slider.scrollTimeout = setTimeout(() => {
-                            // Calculates offsets based on layout orientations dynamically
-                            let newIndex = isFull 
-                                ? Math.round(slider.scrollTop / slider.offsetHeight)
-                                : Math.round(slider.scrollLeft / slider.offsetWidth);
-                                
+                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
                             if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
                                 activateSlide(newIndex, false); 
                             }
                         }, 40);
                     });
                     activateSlide(0, false);
-                } else {
-                    document.getElementById('promoContainer').style.display = 'none'; 
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
@@ -572,57 +477,35 @@
             const slider = document.getElementById('promoSlider');
             const isEntering = !container.classList.contains('tiktok-fullscreen');
             container.classList.toggle('tiktok-fullscreen');
-            
-            if(container.classList.contains('tiktok-fullscreen')) {
-                document.body.classList.add('overflow-hidden');
-            } else {
-                document.body.classList.remove('overflow-hidden');
-            }
-            
             const vid = document.getElementById(`vid_${currentSlideIndex}`);
             if (vid) {
                 vid.muted = !isEntering;
                 const icon = document.getElementById(`icon_${vid.id}`);
                 if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
             }
-            
-            // Re-map internal coordinates seamlessly based on fullscreen configurations
             setTimeout(() => {
-                if (isEntering) {
-                    slider.scrollLeft = 0;
-                    slider.scrollTop = slider.offsetHeight * currentSlideIndex;
-                } else {
-                    slider.scrollTop = 0;
-                    slider.scrollLeft = slider.offsetWidth * currentSlideIndex;
-                }
+                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
             }, 50);
         }
 
         function activateSlide(index, autoScroll = true) {
             currentSlideIndex = index;
             const slider = document.getElementById('promoSlider');
-            const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
-            
             if (autoScroll) {
                 isAutoScrolling = true;
-                if (isFull) {
-                    slider.scrollTop = slider.offsetHeight * index;
-                } else {
-                    slider.scrollLeft = slider.offsetWidth * index;
-                }
+                slider.scrollTop = slider.offsetHeight * index;
                 setTimeout(() => { isAutoScrolling = false; }, 500);
             }
-            
             document.querySelectorAll('.promo-video').forEach(v => {
                 v.pause(); v.muted = true;
             });
-            
             const promo = promosData[index];
             if (promo && promo.promo_type === 'video') {
                 const vid = document.getElementById(`vid_${index}`);
                 if (vid) {
+                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
                     vid.muted = !isFull;
-                    vid.play().catch(e => console.log("Video Play Blocked:", e));
+                    vid.play().catch(e => console.log(e));
                 }
             }
         }
@@ -633,12 +516,6 @@
             const icon = document.getElementById(`icon_${vidId}`);
             if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
         }
-
-        window.onload = () => {
-            setGreeting();
-            initializeApp();
-            fetchPromotions();
-        };
     </script>
 </body>
 </html>
