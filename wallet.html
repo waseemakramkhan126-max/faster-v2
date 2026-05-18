@@ -49,6 +49,8 @@
 
         <div id="topupHistoryContainer" class="mb-6"></div>
 
+        <div id="withdrawHistoryContainer" class="mb-6"></div>
+
         <div class="flex justify-between items-center mb-6 px-2">
             <div>
                 <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest">Transaction History</h3>
@@ -159,6 +161,53 @@
                     document.getElementById('topupHistoryContainer').innerHTML = topupHtml;
                 }
                 // ---> YAHAN TAK <---
+
+                // ---> WITHDRAW LOGS <---
+                const { data: withdrawLogs } = await _supabase
+                    .from('withdraw_requests')
+                    .select('*')
+                    .eq('customer_phone', userPhone)
+                    .order('created_at', { ascending: false });
+
+                if (withdrawLogs && withdrawLogs.length > 0) {
+                    let withdrawHtml = `<h3 class="font-black text-gray-800 uppercase text-xs tracking-widest mb-4 px-2">Withdrawal Logs</h3>`;
+                    
+                    withdrawLogs.forEach(log => {
+                        const currentStatus = (log.status || 'pending').toLowerCase();
+                        
+                        // Withdraw cards ke liye alag Blue color styling
+                        let borderColor = 'border-sky-500';
+                        let iconClass = 'fa-clock text-sky-500';
+                        let bgClass = 'bg-sky-50';
+                        
+                        if (currentStatus === 'approved') {
+                            borderColor = 'border-emerald-500';
+                            iconClass = 'fa-check-circle text-emerald-500';
+                            bgClass = 'bg-white';
+                        } else if (currentStatus === 'rejected' || currentStatus === 'cancelled') {
+                            borderColor = 'border-red-500';
+                            iconClass = 'fa-times-circle text-red-500';
+                            bgClass = 'bg-red-50';
+                        }
+
+                        withdrawHtml += `
+                            <div class="${bgClass} p-4 rounded-2xl mb-3 shadow-sm border-l-4 ${borderColor}">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <p class="text-[10px] font-black text-gray-800 uppercase">Withdraw: Rs. ${log.amount}</p>
+                                        <p class="text-[8px] text-gray-400 font-bold mt-1">${new Date(log.created_at).toLocaleDateString()} | <span class="${currentStatus === 'approved' ? 'text-emerald-500' : 'text-gray-500'}">${currentStatus.toUpperCase()}</span></p>
+                                    </div>
+                                    <i class="fas ${iconClass} text-lg"></i>
+                                </div>
+                                <p class="text-[8px] text-gray-500 mt-2 italic">${log.bank_name} - ${log.account_number}</p>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('withdrawHistoryContainer').innerHTML = withdrawHtml;
+                } else {
+                    // Agar koi record na ho to container ko khali rakhna hai
+                    document.getElementById('withdrawHistoryContainer').innerHTML = "";
+                }
 
             } catch (err) { 
                 console.error("Unexpected Error:", err);
