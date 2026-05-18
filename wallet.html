@@ -46,13 +46,10 @@
             <i class="fas fa-wallet absolute -right-6 -bottom-6 text-white/10 text-[10rem] rotate-12"></i>
         </div>
 
-        <div id="topupHistoryContainer" class="mb-4"></div>
-        <div id="withdrawHistoryContainer" class="mb-6"></div>
-
         <div class="flex justify-between items-center mb-4 px-2">
             <div>
                 <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest">Transaction History</h3>
-                <p class="text-[10px] text-gray-400 font-bold mt-0.5 italic">Click cards for receipt preview</p>
+                <p class="text-[10px] text-gray-400 font-bold mt-0.5 italic">Click transactions for overview preview</p>
             </div>
         </div>
 
@@ -71,6 +68,18 @@
         </div>
     </div>
 
+    <div id="appNotificationModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-fade-in">
+        <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50">
+            <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm">
+                </div>
+            <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
+            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Message details go here.</p>
+            <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
+                Acknowledge
+            </button>
+        </div>
+    </div>
+
     <script>
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
@@ -78,20 +87,11 @@
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
-        // Safe Memory Cache Caching arrays to prevent attribute serialization breaking
-        window.topupCache = [];
-        window.withdrawCache = [];
-        window.ordersCache = [];
+        // Safe Memory Global Cache for Unified Tracking
+        window.unifiedCache = [];
 
-        async function loadWalletData(isManualRefresh = false) {
-            if (!navigator.onLine) {
-                if(isManualRefresh) alert("No internet connection!");
-                return;
-            }
-            if (!userPhone) {
-                alert("Customer phone number missing! Please Login again.");
-                return;
-            }
+        async function loadWalletData() {
+            if (!navigator.onLine || !userPhone) return;
 
             try {
                 let currentBal = 0;
@@ -107,45 +107,62 @@
                     currentBal = parseFloat(walletData.current_balance || 0);
                 }
 
-                // 2. FETCH TRANSACTIONS HISTORY (Orders)
+                // 2. FETCH ALL DATA SOURCES TO UNIFY
                 const { data: orders } = await _supabase
                     .from('orders')
                     .select('*')
                     .eq('customer_phone', userPhone)
-                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
-                    .order('updated_at', { ascending: false });
+                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']);
 
-                window.ordersCache = orders || [];
-                if (!walletData && window.ordersCache.length > 0) {
-                    currentBal = parseFloat(window.ordersCache[0].balance_amount || 0);
-                }
-
-                // UI Balance Sync
-                updateBalanceUI(currentBal);
-                renderTransactions(window.ordersCache);
-
-                // 3. FETCH TOP-UP LOGS
-                const { data: topupLogs } = await _supabase
+                const { data: topups } = await _supabase
                     .from('topup_requests')
                     .select('*')
-                    .eq('customer_phone', userPhone)
-                    .order('created_at', { ascending: false });
+                    .eq('customer_phone', userPhone);
 
-                window.topupCache = topupLogs || [];
-                renderTopupLogs(window.topupCache);
-
-                // 4. FETCH WITHDRAW LOGS (Fixed & Enabled)
-                const { data: withdrawLogs } = await _supabase
+                const { data: withdraws } = await _supabase
                     .from('withdraw_requests')
                     .select('*')
-                    .eq('customer_phone', userPhone)
-                    .order('created_at', { ascending: false });
+                    .eq('customer_phone', userPhone);
 
-                window.withdrawCache = withdrawLogs || [];
-                renderWithdrawLogs(window.withdrawCache);
+                // Clear and combine inside cache pipeline
+                let tempTimeline = [];
+
+                if (orders) {
+                    orders.forEach(o => tempTimeline.push({
+                        ...o,
+                        txType: 'order',
+                        sortDate: o.updated_at || o.created_at
+                    }));
+                }
+                if (topups) {
+                    topups.forEach(t => tempTimeline.push({
+                        ...t,
+                        txType: 'topup',
+                        sortDate: t.created_at
+                    }));
+                }
+                if (withdraws) {
+                    withdraws.forEach(w => tempTimeline.push({
+                        ...w,
+                        txType: 'withdraw',
+                        sortDate: w.created_at
+                    }));
+                }
+
+                // Sort everything unified by date descending (Latest First)
+                tempTimeline.sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
+                window.unifiedCache = tempTimeline;
+
+                // Sync Fallback Balance if wallet entry hasn't initialized yet
+                if (!walletData && tempTimeline.filter(x => x.txType === 'order').length > 0) {
+                    currentBal = parseFloat(tempTimeline.filter(x => x.txType === 'order')[0].balance_amount || 0);
+                }
+
+                updateBalanceUI(currentBal);
+                renderUnifiedTimeline(window.unifiedCache);
 
             } catch (err) { 
-                console.error("Unexpected Error:", err);
+                console.error("Data Sync Engine Error:", err);
             }
         }
 
@@ -175,83 +192,57 @@
             }
         }
 
-        // Compact Render Functions
-        function renderTopupLogs(logs) {
-            const container = document.getElementById('topupHistoryContainer');
-            if (!logs || logs.length === 0) { container.innerHTML = ""; return; }
-
-            let html = `<h3 class="font-black text-gray-800 uppercase text-xs tracking-widest mb-3 px-2">Top-up Logs</h3>`;
-            logs.forEach((log, index) => {
-                const currentStatus = (log.status || 'pending').toLowerCase();
-                let borderColor = 'border-orange-500';
-                let iconClass = 'fa-clock text-orange-500';
-                if (currentStatus === 'approved') { borderColor = 'border-emerald-500'; iconClass = 'fa-check-circle text-emerald-500'; }
-                else if (currentStatus === 'rejected') { borderColor = 'border-red-500'; iconClass = 'fa-times-circle text-red-500'; }
-
-                html += `
-                    <div onclick="openPreviewModal('topup', ${index})" class="bg-white p-3 rounded-xl mb-2 shadow-sm border-l-4 ${borderColor} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
-                        <div>
-                            <p class="text-[11px] font-black text-gray-800 uppercase">Top-up: Rs. ${log.amount}</p>
-                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${new Date(log.created_at).toLocaleDateString()} | <span class="${currentStatus === 'approved' ? 'text-emerald-500' : ''}">${currentStatus.toUpperCase()}</span></p>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-300 text-xs">
-                            <i class="fas ${iconClass} text-sm"></i>
-                            <i class="fas fa-chevron-right text-[10px]"></i>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function renderWithdrawLogs(logs) {
-            const container = document.getElementById('withdrawHistoryContainer');
-            if (!logs || logs.length === 0) { container.innerHTML = ""; return; }
-
-            let html = `<h3 class="font-black text-gray-800 uppercase text-xs tracking-widest mb-3 px-2">Withdrawal Logs</h3>`;
-            logs.forEach((log, index) => {
-                const currentStatus = (log.status || 'pending').toLowerCase();
-                let borderColor = 'border-sky-500';
-                let iconClass = 'fa-clock text-sky-500';
-                let bgClass = 'bg-sky-50/40';
-                if (currentStatus === 'approved') { borderColor = 'border-emerald-500'; iconClass = 'fa-check-circle text-emerald-500'; bgClass = 'bg-white'; }
-                else if (currentStatus === 'rejected' || currentStatus === 'cancelled') { borderColor = 'border-red-500'; iconClass = 'fa-times-circle text-red-500'; bgClass = 'bg-red-50/40'; }
-
-                html += `
-                    <div onclick="openPreviewModal('withdraw', ${index})" class="${bgClass} p-3 rounded-xl mb-2 shadow-sm border-l-4 ${borderColor} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
-                        <div>
-                            <p class="text-[11px] font-black text-gray-800 uppercase">Withdraw: Rs. ${log.amount}</p>
-                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${new Date(log.created_at).toLocaleDateString()} | <span>${currentStatus.toUpperCase()}</span></p>
-                        </div>
-                        <div class="flex items-center gap-2 text-gray-300 text-xs">
-                            <i class="fas ${iconClass} text-sm"></i>
-                            <i class="fas fa-chevron-right text-[10px]"></i>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        function renderTransactions(orders) {
-            const list = document.getElementById('transactionList');
-            if (orders.length === 0) {
-                list.innerHTML = `<div class="text-center py-16 opacity-30 text-xs font-bold uppercase">No history yet</div>`;
+        // Render Single Unified Transaction History
+        function renderUnifiedTimeline(list) {
+            const container = document.getElementById('transactionList');
+            if (!list || list.length === 0) {
+                container.innerHTML = `<div class="text-center py-16 opacity-30 text-xs font-bold uppercase">No history yet</div>`;
                 return;
             }
 
-            list.innerHTML = orders.map((o, index) => {
-                const bal = parseFloat(o.balance_amount || 0);
+            container.innerHTML = list.map((tx, idx) => {
+                let title = "";
+                let subtext = "";
+                let stateBadge = "";
+                let borderClass = "border-l-slate-400";
+
+                if (tx.txType === 'order') {
+                    const bal = parseFloat(tx.balance_amount || 0);
+                    title = `Order #${tx.id.toString().slice(-5)}`;
+                    subtext = new Date(tx.sortDate).toLocaleDateString();
+                    
+                    // Double check logical optimization for 0 balance settled status
+                    if (bal === 0) {
+                        stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
+                        borderClass = "border-l-emerald-500";
+                    } else {
+                        stateBadge = `<span class="text-[11px] font-black ${bal > 0 ? 'text-red-600' : 'text-emerald-600'}">${bal > 0 ? 'Pending' : 'Advance'}: Rs. ${Math.abs(bal)}</span>`;
+                        borderClass = bal > 0 ? "border-l-red-500" : "border-l-emerald-500";
+                    }
+                } 
+                else if (tx.txType === 'topup') {
+                    title = `Top-Up Wallet`;
+                    const status = (tx.status || 'pending').toLowerCase();
+                    subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
+                    stateBadge = `<span class="text-[11px] font-black text-orange-600">Rs. ${tx.amount}</span>`;
+                    borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'rejected' ? "border-l-red-500" : "border-l-orange-500";
+                } 
+                else if (tx.txType === 'withdraw') {
+                    title = `Withdraw Funds`;
+                    const status = (tx.status || 'pending').toLowerCase();
+                    subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
+                    stateBadge = `<span class="text-[11px] font-black text-blue-600">Rs. ${tx.amount}</span>`;
+                    borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'cancelled' ? "border-l-red-500" : "border-l-sky-500";
+                }
+
                 return `
-                    <div onclick="openPreviewModal('order', ${index})" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${bal > 0 ? 'border-l-red-500' : 'border-l-emerald-500'} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
+                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
                         <div>
-                            <h4 class="font-black text-gray-800 text-[11px] uppercase">Order #${o.id.toString().slice(-5)}</h4>
-                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${new Date(o.updated_at).toLocaleDateString()}</p>
+                            <h4 class="font-black text-gray-800 text-[11px] uppercase tracking-wide">${title}</h4>
+                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${subtext}</p>
                         </div>
                         <div class="text-right flex items-center gap-2 text-gray-300">
-                            <span class="text-[11px] font-black ${bal > 0 ? 'text-red-600' : 'text-emerald-600'}">
-                                ${bal > 0 ? 'Pending' : 'Advance'}: Rs. ${Math.abs(bal)}
-                            </span>
+                            ${stateBadge}
                             <i class="fas fa-chevron-right text-[10px]"></i>
                         </div>
                     </div>
@@ -259,129 +250,131 @@
             }).join('');
         }
 
-        // Full Screen Preview Modal Controller
-        function openPreviewModal(type, index) {
+        // Full Screen Preview Modal Controller (With Requested Label Alterations)
+        function openPreviewModal(index) {
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalContent');
-            let htmlContent = "";
+            const tx = window.unifiedCache[index];
+            let html = "";
 
-            if (type === 'topup') {
-                const log = window.topupCache[index];
-                htmlContent = `
-                    <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-arrow-up"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase">Top-Up Invoice</h3>
-                    </div>
-                    <div class="space-y-3 pt-2 text-xs">
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Requested Amount:</span>
-                            <span class="font-black text-slate-800">Rs. ${log.amount}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${log.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${log.status || 'pending'}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Submission Date:</span>
-                            <span class="font-bold text-gray-600">${new Date(log.created_at).toLocaleString()}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-400 font-bold block mb-1">Transaction Proof / Snapshot:</span>
-                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${log.bank_snapshot || 'Direct Deposit / Standard Reference'}</p>
-                        </div>
-                    </div>
-                `;
-            } else if (type === 'withdraw') {
-                const log = window.withdrawCache[index];
-                htmlContent = `
-                    <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase">Withdraw Details</h3>
-                    </div>
-                    <div class="space-y-3 pt-2 text-xs">
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Payout Amount:</span>
-                            <span class="font-black text-blue-600">Rs. ${log.amount}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${log.status === 'approved' ? 'text-emerald-600' : log.status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${log.status || 'pending'}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Destination Bank:</span>
-                            <span class="font-black text-slate-800">${log.bank_name}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Account Title:</span>
-                            <span class="font-bold text-slate-700">${log.account_title}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Account Number:</span>
-                            <span class="font-bold text-slate-800 tracking-wider font-mono">${log.account_number}</span>
-                        </div>
-                        <div class="flex justify-between border-b pb-2">
-                            <span class="text-gray-400 font-bold">Requested At:</span>
-                            <span class="font-bold text-gray-600">${new Date(log.created_at).toLocaleString()}</span>
-                        </div>
-                        ${log.admin_reference ? `
-                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                            <span class="text-emerald-800 font-black text-[9px] uppercase block mb-0.5">Admin Confirmation Memo:</span>
-                            <p class="text-emerald-900 text-[11px] font-bold"><i class="fas fa-receipt mr-1"></i> ${log.admin_reference}</p>
-                        </div>` : ''}
-                        ${log.cancel_reason ? `
-                        <div class="p-3 bg-red-50 rounded-xl border border-red-100">
-                            <span class="text-red-800 font-black text-[9px] uppercase block mb-0.5">Cancellation Reason:</span>
-                            <p class="text-red-900 text-[11px] font-bold"><i class="fas fa-exclamation-circle mr-1"></i> ${log.cancel_reason}</p>
-                        </div>` : ''}
-                    </div>
-                `;
-            } else if (type === 'order') {
-                const o = window.ordersCache[index];
-                const bal = parseFloat(o.balance_amount || 0);
-                const itemPlusDc = (parseFloat(o.item_price) || 0) + (parseFloat(o.dc_amount) || 0);
-                const totalPayable = parseFloat(o.bill_amount) || 0;
-                const paid = parseFloat(o.final_amount) || 0;
-                const prevHist = totalPayable - itemPlusDc;
+            if (tx.txType === 'order') {
+                const bal = parseFloat(tx.balance_amount || 0);
+                const itemPlusDc = (parseFloat(tx.item_price) || 0) + (parseFloat(tx.dc_amount) || 0);
+                const totalPayable = parseFloat(tx.bill_amount) || 0;
+                const paid = parseFloat(tx.final_amount) || 0;
 
-                htmlContent = `
+                // Result state calculation logic mappings based on criteria
+                let stateHtml = "";
+                if (bal === 0) {
+                    stateHtml = `<span class="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-700 flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
+                } else if (bal > 0) {
+                    stateHtml = `<span class="text-red-600 font-black text-xs">Pending Amount: Rs. ${Math.abs(bal)}</span>`;
+                } else {
+                    stateHtml = `<span class="text-emerald-600 font-black text-xs">Remaining Amount: Rs. ${Math.abs(bal)}</span>`;
+                }
+
+                html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-shopping-bag"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase">Order Receipt Breakdown</h3>
-                        <p class="text-[9px] text-gray-400 font-bold mt-0.5">Order Token: #${o.id}</p>
+                        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-money-bill-transfer"></i></div>
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                        <p class="text-[9px] text-gray-400 font-bold mt-0.5">ID: #${tx.id}</p>
                     </div>
                     <div class="space-y-2.5 pt-2 text-xs">
                         <div class="flex justify-between border-b pb-1.5">
-                            <span class="text-gray-400 font-bold">Settlement Timestamp:</span>
-                            <span class="font-bold text-gray-600">${new Date(o.updated_at).toLocaleString()}</span>
+                            <span class="text-gray-400 font-bold">Time & date:</span>
+                            <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
                         <div class="flex justify-between border-b pb-1.5">
-                            <span class="text-gray-400 font-bold">Current Order (Item+DC):</span>
+                            <span class="text-gray-400 font-bold">Items & DC Subtotal:</span>
                             <span class="font-bold text-gray-800">Rs. ${itemPlusDc}</span>
                         </div>
-                        ${prevHist !== 0 ? `
-                        <div class="flex justify-between border-b pb-1.5 ${prevHist > 0 ? 'text-red-500' : 'text-emerald-600'}">
-                            <span class="font-bold">Prev. ${prevHist > 0 ? 'Outstanding Bill' : 'Advance Credits'}:</span>
-                            <span class="font-bold">${prevHist > 0 ? '+' : ''}Rs. ${prevHist}</span>
-                        </div>` : ''}
                         <div class="flex justify-between border-b pb-1.5 font-black text-slate-800 text-xs">
-                            <span>Gross Bill Payable:</span>
+                            <span>Total Bill Payable:</span>
                             <span>Rs. ${totalPayable}</span>
                         </div>
-                        <div class="flex justify-between bg-blue-50 px-3 py-2 rounded-xl text-blue-700 font-black items-center">
-                            <span>Handed over to Rider:</span>
-                            <span class="text-xs">Rs. ${paid}</span>
+                        <div class="flex justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl text-slate-700 font-black items-center">
+                            <span class="flex items-center gap-1.5"><i class="fas fa-hand-holding-dollar text-slate-400 text-sm"></i> Paid To Rider:</span>
+                            <span class="text-xs text-slate-900">Rs. ${paid}</span>
                         </div>
                         <div class="flex justify-between border-t border-slate-100 pt-2 items-center">
-                            <span class="text-gray-500 font-black uppercase text-[9px]">Resulting State:</span>
-                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${bal > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
-                                ${bal > 0 ? 'You Owe' : 'In Advance'}: Rs. ${Math.abs(bal)}
-                            </span>
+                            <span class="text-gray-500 font-black uppercase text-[9px]">Status:</span>
+                            ${stateHtml}
                         </div>
+                    </div>
+                `;
+            } 
+            else if (tx.txType === 'topup') {
+                html = `
+                    <div class="text-center border-b border-slate-100 pb-3">
+                        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-arrow-up"></i></div>
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                    </div>
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Top-Up Amount:</span>
+                            <span class="font-black text-orange-600">Rs. ${tx.amount}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Status:</span>
+                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Time & date:</span>
+                            <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-400 font-bold block mb-1">Payment Method Reference:</span>
+                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${tx.bank_snapshot || 'Direct Deposit / Standard'}</p>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (tx.txType === 'withdraw') {
+                html = `
+                    <div class="text-center border-b border-slate-100 pb-3">
+                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                    </div>
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Withdraw Amount:</span>
+                            <span class="font-black text-blue-600">Rs. ${tx.amount}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Status:</span>
+                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : tx.status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${tx.status || 'pending'}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Bank Name:</span>
+                            <span class="font-black text-slate-800">${tx.bank_name}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Account Title:</span>
+                            <span class="font-bold text-slate-700">${tx.account_title}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Account Number:</span>
+                            <span class="font-bold text-slate-800 tracking-wider font-mono">${tx.account_number}</span>
+                        </div>
+                        <div class="flex justify-between border-b pb-2">
+                            <span class="text-gray-400 font-bold">Time & date:</span>
+                            <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
+                        </div>
+                        ${tx.admin_reference ? `
+                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <span class="text-emerald-800 font-black text-[9px] uppercase block mb-0.5">Admin Reference Memo:</span>
+                            <p class="text-emerald-900 text-[11px] font-bold"><i class="fas fa-receipt mr-1"></i> ${tx.admin_reference}</p>
+                        </div>` : ''}
+                        ${tx.cancel_reason ? `
+                        <div class="p-3 bg-red-50 rounded-xl border border-red-100">
+                            <span class="text-red-800 font-black text-[9px] uppercase block mb-0.5">Reason for Cancellation:</span>
+                            <p class="text-red-900 text-[11px] font-bold"><i class="fas fa-exclamation-circle mr-1"></i> ${tx.cancel_reason}</p>
+                        </div>` : ''}
                     </div>
                 `;
             }
 
-            content.innerHTML = htmlContent;
+            content.innerHTML = html;
             modal.classList.remove('hidden');
         }
 
@@ -389,32 +382,61 @@
             document.getElementById('previewModal').classList.add('hidden');
         }
 
-        // Production Level 4-in-1 Realtime Synced Pipeline Listener
+        // Custom High-End App Notification Trigger Box (No Browser Headers / No GitHub URLs)
+        function triggerCustomNotification(title, message, statusType = 'info') {
+            const modal = document.getElementById('appNotificationModal');
+            const titleEl = document.getElementById('notificationTitle');
+            const msgEl = document.getElementById('notificationMessage');
+            const iconContainer = document.getElementById('notificationIconContainer');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+
+            // Set dynamic status background vectors
+            if (title.includes('Approved') || statusType === 'success') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
+            } else if (title.includes('Cancelled') || statusType === 'error') {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-times-circle"></i>`;
+            } else {
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm";
+                iconContainer.innerHTML = `<i class="fas fa-bell"></i>`;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeNotificationModal() {
+            document.getElementById('appNotificationModal').classList.add('hidden');
+        }
+
+        // Realtime Pipelines Multi-Stream Sync Subscriptions
         function setupLiveSync() {
             
-            // Tracker 1: WALLET BALANCE (Fix: Runs loadWalletData if balance turns Rs 300 or updates)
+            // Tracker 1: WALLET ENTRY BALANCE REFRESH
             _supabase.channel('wallet-balance-tracker')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 2: TOP-UP REQUESTS
+            // Tracker 2: TOP-UPS LINE PIPELINE
             _supabase.channel('topup-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'topup_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 3: WITHDRAW REQUESTS
+            // Tracker 3: WITHDRAWAL APPLICATION RESPONSES
             _supabase.channel('withdraw-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdraw_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
 
-            // Tracker 4: LIVE NOTIFICATIONS POPUPS
+            // Tracker 4: CUSTOM IN-APP ALERTS BROADCAST (Uses Premium Modal Dialog popup directly)
             _supabase.channel('customer-notifications')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, (payload) => {
                     if (payload.new) {
-                        alert(`${payload.new.title}\n\n${payload.new.message}`);
+                        triggerCustomNotification(payload.new.title, payload.new.message);
                         loadWalletData(); 
                     }
                 }).subscribe();
