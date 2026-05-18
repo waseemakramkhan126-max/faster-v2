@@ -58,9 +58,10 @@
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Fixed Horizontal Slider Engine to solve Android Black Box Rendering */
         .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
 
-        /* Full Screen Video / WebView Layer Fixes */
         .tiktok-fullscreen {
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 100vh !important; 
@@ -68,8 +69,8 @@
             background-color: black !important;
             border-radius: 0 !important;
         }
-        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
-        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
+        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; flex-direction: column !important; overflow-y: auto !important; overflow-x: hidden !important; snap-type: y mandatory !important; }
+        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important; scroll-snap-align: center !important;}
         .tiktok-fullscreen .media-box { height: 100vh !important; width: 100vw !important; }
         
         .tiktok-fullscreen video { 
@@ -77,6 +78,8 @@
             height: 100vh !important; 
             object-fit: contain !important; 
             background-color: black !important;
+            -webkit-transform: none !important;
+            transform: none !important;
         }
         .tiktok-fullscreen img { 
             width: 100vw !important; 
@@ -84,7 +87,7 @@
             object-fit: contain !important; 
         }
         
-        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); display: block !important; }
         .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
         .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
         .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
@@ -99,34 +102,47 @@
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Hardware Accelerated Sizing Fix for Mobile GPU Layers */
+        /* Hardware Accelerated Rigid Container Fix */
         #promoContainer {
-            width: 250px; 
-            height: 150px; 
+            width: 250px !important; 
+            height: 150px !important; 
             margin-left: auto;
             margin-right: auto;
-            border-radius: 1rem;
+            border-radius: 1.5rem;
             overflow: hidden;
             display: block !important;
+            background-color: #f1f5f9;
             will-change: transform;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
+            transform: translate3d(0,0,0);
+            -webkit-transform: translate3d(0,0,0);
         }
         #promoContainer:not(.tiktok-fullscreen) #promoSlider {
-            height: 100%;
+            height: 100% !important;
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: row !important; /* Horizontal layout maps inline cleanly */
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scroll-snap-type: x mandatory !important;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide {
+            width: 250px !important;
+            height: 150px !important;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
-            height: 100% !important; 
-            width: 100% !important;
+            height: 150px !important; 
+            width: 250px !important;
+            position: relative;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
         #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
-            height: 100% !important; 
-            width: 100% !important;
-            object-fit: cover;
+            height: 150px !important; 
+            width: 250px !important;
+            object-fit: cover !important;
+            background-color: transparent !important;
             will-change: transform;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
+            transform: translate3d(0,0,0) !important;
+            -webkit-transform: translate3d(0,0,0) !important;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
             display: none !important;
@@ -208,10 +224,10 @@
     </header>
 
     <div id="promoContainer" class="mt-4 relative group bg-white shadow-lg border border-white">
-        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-slate-100 rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all justify-center items-center">
+        <div id="promoSlider" class="no-scrollbar bg-slate-100 rounded-[1.5rem] transition-all">
             <div id="promoPlaceholder" class="text-center opacity-30 text-[10px] font-black uppercase tracking-widest"><i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing Promos...</div>
         </div>
-        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
+        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-[100000] backdrop-blur-md shadow-lg active:scale-90 hidden">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
@@ -509,10 +525,10 @@
                         const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
                         const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
                         
-                        // FIX: Added explicit 'h-full' to media-box and 'webkit-playsinline' to fix WebView rendering crash states
+                        // Strict WebView Render Patch for Absolute Inline Media Drawing Mechanics
                         let mediaHTML = promo.promo_type === 'video'
-                            ? `<div class="media-box relative w-full h-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline webkit-playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
-                            : `<div class="media-box relative w-full h-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
+                            ? `<div class="media-box relative transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline webkit-playsinline class="promo-video w-full h-full object-cover bg-black" style="background-color: transparent;"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
+                            : `<div class="media-box relative transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
                         
                         slide.innerHTML = mediaHTML + textHTML;
                         slider.appendChild(slide);
@@ -520,9 +536,14 @@
 
                     slider.addEventListener('scroll', () => {
                         if (isAutoScrolling) return; 
+                        const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
                         clearTimeout(slider.scrollTimeout);
                         slider.scrollTimeout = setTimeout(() => {
-                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
+                            // Calculates offsets based on layout orientations dynamically
+                            let newIndex = isFull 
+                                ? Math.round(slider.scrollTop / slider.offsetHeight)
+                                : Math.round(slider.scrollLeft / slider.offsetWidth);
+                                
                             if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
                                 activateSlide(newIndex, false); 
                             }
@@ -564,29 +585,44 @@
                 const icon = document.getElementById(`icon_${vid.id}`);
                 if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
             }
+            
+            // Re-map internal coordinates seamlessly based on fullscreen configurations
             setTimeout(() => {
-                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
+                if (isEntering) {
+                    slider.scrollLeft = 0;
+                    slider.scrollTop = slider.offsetHeight * currentSlideIndex;
+                } else {
+                    slider.scrollTop = 0;
+                    slider.scrollLeft = slider.offsetWidth * currentSlideIndex;
+                }
             }, 50);
         }
 
         function activateSlide(index, autoScroll = true) {
             currentSlideIndex = index;
             const slider = document.getElementById('promoSlider');
+            const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
+            
             if (autoScroll) {
                 isAutoScrolling = true;
-                slider.scrollTop = slider.offsetHeight * index;
+                if (isFull) {
+                    slider.scrollTop = slider.offsetHeight * index;
+                } else {
+                    slider.scrollLeft = slider.offsetWidth * index;
+                }
                 setTimeout(() => { isAutoScrolling = false; }, 500);
             }
+            
             document.querySelectorAll('.promo-video').forEach(v => {
                 v.pause(); v.muted = true;
             });
+            
             const promo = promosData[index];
             if (promo && promo.promo_type === 'video') {
                 const vid = document.getElementById(`vid_${index}`);
                 if (vid) {
-                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
                     vid.muted = !isFull;
-                    vid.play().catch(e => console.log(e));
+                    vid.play().catch(e => console.log("Video Play Blocked:", e));
                 }
             }
         }
