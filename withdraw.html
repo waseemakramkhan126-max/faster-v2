@@ -40,15 +40,17 @@
                 
                 <div>
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 pl-1">Select Bank / Wallet</label>
-                    <select id="bankName" required class="input-field appearance-none">
+                    <select id="bankName" required class="input-field appearance-none" onchange="checkBankSelection(this.value)">
                         <option value="" disabled selected>Select an option...</option>
                         <option value="Easypaisa">Easypaisa</option>
                         <option value="JazzCash">JazzCash</option>
                         <option value="Meezan Bank">Meezan Bank</option>
                         <option value="HBL">HBL</option>
                         <option value="Bank Alfalah">Bank Alfalah</option>
-                        <option value="Other">Other Bank</option>
+                        <option value="Other">Other Bank (Write Custom Name)</option>
                     </select>
+                    
+                    <input type="text" id="customBankInput" placeholder="Enter your custom Bank Name here..." class="hidden mt-2 input-field">
                 </div>
 
                 <div>
@@ -87,6 +89,19 @@
         
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
         let maxWithdrawable = 0;
+
+        function checkBankSelection(val) {
+            const customInput = document.getElementById('customBankInput');
+            if (val === 'Other') {
+                customInput.classList.remove('hidden');
+                customInput.required = true;
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
 
         async function loadAvailableBalance() {
             if (!userPhone) return alert("Phone number missing! Please login again.");
@@ -129,13 +144,19 @@
             btn.disabled = true;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Processing...`;
 
+            // Check agar 'Other' select hai to custom input se name uthayein
+            let finalBankName = document.getElementById('bankName').value;
+            if (finalBankName === 'Other') {
+                finalBankName = document.getElementById('customBankInput').value.trim();
+            }
+
             const requestData = {
                 customer_phone: userPhone,
-                bank_name: document.getElementById('bankName').value,
+                bank_name: finalBankName,
                 account_title: document.getElementById('accountTitle').value,
                 account_number: document.getElementById('accountNumber').value,
                 amount: amount,
-                status: 'pending' // Admin panel ke liye
+                status: 'pending'
             };
 
             try {
