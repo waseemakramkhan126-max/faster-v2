@@ -16,29 +16,57 @@
          🎨 YAHAN SE AAP APP KE COLORS CHANGE KAR SAKTE HAIN (EASY CUSTOMIZATION) 
            ========================================================================= */
         :root {
-            /* 1. APP BACKGROUND - Poori app ke background ka color */
+            /* APP BACKGROUND - Poori app ke background ka color */
             --app-bg-color: whitesmoke; 
             
-            /* 2. HEADER COLOR - Upar Top bar (My Smart Wallet) ka background */
+            /* HEADER COLOR - Upar Top bar (My Smart Wallet) ka background */
             --header-bg-color: white; 
 
-            /* 3. NORMAL WALLET CARD (Jab Balance 0 ho ya All Clear ho) */
-            --card-normal-start: #0077b9;    /*blue*/
-            --card-normal-end: #0077b9;   
+            /* 💳 MAIN WALLET CARD - Background fix rakhne ke liye */
+            --card-static-bg: #0077b9; /* Card ka single pakka color */
             
-            /* 4. ADVANCE WALLET CARD (Jab aapke paas Advance/Plus balance ho) */
-            --card-advance-start: darkgreen; 
-            --card-advance-end: darkgreen;   
-            
-            /* 5. OWE US WALLET CARD (Jab minus me balance ho, pending payment) */
-            --card-owe-start: lightred; 
-            --card-owe-end: lightred;   
+            /* STATUS BASED RS. TEXT COLORS (Rs. 0 Ka Rang Status Ke Mutabik) */
+            --balance-text-normal: #ffffff;   /* Jab balance 0 ho (All Clear) */
+            --balance-text-advance: #22c55e;  /* Jab advance balance ho (Green) */
+            --balance-text-owe: #ef4444;      /* Jab pending payment ho (Red) */
 
-            /* 6. TOP-UP BUTTON COLORS */
-            --btn-topup-bg: #0077b9;      
+            /* 📜 TRANSACTION HISTORY CARDS CUSTOMIZATION (BACKGROUND, TEXT & BORDERS) */
+            /* A. Order: Settled (All Clear) */
+            --tx-settled-bg: #ffffff;
+            --tx-settled-text: #1e293b;
+            --tx-settled-border: #10b981;
+
+            /* B. Order: Pending (You Owe Us) */
+            --tx-pending-bg: #ffffff;
+            --tx-pending-text: #1e293b;
+            --tx-pending-border: #ef4444;
+
+            /* C. Order: Advance Balance */
+            --tx-advance-bg: #ffffff;
+            --tx-advance-text: #1e293b;
+            --tx-advance-border: #10b981;
+
+            /* D. Order: Settled via Rider */
+            --tx-rider-bg: #ffffff;
+            --tx-rider-text: #1e293b;
+            --tx-rider-border: #14b8a6;
+
+            /* E. Order: Settled via Top-Up */
+            --tx-topup-settled-bg: #ffffff;
+            --tx-topup-settled-text: #1e293b;
+            --tx-topup-settled-border: #6366f1;
+
+            /* F. Generic Settings (Top-Up / Withdraw Cards Ke Liye) */
+            --tx-generic-bg: #ffffff;
+            --tx-generic-text: #1e293b;
+            --tx-generic-border-orange: #f97316;
+            --tx-generic-border-red: #ef4444;
+            --tx-generic-border-emerald: #10b981;
+            --tx-generic-border-sky: #0ea5e9;
+
+            /* TOP-UP & WITHDRAW BUTTON COLORS */
+            --btn-topup-bg: rgba(255, 255, 255, 20%);      
             --btn-topup-text: white;    
-            
-            /* 7. WITHDRAW BUTTON COLORS (Glass Effect) */
             --btn-withdraw-bg: rgba(255, 255, 255, 10%);    
             --btn-withdraw-border: rgba(255, 255, 255, 20%); 
             --btn-withdraw-text: white;                    
@@ -47,7 +75,7 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--app-bg-color); }
         .header-custom { background-color: var(--header-bg-color); }
         .wallet-card { 
-            background: linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%); 
+            background: var(--card-static-bg); 
             transition: all 0.5s ease; 
             box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
         }
@@ -197,21 +225,27 @@
                 withdrawBtn.classList.add('flex');
             }
 
+            // Wallet card ka background color fixed rakha gaya hai
+            card.style.background = "var(--card-static-bg)";
+
             if (bal > 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
                 label.innerText = "You Owe Us";
-                card.style.background = "linear-gradient(135deg, var(--card-owe-start) 0%, var(--card-owe-end) 100%)";
+                // Rs. Text color mapping
+                amtEl.style.color = "var(--balance-text-owe)";
             } else if (bal < 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse"></span> Advance Balance`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm";
                 label.innerText = "Your Remaining Credit";
-                card.style.background = "linear-gradient(135deg, var(--card-advance-start) 0%, var(--card-advance-end) 100%)";
+                // Rs. Text color mapping
+                amtEl.style.color = "var(--balance-text-advance)";
             } else {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-blue-300 rounded-full"></span> All Clear`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-white/10 text-white/80 border border-white/20 shadow-sm";
                 label.innerText = "Wallet Balance";
-                card.style.background = "linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%)";
+                // Rs. Text color mapping
+                amtEl.style.color = "var(--balance-text-normal)";
             }
         }
 
@@ -226,7 +260,11 @@
                 let title = "";
                 let subtext = "";
                 let stateBadge = "";
-                let borderClass = "border-l-slate-400";
+                
+                // Variables setup for history card customizable colors
+                let cardBg = "var(--tx-generic-bg)";
+                let cardText = "var(--tx-generic-text)";
+                let cardBorder = "var(--tx-generic-border-emerald)";
 
                 if (tx.txType === 'order') {
                     const bal = parseFloat(tx.balance_amount || 0);
@@ -235,9 +273,6 @@
                     title = `Order #${tx.id.toString().slice(-5)}`;
                     subtext = new Date(tx.sortDate).toLocaleDateString();
                     
-                    // ==========================================
-                    // 🚀 FIXED LOGIC (Accurate Settlement Detection)
-                    // ==========================================
                     let isSettledViaTopUp = false;
                     let isSettledViaRider = false;
 
@@ -247,11 +282,10 @@
                         if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                             clearedByRider = true;
                         } else {
-                            // Fix: Ab slice ko reverse kiya gaya hai, taake 'is order' ke fauran baad wala action pehchana jaye (na ke sabse aakhri wala)
                             const newerTransactions = list.slice(0, idx).reverse();
                             const clearingTx = newerTransactions.find(t => 
                                 (t.txType === 'topup' && t.status === 'approved') || 
-                                (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0) // Sirf wo order jo balance clear kare!
+                                (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0)
                             );
 
                             if (clearingTx && clearingTx.txType === 'order') {
@@ -268,35 +302,45 @@
                     else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
                         isSettledViaTopUp = true;
                     }
-                    // ==========================================
 
                     if (isSettledViaRider) {
                         stateBadge = `<span class="text-[11px] font-black text-teal-600 flex items-center gap-1">Settled via Rider <i class="fas fa-handshake"></i></span>`;
-                        borderClass = "border-l-teal-500";
+                        cardBg = "var(--tx-rider-bg)";
+                        cardText = "var(--tx-rider-text)";
+                        cardBorder = "var(--tx-rider-border)";
                     } else if (isSettledViaTopUp) {
                         stateBadge = `<span class="text-[11px] font-black text-indigo-600 flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
-                        borderClass = "border-l-indigo-500";
+                        cardBg = "var(--tx-topup-settled-bg)";
+                        cardText = "var(--tx-topup-settled-text)";
+                        cardBorder = "var(--tx-topup-settled-border)";
                     } else if (bal === 0) {
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
-                        borderClass = "border-l-emerald-500";
+                        cardBg = "var(--tx-settled-bg)";
+                        cardText = "var(--tx-settled-text)";
+                        cardBorder = "var(--tx-settled-border)";
                     } else {
                         stateBadge = `<span class="text-[11px] font-black ${bal > 0 ? 'text-red-600' : 'text-emerald-600'}">${bal > 0 ? 'Pending' : 'Advance'}: Rs. ${Math.abs(bal)}</span>`;
-                        borderClass = bal > 0 ? "border-l-red-500" : "border-l-emerald-500";
+                        cardBg = bal > 0 ? "var(--tx-pending-bg)" : "var(--tx-advance-bg)";
+                        cardText = bal > 0 ? "var(--tx-pending-text)" : "var(--tx-advance-text)";
+                        cardBorder = bal > 0 ? "var(--tx-pending-border)" : "var(--tx-advance-border)";
                     }
                 } 
                 else if (tx.txType === 'topup') {
                     title = `Top-Up Wallet`;
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
+                    cardBg = "var(--tx-generic-bg)";
+                    cardText = "var(--tx-generic-text)";
+
                     if (status === 'approved') {
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Rs. ${tx.amount} <i class="fas fa-check-circle"></i></span>`;
-                        borderClass = "border-l-emerald-500";
+                        cardBorder = "var(--tx-generic-border-emerald)";
                     } else if (status === 'rejected') {
                         stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
-                        borderClass = "border-l-red-500";
+                        cardBorder = "var(--tx-generic-border-red)";
                     } else {
                         stateBadge = `<span class="text-[11px] font-black text-orange-600">Rs. ${tx.amount}</span>`;
-                        borderClass = "border-l-orange-500";
+                        cardBorder = "var(--tx-generic-border-orange)";
                     }
                 } 
                 else if (tx.txType === 'withdraw') {
@@ -304,13 +348,15 @@
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
                     stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
-                    borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'cancelled' ? "border-l-red-500" : "border-l-sky-500";
+                    cardBg = "var(--tx-generic-bg)";
+                    cardText = "var(--tx-generic-text)";
+                    cardBorder = status === 'approved' ? "var(--tx-generic-border-emerald)" : status === 'cancelled' ? "var(--tx-generic-border-red)" : "var(--tx-generic-border-sky)";
                 }
 
                 return `
-                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
+                    <div onclick="openPreviewModal(${idx})" style="background-color: ${cardBg}; border-left-color: ${cardBorder};" class="p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 cursor-pointer hover:opacity-90 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
                         <div>
-                            <h4 class="font-black text-gray-800 text-[11px] uppercase tracking-wide">${title}</h4>
+                            <h4 style="color: ${cardText};" class="font-black text-[11px] uppercase tracking-wide">${title}</h4>
                             <p class="text-[8px] text-gray-400 font-bold mt-0.5">${subtext}</p>
                         </div>
                         <div class="text-right flex items-center gap-2 text-gray-300">
@@ -341,9 +387,6 @@
                 const totalPayable = parseFloat(tx.bill_amount) || 0;
                 const paid = parseFloat(tx.final_amount || 0);
 
-                // ==========================================
-                // 🚀 FIXED LOGIC FOR MODAL DETAILS TOO
-                // ==========================================
                 let isSettledViaTopUp = false;
                 let isSettledViaRider = false;
 
@@ -353,7 +396,6 @@
                     if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                         clearedByRider = true;
                     } else {
-                        // Fix: Yahan bhi reverse aur <= 0 ki condition add kar di gai hai
                         const newerTransactions = window.unifiedCache.slice(0, index).reverse();
                         const clearingTx = newerTransactions.find(t => 
                             (t.txType === 'topup' && t.status === 'approved') || 
