@@ -186,7 +186,6 @@
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
             
-            // UI Flicker Fix logic integrated
             actionButtons.classList.remove('hidden');
             actionButtons.classList.add('flex');
 
@@ -198,7 +197,6 @@
                 withdrawBtn.classList.add('flex');
             }
 
-            // Colors linked with CSS variables dynamically
             if (bal > 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
@@ -238,22 +236,24 @@
                     subtext = new Date(tx.sortDate).toLocaleDateString();
                     
                     // ==========================================
-                    // 🚀 NEW LOGIC (Detect Settlement Type)
+                    // 🚀 FIXED LOGIC (Accurate Settlement Detection)
                     // ==========================================
                     let isSettledViaTopUp = false;
                     let isSettledViaRider = false;
 
-                    // Agar pending tha, aur overall account ab clear ho chuka hai (0 ya advance me)
                     if (bal > 0 && window.currentGlobalBalance <= 0) {
                         let clearedByRider = false;
                         
-                        // Database check (Agar backend se flag aya hai)
                         if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                             clearedByRider = true;
                         } else {
-                            // Timeline logic: Agar next recent activity Top-up ki bajaye Order ki hai toh Rider ne hi clear kiya hoga
-                            const newerTransactions = list.slice(0, idx);
-                            const clearingTx = newerTransactions.find(t => (t.txType === 'topup' && t.status === 'approved') || t.txType === 'order');
+                            // Fix: Ab slice ko reverse kiya gaya hai, taake 'is order' ke fauran baad wala action pehchana jaye (na ke sabse aakhri wala)
+                            const newerTransactions = list.slice(0, idx).reverse();
+                            const clearingTx = newerTransactions.find(t => 
+                                (t.txType === 'topup' && t.status === 'approved') || 
+                                (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0) // Sirf wo order jo balance clear kare!
+                            );
+
                             if (clearingTx && clearingTx.txType === 'order') {
                                 clearedByRider = true;
                             }
@@ -265,7 +265,6 @@
                             isSettledViaTopUp = true;
                         }
                     } 
-                    // Ya agar payment direct Top-up wallet se hi adjust ho gai
                     else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
                         isSettledViaTopUp = true;
                     }
@@ -343,7 +342,7 @@
                 const paid = parseFloat(tx.final_amount || 0);
 
                 // ==========================================
-                // 🚀 SAME NEW LOGIC FOR MODAL DETAILS
+                // 🚀 FIXED LOGIC FOR MODAL DETAILS TOO
                 // ==========================================
                 let isSettledViaTopUp = false;
                 let isSettledViaRider = false;
@@ -354,8 +353,12 @@
                     if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                         clearedByRider = true;
                     } else {
-                        const newerTransactions = window.unifiedCache.slice(0, index);
-                        const clearingTx = newerTransactions.find(t => (t.txType === 'topup' && t.status === 'approved') || t.txType === 'order');
+                        // Fix: Yahan bhi reverse aur <= 0 ki condition add kar di gai hai
+                        const newerTransactions = window.unifiedCache.slice(0, index).reverse();
+                        const clearingTx = newerTransactions.find(t => 
+                            (t.txType === 'topup' && t.status === 'approved') || 
+                            (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0)
+                        );
                         if (clearingTx && clearingTx.txType === 'order') {
                             clearedByRider = true;
                         }
