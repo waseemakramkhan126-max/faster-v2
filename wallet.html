@@ -93,11 +93,12 @@
                 
                 <h2 id="balanceAmount" class="text-[2.5rem] leading-none font-extrabold mb-6 tracking-tight drop-shadow-md">Rs. 0</h2>
                 
-                <div id="actionButtons" class="mt-4 flex gap-3">
+                <div id="actionButtons" class="hidden mt-4 gap-3 transition-all duration-300">
                     <button id="btnTopUp" onclick="location.href='top-up.html'" class="btn-topup flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-lg transition-all duration-200 flex items-center justify-center">
                         <i class="fas fa-plus-circle mr-2"></i> Top-Up
                     </button>
-                    <button id="btnWithdraw" onclick="location.href='withdraw.html'" class="btn-withdraw flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md transition-all duration-200 flex items-center justify-center">
+                    
+                    <button id="btnWithdraw" onclick="location.href='withdraw.html'" class="btn-withdraw flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md transition-all duration-200 items-center justify-center">
                         <i class="fas fa-arrow-up-right-from-square mr-2 opacity-80"></i> Withdraw
                     </button>
                 </div>
@@ -236,17 +237,26 @@
             const badge = document.getElementById('statusBadge');
             const label = document.getElementById('balanceLabel');
             const card = document.getElementById('balanceCard');
+            
+            const actionButtons = document.getElementById('actionButtons');
             const withdrawBtn = document.getElementById('btnWithdraw');
+
+            // 1. Sync mukammal hone par main buttons wale dabbe ko show karein
+            actionButtons.classList.remove('hidden');
+            actionButtons.classList.add('flex');
 
             amtEl.innerText = `Rs. ${Math.abs(bal)}`;
 
+            // 2. Withdraw button ko balance k hisab se show/hide karein
             if (bal >= 0) {
                 withdrawBtn.classList.add('hidden');
+                withdrawBtn.classList.remove('flex');
             } else {
                 withdrawBtn.classList.remove('hidden');
+                withdrawBtn.classList.add('flex');
             }
 
-            // NOTE: Logic is identical. Only the background colors are linked to the CSS root variables for easy changing.
+            // Baki apke colors aur label ki purani logic...
             if (bal > 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
@@ -264,7 +274,6 @@
                 card.style.background = "linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%)";
             }
         }
-
         function renderUnifiedTimeline(list) {
             const container = document.getElementById('transactionList');
             if (!list || list.length === 0) {
