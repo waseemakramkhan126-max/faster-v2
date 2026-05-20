@@ -56,13 +56,15 @@
             --tx-topup-settled-text: #1e293b;
             --tx-topup-settled-border: white;
 
-            /* F. Generic Settings (Top-Up / Withdraw Cards Ke Liye) */
+            /* F. Generic Settings (Top-Up / Withdraw Cards Ke Borders) */
             --tx-generic-bg: #ffffff;
             --tx-generic-text: #1e293b;
-            --tx-generic-border: white;
-            --tx-generic-border: white;
-            --tx-generic-border: white;
-            --tx-generic-border: white;
+            --tx-border-topup-approved: white;  /* Top-Up Approved ka border */
+            --tx-border-topup-rejected: white;  /* Top-Up Rejected ka border */
+            --tx-border-topup-pending: white;   /* Top-Up Pending ka border */
+            --tx-border-withdraw-approved: white;/* Withdraw Approved ka border */
+            --tx-border-withdraw-rejected: white;/* Withdraw Cancelled ka border */
+            --tx-border-withdraw-pending: white; /* Withdraw Pending ka border */
 
             /* TOP-UP & WITHDRAW BUTTON COLORS */
             --btn-topup-bg: rgba(255, 255, 255, 20%);      
@@ -225,26 +227,22 @@
                 withdrawBtn.classList.add('flex');
             }
 
-            // Wallet card ka background color fixed rakha gaya hai
             card.style.background = "var(--card-static-bg)";
 
             if (bal > 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
                 label.innerText = "You Owe Us";
-                // Rs. Text color mapping
                 amtEl.style.color = "var(--balance-text-owe)";
             } else if (bal < 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse"></span> Advance Balance`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm";
                 label.innerText = "Your Remaining Credit";
-                // Rs. Text color mapping
                 amtEl.style.color = "var(--balance-text-advance)";
             } else {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-blue-300 rounded-full"></span> All Clear`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-white/10 text-white/80 border border-white/20 shadow-sm";
                 label.innerText = "Wallet Balance";
-                // Rs. Text color mapping
                 amtEl.style.color = "var(--balance-text-normal)";
             }
         }
@@ -261,10 +259,9 @@
                 let subtext = "";
                 let stateBadge = "";
                 
-                // Variables setup for history card customizable colors
                 let cardBg = "var(--tx-generic-bg)";
                 let cardText = "var(--tx-generic-text)";
-                let cardBorder = "var(--tx-generic-border-emerald)";
+                let cardBorder = "white"; // Fallback safe color
 
                 if (tx.txType === 'order') {
                     const bal = parseFloat(tx.balance_amount || 0);
@@ -334,13 +331,13 @@
 
                     if (status === 'approved') {
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Rs. ${tx.amount} <i class="fas fa-check-circle"></i></span>`;
-                        cardBorder = "var(--tx-generic-border-emerald)";
+                        cardBorder = "var(--tx-border-topup-approved)";
                     } else if (status === 'rejected') {
                         stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
-                        cardBorder = "var(--tx-generic-border-red)";
+                        cardBorder = "var(--tx-border-topup-rejected)";
                     } else {
                         stateBadge = `<span class="text-[11px] font-black text-orange-600">Rs. ${tx.amount}</span>`;
-                        cardBorder = "var(--tx-generic-border-orange)";
+                        cardBorder = "var(--tx-border-topup-pending)";
                     }
                 } 
                 else if (tx.txType === 'withdraw') {
@@ -350,7 +347,8 @@
                     stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
                     cardBg = "var(--tx-generic-bg)";
                     cardText = "var(--tx-generic-text)";
-                    cardBorder = status === 'approved' ? "var(--tx-generic-border-emerald)" : status === 'cancelled' ? "var(--tx-generic-border-red)" : "var(--tx-generic-border-sky)";
+                    
+                    cardBorder = status === 'approved' ? "var(--tx-border-withdraw-approved)" : status === 'cancelled' ? "var(--tx-border-withdraw-rejected)" : "var(--tx-border-withdraw-pending)";
                 }
 
                 return `
