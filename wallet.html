@@ -12,58 +12,47 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
         
-   /* =========================================================================
+        /* =========================================================================
          🎨 YAHAN SE AAP APP KE COLORS CHANGE KAR SAKTE HAIN (EASY CUSTOMIZATION) 
            ========================================================================= */
         :root {
             /* 1. APP BACKGROUND - Poori app ke background ka color */
-            --app-bg-color: whitesmoke; /* Light Grayish White */
+            --app-bg-color: whitesmoke; 
             
             /* 2. HEADER COLOR - Upar Top bar (My Smart Wallet) ka background */
             --header-bg-color: white; 
 
             /* 3. NORMAL WALLET CARD (Jab Balance 0 ho ya All Clear ho) */
-            --card-normal-start: midnightblue; /* Card ka pehla color (Dark Slate) */
-            --card-normal-end: midnightblue;   /* Card ka doosra color (Deep Blue) */
+            --card-normal-start: midnightblue; 
+            --card-normal-end: darkblue;   
             
             /* 4. ADVANCE WALLET CARD (Jab aapke paas Advance/Plus balance ho) */
-            --card-advance-start: darkgreen; /* Card ka pehla color (Dark Green) */
-            --card-advance-end: green;   /* Card ka doosra color (Deep Emerald) */
+            --card-advance-start: darkgreen; 
+            --card-advance-end: green;   
             
             /* 5. OWE US WALLET CARD (Jab minus me balance ho, pending payment) */
-            --card-owe-start: red; /* Card ka pehla color (Red) */
-            --card-owe-end: darkred;   /* Card ka doosra color (Dark Red) */
+            --card-owe-start: red; 
+            --card-owe-end: darkred;   
 
             /* 6. TOP-UP BUTTON COLORS */
-            --btn-topup-bg: darkgreen;      /* Top-up button ka background (White) */
-            --btn-topup-text: white;    /* Top-up button ke icon aur text ka color (Blue) */
+            --btn-topup-bg: navy;      
+            --btn-topup-text: blue;    
             
             /* 7. WITHDRAW BUTTON COLORS (Glass Effect) */
-            --btn-withdraw-bg: rgba(255, 255, 255, 10%);    /* Halka transparent white */
-            --btn-withdraw-border: rgba(255, 255, 255, 20%); /* Button ka border */
-            --btn-withdraw-text: white;                    /* Text ka color */
+            --btn-withdraw-bg: rgba(255, 255, 255, 10%);    
+            --btn-withdraw-border: rgba(255, 255, 255, 20%); 
+            --btn-withdraw-text: white;                    
         }
 
-        /* Basic Setup & Animations (Isme kuch change na karein) */
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background: var(--app-bg-color); 
-        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--app-bg-color); }
         .header-custom { background-color: var(--header-bg-color); }
         .wallet-card { 
             background: linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%); 
             transition: all 0.5s ease; 
             box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
         }
-        .btn-topup {
-            background-color: var(--btn-topup-bg) !important;
-            color: var(--btn-topup-text) !important;
-        }
-        .btn-withdraw {
-            background-color: var(--btn-withdraw-bg) !important;
-            border-color: var(--btn-withdraw-border) !important;
-            color: var(--btn-withdraw-text) !important;
-        }
+        .btn-topup { background-color: var(--btn-topup-bg) !important; color: var(--btn-topup-text) !important; }
+        .btn-withdraw { background-color: var(--btn-withdraw-bg) !important; border-color: var(--btn-withdraw-border) !important; color: var(--btn-withdraw-text) !important; }
 
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
@@ -97,7 +86,6 @@
                     <button id="btnTopUp" onclick="location.href='top-up.html'" class="btn-topup flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-lg transition-all duration-200 flex items-center justify-center">
                         <i class="fas fa-plus-circle mr-2"></i> Top-Up
                     </button>
-                    
                     <button id="btnWithdraw" onclick="location.href='withdraw.html'" class="btn-withdraw flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md transition-all duration-200 items-center justify-center">
                         <i class="fas fa-arrow-up-right-from-square mr-2 opacity-80"></i> Withdraw
                     </button>
@@ -109,12 +97,12 @@
         <div class="flex justify-between items-end mb-4 px-2">
             <div>
                 <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest">Transaction History</h3>
-                <p class="text-[10px] text-slate-400 font-medium mt-1">Click transactions for overview</p>
+                <p class="text-[10px] text-slate-400 font-medium mt-1">Click transactions for overview preview</p>
             </div>
         </div>
 
         <div id="transactionList" class="space-y-3 pb-10 px-1">
-            <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+            <div class="text-center py-12 text-slate-400 flex flex-col items-center justify-center">
                 <i class="fas fa-circle-notch fa-spin text-xl mb-3 text-blue-500"></i>
                 <span class="text-[10px] font-bold uppercase tracking-widest">Syncing Log...</span>
             </div>
@@ -123,7 +111,7 @@
 
     <div id="previewModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onclick="closeModal()">
         <div class="bg-white w-full max-w-sm rounded-[2.2rem] p-6 shadow-2xl relative animate-pop max-h-[85vh] overflow-y-auto border border-gray-100" onclick="event.stopPropagation()">
-            <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-500 rounded-full transition-all">
+            <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 active:bg-gray-200 text-gray-500 rounded-full transition-colors">
                 <i class="fas fa-times text-xs"></i>
             </button>
             <div id="modalContent" class="space-y-4 pt-2"></div>
@@ -141,8 +129,8 @@
         <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50" onclick="event.stopPropagation()">
             <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm"></div>
             <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
-            <p id="notificationMessage" class="text-xs text-slate-500 font-medium mt-2 leading-relaxed px-1">Details...</p>
-            <button onclick="closeNotificationModal()" class="w-full mt-5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md">
+            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Details...</p>
+            <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
                 Acknowledge
             </button>
         </div>
@@ -161,60 +149,20 @@
 
         async function loadWalletData() {
             if (!navigator.onLine || !userPhone) return;
-
             try {
                 let currentBal = 0;
-
-                const { data: walletData } = await _supabase
-                    .from('wallets')
-                    .select('current_balance')
-                    .eq('customer_phone', userPhone)
-                    .maybeSingle(); 
-
-                if (walletData) {
-                    currentBal = parseFloat(walletData.current_balance || 0);
-                }
+                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle(); 
+                if (walletData) currentBal = parseFloat(walletData.current_balance || 0);
                 window.currentGlobalBalance = currentBal;
 
-                const { data: orders } = await _supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('customer_phone', userPhone)
-                    .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']);
-
-                const { data: topups } = await _supabase
-                    .from('topup_requests')
-                    .select('*')
-                    .eq('customer_phone', userPhone);
-
-                const { data: withdraws } = await _supabase
-                    .from('withdraw_requests')
-                    .select('*')
-                    .eq('customer_phone', userPhone);
+                const { data: orders } = await _supabase.from('orders').select('*').eq('customer_phone', userPhone).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']);
+                const { data: topups } = await _supabase.from('topup_requests').select('*').eq('customer_phone', userPhone);
+                const { data: withdraws } = await _supabase.from('withdraw_requests').select('*').eq('customer_phone', userPhone);
 
                 let tempTimeline = [];
-
-                if (orders) {
-                    orders.forEach(o => tempTimeline.push({
-                        ...o,
-                        txType: 'order',
-                        sortDate: o.updated_at || o.created_at
-                    }));
-                }
-                if (topups) {
-                    topups.forEach(t => tempTimeline.push({
-                        ...t,
-                        txType: 'topup',
-                        sortDate: t.created_at
-                    }));
-                }
-                if (withdraws) {
-                    withdraws.forEach(w => tempTimeline.push({
-                        ...w,
-                        txType: 'withdraw',
-                        sortDate: w.created_at
-                    }));
-                }
+                if (orders) orders.forEach(o => tempTimeline.push({ ...o, txType: 'order', sortDate: o.updated_at || o.created_at }));
+                if (topups) topups.forEach(t => tempTimeline.push({ ...t, txType: 'topup', sortDate: t.created_at }));
+                if (withdraws) withdraws.forEach(w => tempTimeline.push({ ...w, txType: 'withdraw', sortDate: w.created_at }));
 
                 tempTimeline.sort((a, b) => new Date(b.sortDate) - new Date(a.sortDate));
                 window.unifiedCache = tempTimeline;
@@ -223,13 +171,9 @@
                     currentBal = parseFloat(tempTimeline.filter(x => x.txType === 'order')[0].balance_amount || 0);
                     window.currentGlobalBalance = currentBal;
                 }
-
                 updateBalanceUI(currentBal);
                 renderUnifiedTimeline(window.unifiedCache);
-
-            } catch (err) { 
-                console.error("Data Sync Engine Error:", err);
-            }
+            } catch (err) { console.error("Data Sync Engine Error:", err); }
         }
 
         function updateBalanceUI(bal) {
@@ -237,17 +181,15 @@
             const badge = document.getElementById('statusBadge');
             const label = document.getElementById('balanceLabel');
             const card = document.getElementById('balanceCard');
-            
-            const actionButtons = document.getElementById('actionButtons');
             const withdrawBtn = document.getElementById('btnWithdraw');
+            const actionButtons = document.getElementById('actionButtons');
 
-            // 1. Sync mukammal hone par main buttons wale dabbe ko show karein
+            amtEl.innerText = `Rs. ${Math.abs(bal)}`;
+            
+            // UI Flicker Fix logic integrated
             actionButtons.classList.remove('hidden');
             actionButtons.classList.add('flex');
 
-            amtEl.innerText = `Rs. ${Math.abs(bal)}`;
-
-            // 2. Withdraw button ko balance k hisab se show/hide karein
             if (bal >= 0) {
                 withdrawBtn.classList.add('hidden');
                 withdrawBtn.classList.remove('flex');
@@ -256,7 +198,7 @@
                 withdrawBtn.classList.add('flex');
             }
 
-            // Baki apke colors aur label ki purani logic...
+            // Colors linked with CSS variables dynamically
             if (bal > 0) {
                 badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
                 badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
@@ -274,6 +216,7 @@
                 card.style.background = "linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%)";
             }
         }
+
         function renderUnifiedTimeline(list) {
             const container = document.getElementById('transactionList');
             if (!list || list.length === 0) {
@@ -294,9 +237,44 @@
                     title = `Order #${tx.id.toString().slice(-5)}`;
                     subtext = new Date(tx.sortDate).toLocaleDateString();
                     
-                    const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
+                    // ==========================================
+                    // 🚀 NEW LOGIC (Detect Settlement Type)
+                    // ==========================================
+                    let isSettledViaTopUp = false;
+                    let isSettledViaRider = false;
 
-                    if (isSettledViaTopUp) {
+                    // Agar pending tha, aur overall account ab clear ho chuka hai (0 ya advance me)
+                    if (bal > 0 && window.currentGlobalBalance <= 0) {
+                        let clearedByRider = false;
+                        
+                        // Database check (Agar backend se flag aya hai)
+                        if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
+                            clearedByRider = true;
+                        } else {
+                            // Timeline logic: Agar next recent activity Top-up ki bajaye Order ki hai toh Rider ne hi clear kiya hoga
+                            const newerTransactions = list.slice(0, idx);
+                            const clearingTx = newerTransactions.find(t => (t.txType === 'topup' && t.status === 'approved') || t.txType === 'order');
+                            if (clearingTx && clearingTx.txType === 'order') {
+                                clearedByRider = true;
+                            }
+                        }
+
+                        if (clearedByRider) {
+                            isSettledViaRider = true;
+                        } else {
+                            isSettledViaTopUp = true;
+                        }
+                    } 
+                    // Ya agar payment direct Top-up wallet se hi adjust ho gai
+                    else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
+                        isSettledViaTopUp = true;
+                    }
+                    // ==========================================
+
+                    if (isSettledViaRider) {
+                        stateBadge = `<span class="text-[11px] font-black text-teal-600 flex items-center gap-1">Settled via Rider <i class="fas fa-handshake"></i></span>`;
+                        borderClass = "border-l-teal-500";
+                    } else if (isSettledViaTopUp) {
                         stateBadge = `<span class="text-[11px] font-black text-indigo-600 flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
                         borderClass = "border-l-indigo-500";
                     } else if (bal === 0) {
@@ -311,7 +289,6 @@
                     title = `Top-Up Wallet`;
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
-                    
                     if (status === 'approved') {
                         stateBadge = `<span class="text-[11px] font-black text-emerald-600 flex items-center gap-1">Rs. ${tx.amount} <i class="fas fa-check-circle"></i></span>`;
                         borderClass = "border-l-emerald-500";
@@ -327,16 +304,15 @@
                     title = `Withdraw Funds`;
                     const status = (tx.status || 'pending').toLowerCase();
                     subtext = `${new Date(tx.sortDate).toLocaleDateString()} | ${status.toUpperCase()}`;
-                    
                     stateBadge = `<span class="text-[11px] font-black text-red-600">Rs. ${tx.amount}</span>`;
                     borderClass = status === 'approved' ? "border-l-emerald-500" : status === 'cancelled' ? "border-l-red-500" : "border-l-sky-500";
                 }
 
                 return `
-                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-slate-50 transition-all flex justify-between items-center active:scale-[0.98] animate-pop">
+                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
                         <div>
                             <h4 class="font-black text-gray-800 text-[11px] uppercase tracking-wide">${title}</h4>
-                            <p class="text-[9px] text-gray-400 font-bold mt-1">${subtext}</p>
+                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${subtext}</p>
                         </div>
                         <div class="text-right flex items-center gap-2 text-gray-300">
                             ${stateBadge}
@@ -366,21 +342,60 @@
                 const totalPayable = parseFloat(tx.bill_amount) || 0;
                 const paid = parseFloat(tx.final_amount || 0);
 
-                const isSettledViaTopUp = (bal > 0 && window.currentGlobalBalance <= 0) || (bal === 0 && paid < totalPayable && totalPayable > 0);
+                // ==========================================
+                // 🚀 SAME NEW LOGIC FOR MODAL DETAILS
+                // ==========================================
+                let isSettledViaTopUp = false;
+                let isSettledViaRider = false;
+
+                if (bal > 0 && window.currentGlobalBalance <= 0) {
+                    let clearedByRider = false;
+                    
+                    if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
+                        clearedByRider = true;
+                    } else {
+                        const newerTransactions = window.unifiedCache.slice(0, index);
+                        const clearingTx = newerTransactions.find(t => (t.txType === 'topup' && t.status === 'approved') || t.txType === 'order');
+                        if (clearingTx && clearingTx.txType === 'order') {
+                            clearedByRider = true;
+                        }
+                    }
+
+                    if (clearedByRider) {
+                        isSettledViaRider = true;
+                    } else {
+                        isSettledViaTopUp = true;
+                    }
+                } 
+                else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
+                    isSettledViaTopUp = true;
+                }
 
                 let stateHtml = "";
                 let originalPendingLayout = "";
 
-                if (isSettledViaTopUp) {
-                    stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
+                if (isSettledViaRider) {
+                    stateHtml = `<span class="text-teal-600 font-black text-xs flex items-center gap-1">Settled via Rider <i class="fas fa-motorcycle"></i></span>`;
                     originalPendingLayout = `
-                        <div class="flex justify-between border-b border-slate-100 pb-2 text-red-500 font-bold">
+                        <div class="flex justify-between border-b border-slate-100 pb-1.5 text-red-500 font-bold">
                             <span>Pending Amount:</span>
                             <span>Rs. ${totalPayable - paid}</span>
                         </div>
-                        <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-2">
+                        <div class="p-3 bg-teal-50 rounded-xl border border-teal-100 mt-2 shadow-sm">
+                            <span class="text-teal-800 font-black text-[9px] uppercase block mb-0.5">Settlement Info:</span>
+                            <p class="text-teal-900 text-[11px] font-bold leading-tight"><i class="fas fa-handshake mr-1 text-teal-600"></i> This pending amount was successfully cleared by paying the rider in a subsequent order.</p>
+                        </div>
+                    `;
+                } else if (isSettledViaTopUp) {
+                    stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
+                    originalPendingLayout = `
+                        <div class="flex justify-between border-b border-slate-100 pb-1.5 text-red-500 font-bold">
+                            <span>Pending Amount:</span>
+                            <span>Rs. ${totalPayable - paid}</span>
+                        </div>
+                        <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-2 shadow-sm">
                             <span class="text-indigo-800 font-black text-[9px] uppercase block mb-0.5">Settlement Info:</span>
-                            <p class="text-indigo-900 text-[11px] font-bold leading-tight"><i class="fas fa-wallet mr-1"></i> This order was previously pending but has been successfully cleared using your wallet Top-Up balance.</p>
+                            <p class="text-indigo-900 text-[11px] font-bold leading-tight"><i class="fas fa-wallet mr-1 text-indigo-600"></i> This order was previously pending but has been successfully cleared using your wallet Top-Up balance.</p>
                         </div>
                     `;
                 } else if (bal === 0) {
@@ -393,36 +408,36 @@
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-slate-50 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-slate-100"><i class="fas fa-money-bill-transfer"></i></div>
+                        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-slate-200"><i class="fas fa-money-bill-transfer"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                         <p class="text-[9px] text-gray-400 font-bold mt-0.5">ID: #${tx.id}</p>
                     </div>
-                    <div class="space-y-3 pt-3 text-xs">
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                    <div class="space-y-2.5 pt-2 text-xs">
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Rider Name:</span>
                             <span class="font-bold text-gray-700">${tx.rider_name || 'Not Assigned'}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Rider Phone:</span>
                             <span class="font-bold text-gray-700">${tx.rider_phone || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Rider ID:</span>
                             <span class="font-bold text-gray-700">${tx.rider_id || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-1.5">
                             <span class="text-gray-400 font-bold">Items & DC Subtotal:</span>
                             <span class="font-bold text-gray-800">Rs. ${itemPlusDc}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2 font-black text-slate-800 text-xs">
+                        <div class="flex justify-between border-b pb-1.5 font-black text-slate-800 text-xs">
                             <span>Total Bill Payable:</span>
                             <span>Rs. ${totalPayable}</span>
                         </div>
-                        <div class="flex justify-between bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-slate-700 font-black items-center shadow-sm">
+                        <div class="flex justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl text-slate-700 font-black items-center">
                             <span class="flex items-center gap-1.5"><i class="fas fa-hand-holding-dollar text-slate-400 text-sm"></i> Paid To Rider:</span>
                             <span class="text-xs text-slate-900">Rs. ${paid}</span>
                         </div>
@@ -437,25 +452,25 @@
             else if (tx.txType === 'topup') {
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-orange-100"><i class="fas fa-arrow-up"></i></div>
+                        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-arrow-up"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                     </div>
-                    <div class="space-y-3 pt-3 text-xs">
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Top-Up Amount:</span>
                             <span class="font-black text-emerald-600">Rs. ${tx.amount}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
                             <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
-                        <div class="pt-1">
-                            <span class="text-gray-400 font-bold block mb-1.5">Reference Snapshot Detail:</span>
-                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words shadow-inner">${tx.bank_snapshot || 'Direct Deposit'}</p>
+                        <div>
+                            <span class="text-gray-400 font-bold block mb-1">Reference Snapshot Detail:</span>
+                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${tx.bank_snapshot || 'Direct Deposit'}</p>
                         </div>
                     </div>
                 `;
@@ -463,17 +478,16 @@
             else if (tx.txType === 'withdraw') {
                 const status = (tx.status || 'pending').toLowerCase();
                 let adminApprovedHtml = "";
-
                 if (status === 'approved') {
                     adminApprovedHtml = `
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Admin Ref ID:</span>
                             <span class="font-black text-slate-800">${tx.admin_reference || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2 items-center">
+                        <div class="flex justify-between border-b pb-2 items-center">
                             <span class="text-gray-400 font-bold">Transfer Snapshot:</span>
                             ${tx.admin_snapshot_url ? `
-                                <img src="${tx.admin_snapshot_url}" style="width: 44px; height: 44px;" class="object-cover rounded-xl border border-slate-200 cursor-pointer active:scale-95 transition-transform shadow-sm" onclick="openFullImagePreview('${tx.admin_snapshot_url}')" alt="Receipt">
+                                <img src="${tx.admin_snapshot_url}" style="width: 40px; height: 40px;" class="object-cover rounded-lg border border-slate-200 cursor-pointer active:scale-90 transition-transform shadow-sm" onclick="openFullImagePreview('${tx.admin_snapshot_url}')" alt="Receipt">
                             ` : '<span class="font-bold text-gray-400 italic">No image available</span>'}
                         </div>
                     `;
@@ -481,39 +495,38 @@
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-blue-100"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                     </div>
-                    <div class="space-y-3 pt-3 text-xs">
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                    <div class="space-y-3 pt-2 text-xs">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Withdraw Amount:</span>
                             <span class="font-black text-red-600">Rs. ${tx.amount}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
                             <span class="font-black uppercase ${status === 'approved' ? 'text-emerald-600' : status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${tx.status || 'pending'}</span>
                         </div>
                         ${adminApprovedHtml}
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Bank Name:</span>
                             <span class="font-black text-slate-800">${tx.bank_name}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Account Title:</span>
                             <span class="font-bold text-slate-700">${tx.account_title}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Account Number:</span>
                             <span class="font-bold text-slate-800 tracking-wider font-mono">${tx.account_number}</span>
                         </div>
-                        <div class="flex justify-between border-b border-slate-100 pb-2">
+                        <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
                     </div>
                 `;
             }
-
             content.innerHTML = html;
             modal.classList.remove('hidden');
         }
@@ -558,20 +571,18 @@
 
             titleEl.innerText = title;
             msgEl.innerText = message;
-
             document.body.classList.add('overflow-hidden');
 
             if (title.includes('Approved') || statusType === 'success') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm border border-emerald-200";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
                 iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
             } else if (title.includes('Cancelled') || statusType === 'error') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm border border-red-200";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm";
                 iconContainer.innerHTML = `<i class="fas fa-times-circle"></i>`;
             } else {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm border border-blue-200";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm";
                 iconContainer.innerHTML = `<i class="fas fa-bell"></i>`;
             }
-
             modal.classList.remove('hidden');
         }
 
@@ -587,17 +598,14 @@
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
-
             _supabase.channel('topup-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'topup_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
-
             _supabase.channel('withdraw-tracker')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdraw_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
-
             _supabase.channel('customer-notifications')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, (payload) => {
                     if (payload.new) {
