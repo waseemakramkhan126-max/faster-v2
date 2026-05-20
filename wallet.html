@@ -416,9 +416,13 @@
 
                 let stateHtml = "";
                 let originalPendingLayout = "";
+                
+                // 📦 1. ORDER KE LIYE DYNAMIC ICONS & COLORS
+                let orderIconHtml = "";
 
                 if (isSettledViaRider) {
                     stateHtml = `<span class="text-teal-600 font-black text-xs flex items-center gap-1">Settled via Rider <i class="fas fa-motorcycle"></i></span>`;
+                    orderIconHtml = `<div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-teal-200"><i class="fas fa-handshake"></i></div>`;
                     originalPendingLayout = `
                         <div class="flex justify-between border-b border-slate-100 pb-1.5 text-red-500 font-bold">
                             <span>Pending Amount:</span>
@@ -431,6 +435,7 @@
                     `;
                 } else if (isSettledViaTopUp) {
                     stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
+                    orderIconHtml = `<div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-indigo-200"><i class="fas fa-wallet"></i></div>`;
                     originalPendingLayout = `
                         <div class="flex justify-between border-b border-slate-100 pb-1.5 text-red-500 font-bold">
                             <span>Pending Amount:</span>
@@ -443,16 +448,19 @@
                     `;
                 } else if (bal === 0) {
                     stateHtml = `<span class="text-emerald-600 font-black text-xs flex items-center gap-1">Settled <i class="fas fa-check-double"></i></span>`;
+                    orderIconHtml = `<div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-emerald-200"><i class="fas fa-circle-check"></i></div>`;
                 } else if (bal > 0) {
                     stateHtml = `<span class="text-red-600 font-black text-xs">Pending Amount: Rs. ${Math.abs(bal)}</span>`;
+                    orderIconHtml = `<div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-red-200"><i class="fas fa-clock"></i></div>`;
                 } else {
                     stateHtml = `<span class="text-emerald-600 font-black text-xs">Remaining Amount: Rs. ${Math.abs(bal)}</span>`;
+                    orderIconHtml = `<div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-emerald-200"><i class="fas fa-coins"></i></div>`;
                 }
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-slate-200"><i class="fas fa-money-bill-transfer"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                        ${orderIconHtml}
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Order Overview</h3>
                         <p class="text-[9px] text-gray-400 font-bold mt-0.5">ID: #${tx.id}</p>
                     </div>
                     <div class="space-y-2.5 pt-2 text-xs">
@@ -493,10 +501,22 @@
                 `;
             } 
             else if (tx.txType === 'topup') {
+                const status = (tx.status || 'pending').toLowerCase();
+                
+                // 💰 2. TOP-UP KE LIYE DYNAMIC ICONS & COLORS
+                let topupIconHtml = "";
+                if (status === 'approved') {
+                    topupIconHtml = `<div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-emerald-200"><i class="fas fa-circle-check"></i></div>`;
+                } else if (status === 'rejected') {
+                    topupIconHtml = `<div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-red-200"><i class="fas fa-circle-xmark"></i></div>`;
+                } else {
+                    topupIconHtml = `<div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-orange-200"><i class="fas fa-hourglass-half animate-pulse"></i></div>`;
+                }
+
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-arrow-up"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                        ${topupIconHtml}
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Top-Up Overview</h3>
                     </div>
                     <div class="space-y-3 pt-2 text-xs">
                         <div class="flex justify-between border-b pb-2">
@@ -505,7 +525,7 @@
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
-                            <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
+                            <span class="font-black uppercase ${status === 'approved' ? 'text-emerald-600' : status === 'rejected' ? 'text-red-500' : 'text-orange-500'}">${tx.status || 'pending'}</span>
                         </div>
                         <div class="flex justify-between border-b pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
@@ -520,6 +540,17 @@
             } 
             else if (tx.txType === 'withdraw') {
                 const status = (tx.status || 'pending').toLowerCase();
+                
+                // 🏦 3. WITHDRAW KE LIYE DYNAMIC ICONS & COLORS
+                let withdrawIconHtml = "";
+                if (status === 'approved') {
+                    withdrawIconHtml = `<div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-emerald-200"><i class="fas fa-money-bill-wave"></i></div>`;
+                } else if (status === 'cancelled') {
+                    withdrawIconHtml = `<div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-red-200"><i class="fas fa-ban"></i></div>`;
+                } else {
+                    withdrawIconHtml = `<div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-sky-200"><i class="fas fa-circle-notch fa-spin"></i></div>`;
+                }
+
                 let adminApprovedHtml = "";
                 if (status === 'approved') {
                     adminApprovedHtml = `
@@ -538,8 +569,8 @@
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
-                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
+                        ${withdrawIconHtml}
+                        <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Withdraw Overview</h3>
                     </div>
                     <div class="space-y-3 pt-2 text-xs">
                         <div class="flex justify-between border-b pb-2">
