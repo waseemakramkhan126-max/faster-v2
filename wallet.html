@@ -4,13 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faster - Smart Wallet</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
-        .wallet-card { background: linear-gradient(135deg, #075e54 0%, #128c7e 100%); transition: all 0.5s ease; }
+        
+        /* =========================================================================
+           🎨 YAHAN SE AAP APP KE COLORS CHANGE KAR SAKTE HAIN (EASY CUSTOMIZATION) 
+           ========================================================================= */
+        :root {
+            /* 1. APP BACKGROUND - Poori app ke background ka color */
+            --app-bg-color: #f8fafc; /* Light Grayish White */
+            
+            /* 2. HEADER COLOR - Upar Top bar (My Smart Wallet) ka background */
+            --header-bg-color: #ffffff; 
+
+            /* 3. NORMAL WALLET CARD (Jab Balance 0 ho ya All Clear ho) */
+            --card-normal-start: #0f172a; /* Card ka pehla color (Dark Slate) */
+            --card-normal-end: #1e3a8a;   /* Card ka doosra color (Deep Blue) */
+            
+            /* 4. ADVANCE WALLET CARD (Jab aapke paas Advance/Plus balance ho) */
+            --card-advance-start: #065f46; /* Card ka pehla color (Dark Green) */
+            --card-advance-end: #064e3b;   /* Card ka doosra color (Deep Emerald) */
+            
+            /* 5. OWE US WALLET CARD (Jab minus me balance ho, pending payment) */
+            --card-owe-start: #b91c1c; /* Card ka pehla color (Red) */
+            --card-owe-end: #7f1d1d;   /* Card ka doosra color (Dark Red) */
+
+            /* 6. TOP-UP BUTTON COLORS */
+            --btn-topup-bg: #ffffff;      /* Top-up button ka background (White) */
+            --btn-topup-text: #1e40af;    /* Top-up button ke icon aur text ka color (Blue) */
+            
+            /* 7. WITHDRAW BUTTON COLORS (Glass Effect) */
+            --btn-withdraw-bg: rgba(255, 255, 255, 0.1);    /* Halka transparent white */
+            --btn-withdraw-border: rgba(255, 255, 255, 0.2); /* Button ka border */
+            --btn-withdraw-text: #ffffff;                    /* Text ka color */
+        }
+
+        /* Basic Setup & Animations (Isme kuch change na karein) */
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: var(--app-bg-color); 
+        }
+        .header-custom { background-color: var(--header-bg-color); }
+        .wallet-card { 
+            background: linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%); 
+            transition: all 0.5s ease; 
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+        }
+        .btn-topup {
+            background-color: var(--btn-topup-bg) !important;
+            color: var(--btn-topup-text) !important;
+        }
+        .btn-withdraw {
+            background-color: var(--btn-withdraw-bg) !important;
+            border-color: var(--btn-withdraw-border) !important;
+            color: var(--btn-withdraw-text) !important;
+        }
+
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
@@ -19,48 +73,56 @@
 </head>
 <body class="flex flex-col min-h-screen select-none">
 
-    <header class="bg-white p-4 flex items-center shadow-sm sticky top-0 z-50">
-        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600" onclick="location.href='home.html'"></i>
-        <h1 class="font-bold text-lg text-gray-800">My Smart Wallet</h1>
+    <header class="header-custom p-4 flex items-center shadow-sm sticky top-0 z-50 border-b border-gray-100">
+        <i class="fas fa-arrow-left text-xl mr-4 cursor-pointer text-gray-600 active:scale-90 transition-transform" onclick="location.href='home.html'"></i>
+        <h1 class="font-bold text-lg text-gray-800 tracking-tight">My Smart Wallet</h1>
     </header>
 
-    <main class="flex-1 p-5 max-w-md mx-auto w-full">
+    <main class="flex-1 p-5 max-w-md mx-auto w-full pb-20">
         
-        <div id="balanceCard" class="wallet-card rounded-[2.5rem] py-5 px-6 text-white shadow-2xl mb-6 relative overflow-hidden">
+        <div id="balanceCard" class="wallet-card rounded-[2.5rem] py-6 px-7 text-white mb-8 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full mix-blend-overlay filter blur-3xl opacity-50 pointer-events-none"></div>
+
             <div class="relative z-10">
-                <p id="balanceLabel" class="text-[10px] opacity-80 uppercase tracking-[0.2em] font-black mb-1">Net Wallet Balance</p>
-                <h2 id="balanceAmount" class="text-4xl font-extrabold mb-2 tracking-tighter">Rs. 0</h2>
-                <div id="statusBadge" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/20 border border-white/30">
-                    Syncing...
+                <div class="flex justify-between items-center mb-2">
+                    <p id="balanceLabel" class="text-[10px] text-white/80 uppercase tracking-[0.2em] font-black">Net Wallet Balance</p>
+                    <div id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 shadow-sm">
+                        <span class="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse"></span> Syncing
+                    </div>
                 </div>
                 
+                <h2 id="balanceAmount" class="text-[2.5rem] leading-none font-extrabold mb-6 tracking-tight drop-shadow-md">Rs. 0</h2>
+                
                 <div id="actionButtons" class="mt-4 flex gap-3">
-                    <button id="btnTopUp" onclick="location.href='top-up.html'" class="flex-1 bg-green-400 active:bg-green-600 border border-green-300 text-white py-2 rounded-full text-[11px] font-bold uppercase tracking-widest shadow-sm transition-all">
-                        <i class="fas fa-arrow-up mr-1"></i> Top-Up
+                    <button id="btnTopUp" onclick="location.href='top-up.html'" class="btn-topup flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-lg transition-all duration-200 flex items-center justify-center">
+                        <i class="fas fa-plus-circle mr-2"></i> Top-Up
                     </button>
-                    <button id="btnWithdraw" onclick="location.href='withdraw.html'" class="flex-1 bg-white/20 active:bg-white/30 border border-white/30 text-white py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm transition-all">
-                        <i class="fas fa-hand-holding-usd mr-1"></i> Withdraw
+                    <button id="btnWithdraw" onclick="location.href='withdraw.html'" class="btn-withdraw flex-1 active:scale-[0.98] py-3 rounded-2xl text-[12px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md transition-all duration-200 flex items-center justify-center">
+                        <i class="fas fa-arrow-up-right-from-square mr-2 opacity-80"></i> Withdraw
                     </button>
                 </div>
             </div>
-            <i class="fas fa-wallet absolute -right-6 -bottom-6 text-white/10 text-[10rem] rotate-12"></i>
+            <i class="fas fa-wallet absolute -right-6 -bottom-8 text-white/5 text-[12rem] rotate-[-15deg] pointer-events-none"></i>
         </div>
 
-        <div class="flex justify-between items-center mb-4 px-2">
+        <div class="flex justify-between items-end mb-4 px-2">
             <div>
-                <h3 class="font-black text-gray-800 uppercase text-xs tracking-widest">Transaction History</h3>
-                <p class="text-[10px] text-gray-400 font-bold mt-0.5 italic">Click transactions for overview preview</p>
+                <h3 class="font-black text-slate-800 uppercase text-xs tracking-widest">Transaction History</h3>
+                <p class="text-[10px] text-slate-400 font-medium mt-1">Click transactions for overview</p>
             </div>
         </div>
 
-        <div id="transactionList" class="space-y-2.5 pb-10">
-            <div class="text-center py-10 opacity-40 text-xs font-bold uppercase"><i class="fas fa-spinner fa-spin mr-1"></i> Syncing Log...</div>
+        <div id="transactionList" class="space-y-3 pb-10 px-1">
+            <div class="flex flex-col items-center justify-center py-12 text-slate-400">
+                <i class="fas fa-circle-notch fa-spin text-xl mb-3 text-blue-500"></i>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Syncing Log...</span>
+            </div>
         </div>
     </main>
 
     <div id="previewModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onclick="closeModal()">
         <div class="bg-white w-full max-w-sm rounded-[2.2rem] p-6 shadow-2xl relative animate-pop max-h-[85vh] overflow-y-auto border border-gray-100" onclick="event.stopPropagation()">
-            <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 active:bg-gray-200 text-gray-500 rounded-full transition-colors">
+            <button onclick="closeModal()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-500 rounded-full transition-all">
                 <i class="fas fa-times text-xs"></i>
             </button>
             <div id="modalContent" class="space-y-4 pt-2"></div>
@@ -78,8 +140,8 @@
         <div class="bg-white w-full max-w-xs rounded-[2rem] p-5 shadow-2xl text-center animate-pop border border-slate-50" onclick="event.stopPropagation()">
             <div id="notificationIconContainer" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 shadow-sm"></div>
             <h3 id="notificationTitle" class="font-black text-slate-800 text-sm uppercase tracking-wide">Notification</h3>
-            <p id="notificationMessage" class="text-xs text-slate-500 font-bold mt-2 leading-relaxed px-1">Details...</p>
-            <button onclick="closeNotificationModal()" class="w-full mt-4 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-md">
+            <p id="notificationMessage" class="text-xs text-slate-500 font-medium mt-2 leading-relaxed px-1">Details...</p>
+            <button onclick="closeNotificationModal()" class="w-full mt-5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md">
                 Acknowledge
             </button>
         </div>
@@ -184,21 +246,22 @@
                 withdrawBtn.classList.remove('hidden');
             }
 
+            // NOTE: Logic is identical. Only the background colors are linked to the CSS root variables for easy changing.
             if (bal > 0) {
-                badge.innerText = "Pending Payment";
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-red-500/30 text-white border border-red-400/50";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 bg-red-300 rounded-full animate-pulse"></span> Pending Payment`;
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-red-500/30 text-white border border-red-400/50 shadow-sm";
                 label.innerText = "You Owe Us";
-                card.style.background = "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)";
+                card.style.background = "linear-gradient(135deg, var(--card-owe-start) 0%, var(--card-owe-end) 100%)";
             } else if (bal < 0) {
-                badge.innerText = "Advance Balance";
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse"></span> Advance Balance`;
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-emerald-500/30 text-white border border-emerald-400/50 shadow-sm";
                 label.innerText = "Your Remaining Credit";
-                card.style.background = "linear-gradient(135deg, #065f46 0%, #064e3b 100%)";
+                card.style.background = "linear-gradient(135deg, var(--card-advance-start) 0%, var(--card-advance-end) 100%)";
             } else {
-                badge.innerText = "All Clear";
-                badge.className = "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-white/10 text-white/60 border border-white/20";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 bg-blue-300 rounded-full"></span> All Clear`;
+                badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase bg-white/10 text-white/80 border border-white/20 shadow-sm";
                 label.innerText = "Wallet Balance";
-                card.style.background = "linear-gradient(135deg, #0f172a 0%, #334155 100%)";
+                card.style.background = "linear-gradient(135deg, var(--card-normal-start) 0%, var(--card-normal-end) 100%)";
             }
         }
 
@@ -261,10 +324,10 @@
                 }
 
                 return `
-                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-gray-50 transition-all flex justify-between items-center active:scale-[0.99] animate-pop">
+                    <div onclick="openPreviewModal(${idx})" class="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 border-l-4 ${borderClass} cursor-pointer hover:bg-slate-50 transition-all flex justify-between items-center active:scale-[0.98] animate-pop">
                         <div>
                             <h4 class="font-black text-gray-800 text-[11px] uppercase tracking-wide">${title}</h4>
-                            <p class="text-[8px] text-gray-400 font-bold mt-0.5">${subtext}</p>
+                            <p class="text-[9px] text-gray-400 font-bold mt-1">${subtext}</p>
                         </div>
                         <div class="text-right flex items-center gap-2 text-gray-300">
                             ${stateBadge}
@@ -302,7 +365,7 @@
                 if (isSettledViaTopUp) {
                     stateHtml = `<span class="text-indigo-600 font-black text-xs flex items-center gap-1">Settled via Top-Up <i class="fas fa-check-double"></i></span>`;
                     originalPendingLayout = `
-                        <div class="flex justify-between border-b pb-1.5 text-red-500 font-bold">
+                        <div class="flex justify-between border-b border-slate-100 pb-2 text-red-500 font-bold">
                             <span>Pending Amount:</span>
                             <span>Rs. ${totalPayable - paid}</span>
                         </div>
@@ -321,36 +384,36 @@
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-slate-100 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-money-bill-transfer"></i></div>
+                        <div class="w-12 h-12 bg-slate-50 text-slate-700 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-slate-100"><i class="fas fa-money-bill-transfer"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                         <p class="text-[9px] text-gray-400 font-bold mt-0.5">ID: #${tx.id}</p>
                     </div>
-                    <div class="space-y-2.5 pt-2 text-xs">
-                        <div class="flex justify-between border-b pb-1.5">
+                    <div class="space-y-3 pt-3 text-xs">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-1.5">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Rider Name:</span>
                             <span class="font-bold text-gray-700">${tx.rider_name || 'Not Assigned'}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-1.5">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Rider Phone:</span>
                             <span class="font-bold text-gray-700">${tx.rider_phone || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-1.5">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Rider ID:</span>
                             <span class="font-bold text-gray-700">${tx.rider_id || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-1.5">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Items & DC Subtotal:</span>
                             <span class="font-bold text-gray-800">Rs. ${itemPlusDc}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-1.5 font-black text-slate-800 text-xs">
+                        <div class="flex justify-between border-b border-slate-100 pb-2 font-black text-slate-800 text-xs">
                             <span>Total Bill Payable:</span>
                             <span>Rs. ${totalPayable}</span>
                         </div>
-                        <div class="flex justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl text-slate-700 font-black items-center">
+                        <div class="flex justify-between bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-slate-700 font-black items-center shadow-sm">
                             <span class="flex items-center gap-1.5"><i class="fas fa-hand-holding-dollar text-slate-400 text-sm"></i> Paid To Rider:</span>
                             <span class="text-xs text-slate-900">Rs. ${paid}</span>
                         </div>
@@ -365,25 +428,25 @@
             else if (tx.txType === 'topup') {
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-arrow-up"></i></div>
+                        <div class="w-12 h-12 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-orange-100"><i class="fas fa-arrow-up"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                     </div>
-                    <div class="space-y-3 pt-2 text-xs">
-                        <div class="flex justify-between border-b pb-2">
+                    <div class="space-y-3 pt-3 text-xs">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Top-Up Amount:</span>
                             <span class="font-black text-emerald-600">Rs. ${tx.amount}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
                             <span class="font-black uppercase ${tx.status === 'approved' ? 'text-emerald-600' : 'text-orange-500'}">${tx.status || 'pending'}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
-                        <div>
-                            <span class="text-gray-400 font-bold block mb-1">Reference Snapshot Detail:</span>
-                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words">${tx.bank_snapshot || 'Direct Deposit'}</p>
+                        <div class="pt-1">
+                            <span class="text-gray-400 font-bold block mb-1.5">Reference Snapshot Detail:</span>
+                            <p class="bg-slate-50 p-3 rounded-xl italic text-gray-600 text-[11px] border border-slate-100 break-words shadow-inner">${tx.bank_snapshot || 'Direct Deposit'}</p>
                         </div>
                     </div>
                 `;
@@ -394,14 +457,14 @@
 
                 if (status === 'approved') {
                     adminApprovedHtml = `
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Admin Ref ID:</span>
                             <span class="font-black text-slate-800">${tx.admin_reference || 'N/A'}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2 items-center">
+                        <div class="flex justify-between border-b border-slate-100 pb-2 items-center">
                             <span class="text-gray-400 font-bold">Transfer Snapshot:</span>
                             ${tx.admin_snapshot_url ? `
-                                <img src="${tx.admin_snapshot_url}" style="width: 40px; height: 40px;" class="object-cover rounded-lg border border-slate-200 cursor-pointer active:scale-90 transition-transform shadow-sm" onclick="openFullImagePreview('${tx.admin_snapshot_url}')" alt="Receipt">
+                                <img src="${tx.admin_snapshot_url}" style="width: 44px; height: 44px;" class="object-cover rounded-xl border border-slate-200 cursor-pointer active:scale-95 transition-transform shadow-sm" onclick="openFullImagePreview('${tx.admin_snapshot_url}')" alt="Receipt">
                             ` : '<span class="font-bold text-gray-400 italic">No image available</span>'}
                         </div>
                     `;
@@ -409,32 +472,32 @@
 
                 html = `
                     <div class="text-center border-b border-slate-100 pb-3">
-                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto text-xl mb-2 border border-blue-100"><i class="fas fa-hand-holding-usd"></i></div>
                         <h3 class="font-black text-gray-800 text-sm uppercase tracking-wide">Overview</h3>
                     </div>
-                    <div class="space-y-3 pt-2 text-xs">
-                        <div class="flex justify-between border-b pb-2">
+                    <div class="space-y-3 pt-3 text-xs">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Withdraw Amount:</span>
                             <span class="font-black text-red-600">Rs. ${tx.amount}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Status:</span>
                             <span class="font-black uppercase ${status === 'approved' ? 'text-emerald-600' : status === 'cancelled' ? 'text-red-500' : 'text-sky-500'}">${tx.status || 'pending'}</span>
                         </div>
                         ${adminApprovedHtml}
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Bank Name:</span>
                             <span class="font-black text-slate-800">${tx.bank_name}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Account Title:</span>
                             <span class="font-bold text-slate-700">${tx.account_title}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Account Number:</span>
                             <span class="font-bold text-slate-800 tracking-wider font-mono">${tx.account_number}</span>
                         </div>
-                        <div class="flex justify-between border-b pb-2">
+                        <div class="flex justify-between border-b border-slate-100 pb-2">
                             <span class="text-gray-400 font-bold">Time & date:</span>
                             <span class="font-bold text-gray-600">${new Date(tx.sortDate).toLocaleString()}</span>
                         </div>
@@ -456,30 +519,27 @@
         }
 
         function closeModal(fromPopState = false) {
-    document.getElementById('previewModal').classList.add('hidden');
-    
-    // Sidebar ka check remove karke humne body scroll ko normal kar diya hai
-    document.body.classList.remove('overflow-hidden');
-    
-    if (!fromPopState && isModalHistoryPushed) {
-        isModalHistoryPushed = false;
-        if (history.state && history.state.modalActive) {
-            history.back();
+            document.getElementById('previewModal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            
+            if (!fromPopState && isModalHistoryPushed) {
+                isModalHistoryPushed = false;
+                if (history.state && history.state.modalActive) {
+                    history.back();
+                }
+            } else {
+                isModalHistoryPushed = false;
+            }
         }
-    } else {
-        isModalHistoryPushed = false;
-    }
-}
         
         window.addEventListener('popstate', () => {
-    if (document.getElementById('fullImageOverlay').classList.contains('hidden') === false) {
-        closeFullImagePreview();
-    }
-    if (document.getElementById('previewModal').classList.contains('hidden') === false) {
-        closeModal(true);
-    }
-    // Sidebar wali condition yahan se remove kar di gayi hai
-});
+            if (document.getElementById('fullImageOverlay').classList.contains('hidden') === false) {
+                closeFullImagePreview();
+            }
+            if (document.getElementById('previewModal').classList.contains('hidden') === false) {
+                closeModal(true);
+            }
+        });
 
         function triggerCustomNotification(title, message, statusType = 'info') {
             const modal = document.getElementById('appNotificationModal');
@@ -493,13 +553,13 @@
             document.body.classList.add('overflow-hidden');
 
             if (title.includes('Approved') || statusType === 'success') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-emerald-100 text-emerald-600 shadow-sm border border-emerald-200";
                 iconContainer.innerHTML = `<i class="fas fa-check-circle"></i>`;
             } else if (title.includes('Cancelled') || statusType === 'error') {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-red-100 text-red-600 shadow-sm border border-red-200";
                 iconContainer.innerHTML = `<i class="fas fa-times-circle"></i>`;
             } else {
-                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm";
+                iconContainer.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl mb-3 bg-blue-100 text-blue-600 shadow-sm border border-blue-200";
                 iconContainer.innerHTML = `<i class="fas fa-bell"></i>`;
             }
 
@@ -508,7 +568,7 @@
 
         function closeNotificationModal() {
             document.getElementById('appNotificationModal').classList.add('hidden');
-            if (document.getElementById('previewModal').classList.contains('hidden') && document.getElementById('sidebarMenu').classList.contains('hidden')) {
+            if (document.getElementById('previewModal').classList.contains('hidden')) {
                 document.body.classList.remove('overflow-hidden');
             }
         }
