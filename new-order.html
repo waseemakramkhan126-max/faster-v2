@@ -326,68 +326,30 @@
         }
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
-        function processEngineLogic(userInput) {
-            if (!userInput) return;
-            userInput = userInput.toLowerCase().trim();
+        async function processEngineLogic(userInput) {
+             if (!userInput) return;
 
-            if (currentOrderContext.awaitingSlotFeedback) {
-                let activeItem = currentOrderContext.activeIncompleteItem;
-                let waitingSlot = currentOrderContext.awaitingSlotFeedback.slot_key;
-                let schemaRules = masterSchema[activeItem.product_key].required_slots[waitingSlot];
-                
-                let matchedValue = userInput.match(new RegExp(schemaRules.regex_fallback));
-                
-                if (matchedValue) {
-                    activeItem.slots[waitingSlot] = matchedValue[1] || matchedValue[0];
-                    currentOrderContext.awaitingSlotFeedback = null;
-                } else {
-                    addSystemBubble(schemaRules.prompt);
-                    saveCurrentSession();
-                    return;
-                }
+             // Aapka live "Brain Link" (Supabase Edge Function URL)
+             const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+
+            try {
+             // AI ko user ka message bhej rahe hain
+             const response = await fetch(BRAIN_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: userInput })
+            });
+
+              const data = await response.json();
+
+             // Agar AI ne jawab diya, toh hum usay screen par "addSystemBubble" se dikha denge
+             if (data.reply) {
+              addSystemBubble(data.reply);
             }
-
-            for (let productKey in masterSchema) {
-                if (userInput.includes(productKey)) {
-                    let isAlreadyDone = currentOrderContext.completedItems.some(i => i.product_key === productKey);
-                    
-                    if (!isAlreadyDone) {
-                        let newItem = { product_key: productKey, slots: {} };
-                        for (let slot in masterSchema[productKey].required_slots) {
-                            let pattern = masterSchema[productKey].required_slots[slot].regex_fallback;
-                            let find = userInput.match(new RegExp(pattern));
-                            newItem.slots[slot] = find ? (find[1] || find[0]) : null;
-                        }
-                        currentOrderContext.activeIncompleteItem = newItem;
-                        break; 
-                    }
-                }
+            } catch (error) {
+            console.error("Brain connection error:", error);
+            addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
             }
-
-            let activeItem = currentOrderContext.activeIncompleteItem;
-            if (activeItem) {
-                let productRules = masterSchema[activeItem.product_key].required_slots;
-                for (let slotKey in productRules) {
-                    if (activeItem.slots[slotKey] === null) {
-                        currentOrderContext.awaitingSlotFeedback = {
-                            product_key: activeItem.product_key,
-                            slot_key: slotKey
-                        };
-                        addSystemBubble(productRules[slotKey].prompt);
-                        saveCurrentSession();
-                        return;
-                    }
-                }
-                
-                currentOrderContext.completedItems.push(activeItem);
-                currentOrderContext.activeIncompleteItem = null;
-                currentOrderContext.awaitingSlotFeedback = null;
-                
-                // Add a small confirmation from system
-                addSystemBubble(`Done! ${activeItem.product_key.toUpperCase()} order me add ho gaya hai.`);
-            }
-
-            saveCurrentSession();
         }
 
         function addSystemBubble(text) {
