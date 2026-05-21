@@ -327,26 +327,18 @@
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
         async function processEngineLogic(userInput) {
-    const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
-    
-    try {
-        const response = await fetch(BRAIN_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userInput })
-        });
+    // Current order ka data yahan se uthayein (jo aapke HTML mein kahin store hoga)
+    const currentOrder = document.getElementById('order-summary').innerText; 
 
-        if (!response.ok) {
-            throw new Error(`Server Error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        // Yeh function AI ka jawab screen par dikhata hai
-        addSystemBubble(data.reply); 
-    } catch (error) {
-        console.error("AI Error:", error);
-        addSystemBubble("Sorry, AI connect nahi ho raha. Check internet.");
-    }
+    const response = await fetch(BRAIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            message: userInput,
+            context: currentOrder // AI ko batayenge ke abhi order kya hai
+        })
+    });
+    // ... baqi code waisa hi rahega
 }
 
         function addSystemBubble(text) {
