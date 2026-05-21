@@ -327,30 +327,27 @@
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
         async function processEngineLogic(userInput) {
-             if (!userInput) return;
+    const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+    
+    try {
+        const response = await fetch(BRAIN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userInput })
+        });
 
-             // Aapka live "Brain Link" (Supabase Edge Function URL)
-             const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
-
-            try {
-             // AI ko user ka message bhej rahe hain
-             const response = await fetch(BRAIN_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: userInput })
-            });
-
-              const data = await response.json();
-
-             // Agar AI ne jawab diya, toh hum usay screen par "addSystemBubble" se dikha denge
-             if (data.reply) {
-              addSystemBubble(data.reply);
-            }
-            } catch (error) {
-            console.error("Brain connection error:", error);
-            addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
-            }
+        if (!response.ok) {
+            throw new Error(`Server Error: ${response.status}`);
         }
+
+        const data = await response.json();
+        // Yeh function AI ka jawab screen par dikhata hai
+        addSystemBubble(data.reply); 
+    } catch (error) {
+        console.error("AI Error:", error);
+        addSystemBubble("Sorry, AI connect nahi ho raha. Check internet.");
+    }
+}
 
         function addSystemBubble(text) {
             document.getElementById('emptyPlaceholder').style.display = 'none';
