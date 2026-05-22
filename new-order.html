@@ -78,15 +78,6 @@
             background-color: #dcf8c6; 
             border-top-right-radius: 4px; 
         }
-
-        /* NEW: System bubble ke liye design */
-        .system-bubble {
-            align-self: flex-start;
-            background-color: #ffffff;
-            border-top-left-radius: 4px;
-            color: #1f2937;
-            font-weight: 600;
-        }
         
         .bubble-selected { 
             background-color: #bceb9e !important; 
@@ -265,29 +256,18 @@
     </div>
 
     <script>
-        // --- 1. NEW PRODUCTION CONTEXT ENGINE VARIABLES ---
-        let masterSchema = {}; 
-        let currentOrderContext = {
-            completedItems: [],
-            activeIncompleteItem: null,
-            awaitingSlotFeedback: null
-        };
-        
-        // GLOBAL VARIABLE: AI ki final summary capture karne ke liye
-        let aiGeneratedSummary = ""; 
-
-        // --- 2. SUPABASE INITIALIZATION ---
+        // Supabase Init
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
-        let deliveryCharges = 150; 
+        let deliveryCharges = null; // Strictly real-time calculated
         let selectedItems = []; 
         let userPhone = localStorage.getItem('faster_phone');
         let fullSavedAddress = ""; 
 
-        // Camera & Voice Variables
+        // Camera Engines
         let stream = null;
         let currentFacingMode = "environment";
         let cameraMode = "photo";
@@ -296,6 +276,7 @@
         let videoChunks = [];
         let camTimerInterval;
         
+        // Voice Engines
         let audioRecorder;
         let audioChunks = [];
         let voiceTimerInterval;
@@ -303,145 +284,19 @@
         
         const sound = document.getElementById('notifSound');
 
-        // UTILITY: Blob ko Base64 text me transform karne wala function
-        function blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        }
-
-        // --- 3. DATABASE DYNAMIC SCHEMA LOADER ---
-        async function loadProductSchemas() {
-            try {
-                const { data, error } = await _supabase
-                    .from('product_schemas')
-                    .select('*')
-                    .eq('is_active', true);
-                
-                if (error) throw error;
-                
-                masterSchema = data.reduce((acc, row) => {
-                    acc[row.product_key.toLowerCase().trim()] = { 
-                        category: row.category, 
-                        required_slots: row.required_slots 
-                    };
-                    return acc;
-                }, {});
-                
-                recoverSavedSession();
-                
-            } catch (err) {
-                console.error("Schema sync failed:", err.message);
-            }
-        }
-
-        // --- 4. ENGINE LOGIC FOR MULTIMODAL PROCESSING ---
-        async function processEngineLogic(type, contentData, mimeType = '') {
-             const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
-
-             // UI bubbles se fresh context history generate karna (Leaving the very last bubble)
-             const bubbles = Array.from(document.querySelectorAll('#chatArea .bubble'));
-             if (bubbles.length > 0) bubbles.pop(); 
-
-             const history = [];
-             bubbles.forEach(b => {
-                 const textP = b.querySelector('p');
-                 let txt = "";
-                 if (textP) {
-                     txt = textP.innerText;
-                 } else {
-                     const capEl = b.querySelector('.caption-text');
-                     txt = capEl ? capEl.innerText : (b.querySelector('audio') ? "Sent a voice note" : "Sent a media attachment");
-                 }
-                 
-                 if (b.classList.contains('customer-bubble')) {
-                     history.push({ role: 'user', content: txt });
-                 } else if (b.classList.contains('system-bubble')) {
-                     history.push({ role: 'model', content: txt });
-                 }
-             });
-
-             // Payload package taiyar karna
-             let bodyData = {
-                 message: type === 'text' ? contentData : (type === 'image' ? 'Sent a photo/image attachment.' : 'Sent a voice note message.'),
-                 history: history,
-                 fileData: type !== 'text' ? contentData : null,
-                 mimeType: type !== 'text' ? mimeType : null
-             };
-
-            try {
-                 const response = await fetch(BRAIN_URL, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(bodyData)
-                 });
-
-                 const data = await response.json();
-
-                 if (data.reply) {
-                      addSystemBubble(data.reply);
-                      
-                      // Check karna ke kya AI ne Order Summary display ki hai
-                      const lowerReply = data.reply.toLowerCase();
-                      if (lowerReply.includes('summary') || lowerReply.includes('bill') || lowerReply.includes('estimated bill') || lowerReply.includes('tandoor') || lowerReply.includes('delivery charges')) {
-                          aiGeneratedSummary = data.reply; 
-                      }
-                 }
-            } catch (error) {
-                 console.error("Brain connection error:", error);
-                 addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
-            }
-        }
-
-        function addSystemBubble(text) {
-            document.getElementById('emptyPlaceholder').style.display = 'none';
-            const chat = document.getElementById('chatArea');
-            const b = document.createElement('div');
-            b.className = "bubble system-bubble animate-pop";
-            b.innerHTML = `<p class="whitespace-pre-wrap">${text}</p>`;
-            chat.appendChild(b);
-            chat.scrollTop = chat.scrollHeight;
-        }
-
-        function saveCurrentSession() {
-            localStorage.setItem('faster_active_order_state', JSON.stringify(currentOrderContext));
-        }
-
-        function recoverSavedSession() {
-            const saved = localStorage.getItem('faster_active_order_state');
-            if (saved) {
-                currentOrderContext = JSON.parse(saved);
-                if (currentOrderContext.awaitingSlotFeedback) {
-                    let active = currentOrderContext.activeIncompleteItem;
-                    let slot = currentOrderContext.awaitingSlotFeedback.slot_key;
-                    if(masterSchema[active.product_key]) {
-                        addSystemBubble(masterSchema[active.product_key].required_slots[slot].prompt);
-                    }
-                }
-            }
-        }
-
-        // --- 5. AUDIO UNLOCKER & UTILS ---
         function ring() { 
             if(!sound) return;
             sound.currentTime = 0; 
             let playPromise = sound.play();
-            if (playPromise !== undefined) { 
-                playPromise.catch(error => { console.warn("Auto-play blocked:", error); }); 
-            }
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+            if (playPromise !== undefined) { playPromise.catch(e => console.warn("Auto-play blocked", e)); }
+            if (navigator.vibrate) { navigator.vibrate([200, 100, 200]); }
         }
 
         function unlockAudio() {
             if(sound) {
                 sound.muted = true;
                 sound.play().then(() => {
-                    sound.pause(); 
-                    sound.currentTime = 0; 
-                    sound.muted = false;
+                    sound.pause(); sound.currentTime = 0; sound.muted = false;
                     document.removeEventListener('touchstart', unlockAudio);
                     document.removeEventListener('click', unlockAudio);
                 }).catch(e => console.warn(e));
@@ -450,6 +305,7 @@
         document.addEventListener('touchstart', unlockAudio, { once: true });
         document.addEventListener('click', unlockAudio, { once: true });
 
+        // GoNative Deep Links
         function gonative_onesignal_notification_opened(jsonData) {
             try {
                 if(jsonData && jsonData.additionalData) {
@@ -457,250 +313,22 @@
                         window.location.href = 'chat.html?order_id=' + jsonData.additionalData.order_id; 
                     } else if (jsonData.additionalData.target_url) { 
                         window.location.href = jsonData.additionalData.target_url; 
-                    } else { 
-                        window.location.href = 'active-orders.html'; 
-                    }
-                } else { 
-                    window.location.href = 'active-orders.html'; 
-                }
-            } catch(e) {
-                console.error("Deep link failed:", e);
-            }
+                    } else { window.location.href = 'active-orders.html'; }
+                } else { window.location.href = 'active-orders.html'; }
+            } catch(e) { console.error("Deep link failed:", e); }
         }
 
         function setupRealtime() {
             if(!userPhone) return;
             _supabase.removeAllChannels(); 
             _supabase.channel('new-order-live')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
-                    if(payload.new && payload.new.sender_phone !== userPhone) ring(); 
-                })
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
-                    if(payload.new && payload.new.customer_phone === userPhone) ring(); 
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
-                    if(payload.new && payload.new.receiver_id === userPhone) ring(); 
-                }).subscribe();
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { if(payload.new && payload.new.sender_phone !== userPhone) ring(); })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { if(payload.new && payload.new.customer_phone === userPhone) ring(); })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { if(payload.new && payload.new.receiver_id === userPhone) ring(); })
+                .subscribe();
         }
 
-        // --- 6. PAGE INITIALIZATION ---
-        async function initPage() {
-            if(!userPhone) return window.location.replace('index.html');
-            
-            document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
-            document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
-            
-            setupRealtime();
-            await loadProductSchemas();
-
-            try {
-                if(navigator.onLine) {
-                    const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
-                    if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
-
-                    const { data: { session } } = await _supabase.auth.getSession();
-                    if(session) {
-                        const { data: customerData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
-                        if (customerData) {
-                            if (customerData.name) { 
-                                document.getElementById('editName').value = customerData.name; 
-                                localStorage.setItem('faster_name', customerData.name); 
-                            }
-                            if (customerData.address) { 
-                                fullSavedAddress = customerData.address; 
-                                let displayAddr = customerData.address;
-                                if(displayAddr.includes(" | GPS: ")) displayAddr = displayAddr.split(" | GPS: ")[0].trim();
-                                document.getElementById('editAddress').value = displayAddr;
-                                localStorage.setItem('faster_address', customerData.address); 
-                            }
-                        }
-                    }
-                }
-            } catch (e) { console.error("Data fetch error:", e); }
-        }
-        
-        initPage();
-
-        // --- 7. UI INTERACTIONS & MEDIA LOGIC ---
-        function toggleAttachMenu() {
-            document.getElementById('attachMenu').classList.toggle('active');
-            document.getElementById('plusIcon').classList.toggle('rotate-45');
-            document.getElementById('plusIcon').classList.toggle('text-orange-500');
-        }
-
-        function handleInput(el) {
-            el.style.height = '44px'; 
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
-            const val = el.value.trim();
-            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
-            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
-        }
-
-        async function previewFile(input, mode) {
-            if(!input.files || input.files.length === 0) return;
-            for (const file of Array.from(input.files)) {
-                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
-                if(type === 'image') {
-                    const caption = await Dialog.show("Add Caption", "Would you like to add a message with this picture? (Optional)", "prompt");
-                    addToDraft('image', { file: file, caption: caption || "" });
-                } else { 
-                    addToDraft(type, file); 
-                }
-            }
-            input.value = ""; 
-        }
-
-        function addToDraft(type, content) {
-            document.getElementById('emptyPlaceholder').style.display = 'none';
-            const chat = document.getElementById('chatArea');
-            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
-            const b = document.createElement('div');
-            
-            b.className = "bubble customer-bubble animate-pop"; 
-            b.id = bId;
-
-            let itemData = content;
-            
-            if (type === 'text') {
-                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
-                if(!val) return; 
-                
-                itemData = val; 
-                b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
-                
-                if(typeof content !== 'string') { 
-                    document.getElementById('orderInput').value = ""; 
-                    handleInput(document.getElementById('orderInput')); 
-                }
-                
-                chat.appendChild(b); 
-                // AI Core Multimodal Link Trigger
-                processEngineLogic('text', val);
-
-            } else if (type === 'image') {
-                const imgUrl = URL.createObjectURL(content.file);
-                b.innerHTML = `
-                    <img src="${imgUrl}" class="media-thumb shadow-sm">
-                    ${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}
-                `;
-                chat.appendChild(b);
-                
-                // Image to Base64 execution flow
-                blobToBase64(content.file).then(base64 => {
-                    processEngineLogic('image', base64, content.file.type || 'image/jpeg');
-                });
-
-            } else if (type === 'video') {
-                b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm" playsinline preload="metadata"></video>`;
-                chat.appendChild(b);
-            } else if (type === 'voice') {
-                b.innerHTML = `<div class="flex items-center gap-1"><audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio></div>`;
-                chat.appendChild(b);
-                
-                // Voice Note to Base64 execution flow
-                blobToBase64(content).then(base64 => {
-                    processEngineLogic('voice', base64, content.type || 'audio/webm');
-                });
-
-            } else if (type === 'doc') {
-                let iconClass = "fas fa-file text-gray-500";
-                if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
-                else if(content.name.match(/\.(doc|docx)$/)) iconClass = "fas fa-file-word text-blue-500";
-                
-                b.innerHTML = `
-                    <div class="flex items-center gap-3 p-1 text-sm font-bold text-gray-700">
-                        <div class="bg-gray-100 p-3 rounded-lg"><i class="${iconClass} text-xl"></i></div>
-                        <div class="flex flex-col truncate w-32">
-                            <span class="truncate">${content.name}</span>
-                            <span class="text-[10px] text-gray-400 font-normal">${(content.size / 1024).toFixed(1)} KB</span>
-                        </div>
-                    </div>
-                `;
-                chat.appendChild(b);
-            }
-
-            let pressTimer;
-            b.addEventListener('touchstart', (e) => { 
-                pressTimer = setTimeout(() => { 
-                    toggleSelect(bId, type); 
-                    if(navigator.vibrate) navigator.vibrate(50); 
-                }, 500); 
-            });
-            b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
-            b.addEventListener('touchend', () => clearTimeout(pressTimer));
-            
-            b.addEventListener('click', () => {
-                if (selectedItems.length > 0) toggleSelect(bId, type); 
-                else if (type === 'image' || type === 'video') {
-                    const src = type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content);
-                    openFull({src: src}, type === 'image' ? 'img' : 'vid');
-                }
-            });
-
-            const key = type === 'text' ? 'texts' : type + 's';
-            draftData[key].push({ id: bId, data: itemData });
-            
-            chat.scrollTop = chat.scrollHeight;
-            document.getElementById('confirmBtnRow').classList.remove('hidden');
-        }
-
-        // --- 8. DRAFT MANAGEMENT & WEBRTC & MODAL DIALOGS ---
-        function toggleSelect(id, type) {
-            const idx = selectedItems.findIndex(item => item.id === id);
-            const el = document.getElementById(id);
-            
-            if (idx > -1) { 
-                selectedItems.splice(idx, 1); 
-                el.classList.remove('bubble-selected'); 
-            } else { 
-                selectedItems.push({ id, type }); 
-                el.classList.add('bubble-selected'); 
-            }
-
-            if (selectedItems.length > 0) {
-                document.getElementById('customerDetailsBox').classList.add('hidden');
-                document.getElementById('selectionHeader').classList.remove('hidden');
-                document.getElementById('selectionCount').innerText = selectedItems.length;
-                const showEdit = (selectedItems.length === 1 && (selectedItems[0].type === 'text' || selectedItems[0].type === 'image'));
-                document.getElementById('editIcon').classList.toggle('hidden', !showEdit);
-            } else cancelSelection(); 
-        }
-
-        function cancelSelection() {
-            selectedItems.forEach(item => { const el = document.getElementById(item.id); if (el) el.classList.remove('bubble-selected'); });
-            selectedItems = [];
-            document.getElementById('selectionHeader').classList.add('hidden');
-            document.getElementById('customerDetailsBox').classList.remove('hidden');
-        }
-
-        function editSelected() {
-            if(selectedItems.length !== 1) return;
-            const sel = selectedItems[0];
-            const inp = document.getElementById('orderInput');
-            
-            if(sel.type === 'text') inp.value = draftData.texts.find(t => t.id === sel.id).data; 
-            else if(sel.type === 'image') inp.value = draftData.images.find(i => i.id === sel.id).data.caption; 
-            
-            confirmDelete(); 
-            handleInput(inp); 
-            inp.focus();
-        }
-
-        function confirmDelete() {
-            if (selectedItems.length === 0) return;
-            selectedItems.forEach(sel => {
-                const key = sel.type === 'text' ? 'texts' : sel.type + 's';
-                draftData[key] = draftData[key].filter(item => item.id !== sel.id);
-                const el = document.getElementById(sel.id);
-                if (el) el.remove(); 
-            });
-            cancelSelection();
-            if (Object.values(draftData).flat().length === 0) {
-                document.getElementById('confirmBtnRow').classList.add('hidden');
-                document.getElementById('emptyPlaceholder').style.display = 'flex';
-            }
-        }
-
+        // WebRTC Custom Camera Core Flow
         async function startCustomCamera() {
             toggleAttachMenu();
             document.getElementById('customCamOverlay').classList.remove('hidden');
@@ -708,11 +336,14 @@
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode }, audio: true });
                 document.getElementById('v').srcObject = stream;
-            } catch (e) { alert("Camera Access Denied!"); stopCustomCamera(); }
+            } catch (e) { 
+                alert("Camera Access Denied! Please enable permissions."); 
+                stopCustomCamera(); 
+            }
         }
 
         function stopCustomCamera() {
-            if(stream) stream.getTracks().forEach(t => t.stop());
+            if(stream) { stream.getTracks().forEach(t => t.stop()); }
             document.getElementById('customCamOverlay').classList.add('hidden');
             document.getElementById('customCamOverlay').classList.remove('flex');
         }
@@ -741,73 +372,45 @@
                     stopCustomCamera();
                 }, 'image/jpeg');
             } else { 
-                if(isRecording) stopVideo(); else startVideo();
+                if(isRecording) { stopVideo(); } else { startVideo(); }
             }
         }
 
         function startVideo() {
-            isRecording = true; videoChunks = [];
-            camMediaRecorder = new MediaRecorder(stream);
-            camMediaRecorder.ondataavailable = e => videoChunks.push(e.data);
-            camMediaRecorder.onstop = () => addToDraft('video', new Blob(videoChunks, {type:'video/mp4'}));
-            camMediaRecorder.start();
-            document.getElementById('camTimerDisplay').classList.remove('hidden');
-            document.getElementById('camBtn').classList.add('animate-pulse');
-            let s = 0; 
-            camTimerInterval = setInterval(() => {
-                s++; 
-                document.getElementById('camTimerDisplay').innerText = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-            }, 1000);
-        }
+    isRecording = true; 
+    videoChunks = [];
+    
+    camMediaRecorder = new MediaRecorder(stream);
+    camMediaRecorder.ondataavailable = e => videoChunks.push(e.data);
+    
+    camMediaRecorder.onstop = () => {
+        addToDraft('video', new Blob(videoChunks, {type:'video/mp4'}));
+        stopCustomCamera(); // <--- FIX: WebView safe area me tracks ko recorder rukne ke BAAD close karen
+    };
+    
+    camMediaRecorder.start();
+    
+    document.getElementById('camTimerDisplay').classList.remove('hidden');
+    document.getElementById('camBtn').classList.add('animate-pulse');
+    
+    let s = 0; 
+    camTimerInterval = setInterval(() => {
+        s++; 
+        document.getElementById('camTimerDisplay').innerText = `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+    }, 1000);
+}
 
-        function stopVideo() {
-            isRecording = false; camMediaRecorder.stop(); clearInterval(camTimerInterval);
-            document.getElementById('camBtn').classList.remove('animate-pulse');
-            document.getElementById('camTimerDisplay').classList.add('hidden');
-            stopCustomCamera();
-        }
+function stopVideo() {
+    isRecording = false; 
+    camMediaRecorder.stop(); // Yeh trigger karega onstop function ko
+    clearInterval(camTimerInterval);
+    
+    document.getElementById('camBtn').classList.remove('animate-pulse');
+    document.getElementById('camTimerDisplay').classList.add('hidden');
+    // stopCustomCamera(); <--- Yahan se delete kar diya gaya hai bug se bachne ke liye
+}
 
-        function startVoiceTimer() {
-            voiceSeconds = 0; document.getElementById('recordTimer').innerText = "00:00";
-            document.getElementById('textInputWrapper').classList.add('hidden');
-            document.getElementById('recordingTimerUI').classList.remove('hidden');
-            document.getElementById('recordingTimerUI').classList.add('flex');
-            voiceTimerInterval = setInterval(() => {
-                voiceSeconds++; 
-                document.getElementById('recordTimer').innerText = `${Math.floor(voiceSeconds / 60).toString().padStart(2, '0')}:${(voiceSeconds % 60).toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
-        function stopVoiceTimer() {
-            clearInterval(voiceTimerInterval);
-            document.getElementById('recordingTimerUI').classList.add('hidden');
-            document.getElementById('recordingTimerUI').classList.remove('flex');
-            document.getElementById('textInputWrapper').classList.remove('hidden');
-        }
-
-        async function handleVoice() {
-            const vBtn = document.getElementById('voiceBtn');
-            const micIcon = document.getElementById('micIcon');
-            if (!navigator.mediaDevices) return Dialog.show("Error", "Microphone access blocked.", "alert");
-
-            try {
-                if (!audioRecorder || audioRecorder.state === "inactive") {
-                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audioRecorder = new MediaRecorder(aStream); audioChunks = [];
-                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    audioRecorder.onstop = () => { 
-                        addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); 
-                        aStream.getTracks().forEach(track => track.stop()); 
-                        stopVoiceTimer(); 
-                    };
-                    audioRecorder.start(); startVoiceTimer();
-                    vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
-                } else {
-                    audioRecorder.stop(); vBtn.classList.remove('voice-active'); micIcon.className = 'fas fa-microphone';
-                }
-            } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
-        }
-
+        // Custom Dialog System
         const Dialog = {
             show: function(title, text, type = 'alert') {
                 return new Promise((resolve) => {
@@ -817,18 +420,14 @@
                     const textEl = document.getElementById('modalText');
                     const inp = document.getElementById('modalInput');
                     const btns = document.getElementById('modalButtons');
-
                     tEl.innerText = title;
                     if(text) { textEl.innerText = text; textEl.classList.remove('hidden'); } else { textEl.classList.add('hidden'); }
-
                     modal.classList.remove('hidden'); modal.classList.add('flex');
                     setTimeout(() => { box.classList.remove('scale-95', 'opacity-0'); box.classList.add('scale-100', 'opacity-100'); }, 10);
-
                     const close = (val) => {
                         box.classList.remove('scale-100', 'opacity-100'); box.classList.add('scale-95', 'opacity-0');
                         setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); resolve(val); }, 200);
                     };
-
                     btns.innerHTML = '';
                     if (type === 'alert') {
                         inp.classList.add('hidden');
@@ -856,112 +455,250 @@
             }
         };
 
-        // --- SMART VENDOR-TO-CUSTOMER FALLBACK LOGIC (NO HARD ERROR FOR UNREGISTERED VENDORS) ---
-async function handleConfirmPrompt() {
-    if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
-    
-    if (currentOrderContext.activeIncompleteItem !== null) {
-        return Dialog.show("Missing Information", "Meharbani karke pehle system ke puche gaye adhure sawal ka jawab dein.", "alert");
-    }
-
-    let userRole = localStorage.getItem('faster_user_role') || 'customer'; 
-    let userPhone = localStorage.getItem('faster_phone');
-    let userAddress = localStorage.getItem('faster_address') || ""; 
-    
-    let finalCalculatedFee = null; 
-    let matchedRate = null;
-
-    try {
-        // Step 1: Supabase se active delivery rates fetch karein
-        const { data: ratesMatrix, error } = await _supabase
-            .from('delivery_rates')
-            .eq('is_active', true);
-        
-        if (!error && ratesMatrix) {
-            
-            // Step 2: Agar user Vendor hai, to PEHLE uska specific rate check karein
-            if (userRole === 'vendor') {
-                matchedRate = ratesMatrix.find(row => 
-                    row.vendor_phone === userPhone &&
-                    userAddress.toLowerCase().includes(row.area.toLowerCase()) &&
-                    userAddress.toLowerCase().includes(row.block.toLowerCase())
-                );
-            }
-
-            // Step 3: FALLBACK CRITICAL LOGIC
-            // Agar vendor ka apna rate nahi mila (unregistered hai) YA user normal customer hai,
-            // toh strictly customer waala standard rate (vendor_phone === null) apply karein
-            if (!matchedRate) {
-                matchedRate = ratesMatrix.find(row => 
-                    row.vendor_phone === null &&
-                    userAddress.toLowerCase().includes(row.area.toLowerCase()) &&
-                    userAddress.toLowerCase().includes(row.block.toLowerCase())
-                );
-            }
-
-            // Step 4: Rate milne par timing check karein
-            if (matchedRate) {
-                let currentTime = new Date().toTimeString().split(' ')[0];
-                if (matchedRate.start_time && matchedRate.end_time) {
-                    if (currentTime < matchedRate.start_time || currentTime > matchedRate.end_time) {
-                        return Dialog.show(
-                            "Service Closed 🕒", 
-                            `Meharbani karke note farmayein, ${matchedRate.area} me hamari service timing subah ${matchedRate.start_time.substring(0,5)} se raat ${matchedRate.end_time.substring(0,5)} tak hai.`, 
-                            "alert"
-                        );
+        // Page Initialization
+        async function initPage() {
+            if(!userPhone) return window.location.replace('index.html');
+            document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
+            document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
+            setupRealtime();
+            try {
+                if(navigator.onLine) {
+                    const { data: { session } } = await _supabase.auth.getSession();
+                    if(session) {
+                        const { data: customerData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
+                        if (customerData) {
+                            if (customerData.name) { document.getElementById('editName').value = customerData.name; localStorage.setItem('faster_name', customerData.name); }
+                            if (customerData.address) { 
+                                fullSavedAddress = customerData.address;
+                                let displayAddr = customerData.address;
+                                if(displayAddr.includes(" | GPS: ")) displayAddr = displayAddr.split(" | GPS: ")[0].trim();
+                                document.getElementById('editAddress').value = displayAddr;
+                                localStorage.setItem('faster_address', customerData.address); 
+                            }
+                        }
                     }
                 }
-                finalCalculatedFee = matchedRate.delivery_fee;
+            } catch (e) { console.error("Data fetch error:", e); }
+        }
+        initPage();
+
+        function toggleAttachMenu() {
+            document.getElementById('attachMenu').classList.toggle('active');
+            document.getElementById('plusIcon').classList.toggle('rotate-45');
+            document.getElementById('plusIcon').classList.toggle('text-orange-500');
+        }
+
+        function handleInput(el) {
+            el.style.height = '44px'; 
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
+            const val = el.value.trim();
+            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
+            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
+        }
+
+        async function previewFile(input, mode) {
+            if(!input.files || input.files.length === 0) return;
+            for (const file of Array.from(input.files)) {
+                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
+                if(type === 'image') {
+                    const caption = await Dialog.show("Add Caption", "Would you like to add a message with this picture? (Optional)", "prompt");
+                    addToDraft('image', { file: file, caption: caption || "" });
+                } else { addToDraft(type, file); }
+            }
+            input.value = ""; 
+        }
+
+        function addToDraft(type, content) {
+            document.getElementById('emptyPlaceholder').style.display = 'none';
+            const chat = document.getElementById('chatArea');
+            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+            const b = document.createElement('div');
+            b.className = "bubble customer-bubble animate-pop"; b.id = bId;
+            let itemData = content;
+            
+            if (type === 'text') {
+                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
+                if(!val) return; 
+                itemData = val; b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+                if(typeof content !== 'string') { document.getElementById('orderInput').value = ""; handleInput(document.getElementById('orderInput')); }
+            } else if (type === 'image') {
+                const imgUrl = URL.createObjectURL(content.file);
+                b.innerHTML = `<img src="${imgUrl}" class="media-thumb shadow-sm">${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}`;
+            } else if (type === 'video') {
+                b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm" playsinline preload="metadata"></video>`;
+            } else if (type === 'voice') {
+                b.innerHTML = `<div class="flex items-center gap-1"><audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio></div>`;
+            } else if (type === 'doc') {
+                let iconClass = "fas fa-file text-gray-500";
+                if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
+                else if(content.name.match(/\.(doc|docx)$/)) iconClass = "fas fa-file-word text-blue-500";
+                b.innerHTML = `<div class="flex items-center gap-3 p-1 text-sm font-bold text-gray-700"><div class="bg-gray-100 p-3 rounded-lg"><i class="${iconClass} text-xl"></i></div><div class="flex flex-col truncate w-32"><span class="truncate">${content.name}</span><span class="text-[10px] text-gray-400 font-normal">${(content.size / 1024).toFixed(1)} KB</span></div></div>`;
+            }
+
+            let pressTimer;
+            b.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleSelect(bId, type); if(navigator.vibrate) navigator.vibrate(50); }, 500); });
+            b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
+            b.addEventListener('touchend', () => clearTimeout(pressTimer));
+            
+            b.addEventListener('click', () => {
+                if (selectedItems.length > 0) { toggleSelect(bId, type); } 
+                else if (type === 'image' || type === 'video') {
+                    const src = type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content);
+                    openFull({src: src}, type === 'image' ? 'img' : 'vid');
+                }
+            });
+
+            const key = type === 'text' ? 'texts' : type + 's';
+            draftData[key].push({ id: bId, data: itemData });
+            chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+            document.getElementById('confirmBtnRow').classList.remove('hidden');
+        }
+
+        function toggleSelect(id, type) {
+            const idx = selectedItems.findIndex(item => item.id === id);
+            const el = document.getElementById(id);
+            if (idx > -1) { selectedItems.splice(idx, 1); el.classList.remove('bubble-selected'); } 
+            else { selectedItems.push({ id, type }); el.classList.add('bubble-selected'); }
+
+            if (selectedItems.length > 0) {
+                document.getElementById('customerDetailsBox').classList.add('hidden');
+                document.getElementById('selectionHeader').classList.remove('hidden');
+                document.getElementById('selectionCount').innerText = selectedItems.length;
+                const showEdit = (selectedItems.length === 1 && (selectedItems[0].type === 'text' || selectedItems[0].type === 'image'));
+                document.getElementById('editIcon').classList.toggle('hidden', !showEdit);
+            } else { cancelSelection(); }
+        }
+
+        function cancelSelection() {
+            selectedItems.forEach(item => { const el = document.getElementById(item.id); if (el) { el.classList.remove('bubble-selected'); } });
+            selectedItems = [];
+            document.getElementById('selectionHeader').classList.add('hidden');
+            document.getElementById('customerDetailsBox').classList.remove('hidden');
+        }
+
+        function editSelected() {
+            if(selectedItems.length !== 1) return;
+            const sel = selectedItems[0];
+            const inp = document.getElementById('orderInput');
+            if(sel.type === 'text') { inp.value = draftData.texts.find(t => t.id === sel.id).data; } 
+            else if(sel.type === 'image') { inp.value = draftData.images.find(i => i.id === sel.id).data.caption; }
+            confirmDelete(); handleInput(inp); inp.focus();
+        }
+
+        function confirmDelete() {
+            if (selectedItems.length === 0) return;
+            selectedItems.forEach(sel => {
+                const key = sel.type === 'text' ? 'texts' : sel.type + 's';
+                draftData[key] = draftData[key].filter(item => item.id !== sel.id);
+                const el = document.getElementById(sel.id); if (el) { el.remove(); }
+            });
+            cancelSelection();
+            if (Object.values(draftData).flat().length === 0) {
+                document.getElementById('confirmBtnRow').classList.add('hidden');
+                document.getElementById('emptyPlaceholder').style.display = 'flex';
             }
         }
-    } catch (e) {
-        console.error("Matrix Calculation Fail:", e);
-    }
 
-    // --- AGAR AREA/BLOCK HI DATABASE ME NAHI HAI TO HII ERROR DIKHAYEGA ---
-    if (finalCalculatedFee === null) {
-        return Dialog.show(
-            "Service Unavailable 🚫", 
-            "Maazrat! Aapke select kiye gaye Area/Block me hamari delivery service filhal active nahi hai.", 
-            "alert"
-        );
-    }
-
-    // Global variable update (Taaki orders table aur wallet me sahi data jaye)
-    deliveryCharges = parseFloat(finalCalculatedFee);
-
-    // --- ONE-TIME OR RATE-CHANGE CONFIRMATION CHECK ---
-    let lastConfirmedFee = localStorage.getItem('faster_last_confirmed_fee');
-
-    // Agar pehli baar order ho rha hai YA admin ne backend se rate change kar diya hai
-    if (lastConfirmedFee === null || parseFloat(lastConfirmedFee) !== deliveryCharges) {
-        
-        const confirmMsg = `Aapke area ke mutabiq Delivery Charges Rs. ${deliveryCharges} hain. Kya aap is rate ko confirm karte hain?`;
-        const userConfirmed = await Dialog.show("Delivery Fee Confirmation", confirmMsg, "confirm");
-        
-        if (userConfirmed) {
-            localStorage.setItem('faster_last_confirmed_fee', deliveryCharges);
-        } else {
-            return; // Order stop agar cancel kiya
+        function startVoiceTimer() {
+            voiceSeconds = 0; document.getElementById('recordTimer').innerText = "00:00";
+            document.getElementById('textInputWrapper').classList.add('hidden');
+            document.getElementById('recordingTimerUI').classList.remove('hidden'); document.getElementById('recordingTimerUI').classList.add('flex');
+            voiceTimerInterval = setInterval(() => {
+                voiceSeconds++; const m = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
+                const s = (voiceSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('recordTimer').innerText = `${m}:${s}`;
+            }, 1000);
         }
-    } else {
-        console.log("Bypassing popup. Rates matched with last confirmed fee.");
+
+        function stopVoiceTimer() {
+            clearInterval(voiceTimerInterval);
+            document.getElementById('recordingTimerUI').classList.add('hidden'); document.getElementById('recordingTimerUI').classList.remove('flex');
+            document.getElementById('textInputWrapper').classList.remove('hidden');
+        }
+
+        async function handleVoice() {
+            const vBtn = document.getElementById('voiceBtn'); const micIcon = document.getElementById('micIcon');
+            if (!navigator.mediaDevices) return Dialog.show("Error", "Microphone access blocked.", "alert");
+            try {
+                if (!audioRecorder || audioRecorder.state === "inactive") {
+                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioRecorder = new MediaRecorder(aStream); audioChunks = [];
+                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    audioRecorder.onstop = () => { addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); aStream.getTracks().forEach(track => track.stop()); stopVoiceTimer(); };
+                    audioRecorder.start(); startVoiceTimer();
+                    vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
+                } else { audioRecorder.stop(); vBtn.classList.remove('voice-active'); micIcon.className = 'fas fa-microphone'; }
+            } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
+        }
+
+        // Naya Function: Jo address aur role ke mutabiq dynamic fee check karega
+async function fetchDynamicDeliveryCharges() {
+    try {
+        if (!navigator.onLine) return;
+        
+        const addressText = (fullSavedAddress || document.getElementById('editAddress').value).toLowerCase();
+        const userRole = localStorage.getItem('user_role') || 'customer'; // Vendor ya Customer role check
+        
+        // Supabase se delivery rates ki matrix fetch karna
+        const { data: rates, error } = await _supabase.from('delivery_rates').select('*');
+        
+        if (rates && rates.length > 0) {
+            // Address ke andar Area/Block check karna
+            let matchedRate = rates.find(r => addressText.includes(r.area_name.toLowerCase()));
+            
+            if (matchedRate) {
+                if (userRole === 'vendor' && matchedRate.vendor_rate !== null) {
+                    deliveryCharges = matchedRate.vendor_rate;
+                } else {
+                    deliveryCharges = matchedRate.customer_rate;
+                }
+                return; // Match mil gaya to yahin se exit
+            }
+        }
+        
+        // Fallback: Agar koi area match nahi hua to global app_settings se uthayen
+        const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
+        if (settings && settings.length > 0) {
+            deliveryCharges = settings[0].customer_delivery_fee;
+        }
+    } catch (e) {
+        console.error("Dynamic delivery fee calculation failed:", e);
     }
-
-    // Process to final submission (Wallet management safe zone)
-    const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
-    
-    finalSubmitOrder(session.user.email);
-}
-    const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
-    
-    const confirmMsg = `The Delivery Charges will be Rs. ${deliveryCharges}. Do you want to proceed?`;
-    const userConfirmed = await Dialog.show("Confirm Order", confirmMsg, "confirm");
-    if (userConfirmed) finalSubmitOrder(session.user.email);
 }
 
+// Updated handleConfirmPrompt Function (Language & Dynamic Logic Added)
+async function handleConfirmPrompt() {
+    if (!navigator.onLine) {
+        return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
+    }
+    
+    const { data: { session } } = await _supabase.auth.getSession();
+    
+    if(!session) { 
+        await Dialog.show("Session Expired", "Please login again."); 
+        window.location.replace("index.html"); 
+        return; 
+    }
+    
+    // Order proceed karne se theek pehle real-time dynamic delivery fee calculate karen
+    const btn = document.getElementById('finalSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Checking Rates...`;
+    
+    await fetchDynamicDeliveryCharges();
+    
+    btn.disabled = false;
+    btn.innerHTML = `Confirm order <i class="fas fa-question-circle text-red-500 bg-white rounded-full text-lg border border-white"></i>`;
+
+    // Roman Urdu Language Consistency Fix
+    const confirmMsg = `Aapke area ke mutabiq Delivery Charges Rs. ${deliveryCharges} hain. Kya aap order proceed karna chahte hain?`;
+    const userConfirmed = await Dialog.show("Order Confirm Karen", confirmMsg, "confirm");
+    
+    if (userConfirmed) {
+        finalSubmitOrder(session.user.email);
+    }
+}
+        // Final Submission Storage Engine
         async function finalSubmitOrder(userEmail) {
             const btn = document.getElementById('finalSubmitBtn');
             const name = document.getElementById('editName').value.trim();
@@ -974,7 +711,7 @@ async function handleConfirmPrompt() {
             btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
             try {
-                if (userEmail) await _supabase.from('customers').update({ name: name, address: addr }).eq('email', userEmail);
+                if (userEmail) { await _supabase.from('customers').update({ name: name, address: addr }).eq('email', userEmail); }
 
                 const uploadAll = async (items, prefix, defaultExt) => {
                     const promises = items.map(async (item) => {
@@ -985,77 +722,51 @@ async function handleConfirmPrompt() {
                         if(error) throw error;
                         return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
                     });
-                    const urls = await Promise.all(promises);
-                    return urls.join(",");
+                    return (await Promise.all(promises)).join(",");
                 };
                 
                 const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
-                    uploadAll(draftData.images, 'img', 'jpg'), 
-                    uploadAll(draftData.videos, 'vid', 'mp4'),
-                    uploadAll(draftData.voices, 'voice', 'webm'), 
-                    uploadAll(draftData.docs, 'doc', 'pdf')
+                    uploadAll(draftData.images, 'img', 'jpg'), uploadAll(draftData.videos, 'vid', 'mp4'),
+                    uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
                 ]);
                 
-                // Plain text array combined for legacy apps and riders
                 const textData = draftData.texts.map(t => t.data);
                 const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-                const structuredTextSummary = currentOrderContext.completedItems.map(item => {
-                    let slotDetails = Object.entries(item.slots).map(([k, v]) => `${k}: ${v}`).join(', ');
-                    return `${item.product_key.toUpperCase()} (${slotDetails})`;
-                });
-                
-                const combinedDetails = [...textData, ...captionData, ...structuredTextSummary].join(" | ");
+                const combinedDetails = [...textData, ...captionData].join(" | ");
 
-                // MERGED WORKFLOW: Agar AI ne summary ready ki hai toh use sabse top par inject karein
-                const finalOrderDetails = aiGeneratedSummary 
-                    ? `AI GENERATED SUMMARY:\n${aiGeneratedSummary}\n\n[Raw Log System Details: ${combinedDetails}]` 
-                    : combinedDetails;
-
-                // Final Insert (Updates order_details column with AI output summary text)
                 const { error } = await _supabase.from('orders').insert([{
-                    customer_phone: userPhone, 
-                    customer_name: name, 
-                    delivery_address: addr, 
-                    order_details: finalOrderDetails, // Saved perfectly!
-                    structured_items: currentOrderContext.completedItems, 
-                    image_url: imgURLs, 
-                    video_url: vidURLs, 
-                    voice_url: vceURLs, 
-                    doc_url: docURLs, 
-                    status: 'pending',
-                    dc_amount: deliveryCharges 
+                    customer_phone: userPhone, customer_name: name, delivery_address: addr, 
+                    order_details: combinedDetails, image_url: imgURLs, video_url: vidURLs, 
+                    voice_url: vceURLs, doc_url: docURLs, status: 'pending', dc_amount: deliveryCharges 
                 }]);
                 
                 if(error) throw error;
-                
-                // Clearing contexts upon success
-                localStorage.removeItem('faster_active_order_state');
                 await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
-                window.location.href = "active-orders.html";
-                
-            } catch (err) { 
-                await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
-                btn.disabled = false; 
-                btn.innerHTML = `Confirm order <i class="fas fa-question-circle text-red-500 bg-white rounded-full text-lg border border-white"></i>`; 
-                btn.classList.replace('bg-gray-400', 'bg-orange-600');
-            }
+            window.location.href = "home.html";
+            
+        } catch (err) { 
+            await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
+            btn.disabled = false; 
+            // FIX: fa-check-circle se badal kar wapis original warning/question icon lagaya gaya hai
+            btn.innerHTML = `Confirm order <i class="fas fa-question-circle text-red-500 bg-white rounded-full text-lg border border-white"></i>`; 
+            btn.classList.replace('bg-gray-400', 'bg-orange-600');
         }
+    }
 
         function openFull(el, type) {
             const fv = document.getElementById('fullView'); fv.style.display = 'flex';
-            if (type === 'img') document.getElementById('fullContent').innerHTML = `<img src="${el.src}" class="max-w-full max-h-full rounded object-contain">`;
-            else document.getElementById('fullContent').innerHTML = `<video src="${el.src}" controls autoplay playsinline class="max-w-full max-h-full rounded"></video>`;
+            if (type === 'img') { document.getElementById('fullContent').innerHTML = `<img src="${el.src}" class="max-w-full max-h-full rounded object-contain">`; } 
+            else { document.getElementById('fullContent').innerHTML = `<video src="${el.src}" controls autoplay playsinline class="max-w-full max-h-full rounded"></video>`; }
         }
 
         document.addEventListener('click', function(event) {
-            const menu = document.getElementById('attachMenu');
-            const plusBtn = document.getElementById('plusBtn');
+            const menu = document.getElementById('attachMenu'); const plusBtn = document.getElementById('plusBtn');
             if (menu && menu.classList.contains('active')) {
-                if (!menu.contains(event.target) && !plusBtn.contains(event.target)) toggleAttachMenu(); 
+                if (!menu.contains(event.target) && !plusBtn.contains(event.target)) toggleAttachMenu();
             }
         });
 
-        window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+        window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.top = '0'; });
         window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
     </script>
 </body>
