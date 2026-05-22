@@ -326,26 +326,66 @@
         }
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
-        function processEngineLogic(userInput) {
-            if (!userInput) return;
-            userInput = userInput.toLowerCase().trim();
+        // --- NEW UTILITIES & DATA CAPTURE VARIABLES ---
+let aiGeneratedSummary = ""; // AI ki banayi hui final summary save karne ke liye
 
-            if (currentOrderContext.awaitingSlotFeedback) {
-                let activeItem = currentOrderContext.activeIncompleteItem;
-                let waitingSlot = currentOrderContext.awaitingSlotFeedback.slot_key;
-                let schemaRules = masterSchema[activeItem.product_key].required_slots[waitingSlot];
-                
-                let matchedValue = userInput.match(new RegExp(schemaRules.regex_fallback));
-                
-                if (matchedValue) {
-                    activeItem.slots[waitingSlot] = matchedValue[1] || matchedValue[0];
-                    currentOrderContext.awaitingSlotFeedback = null;
-                } else {
-                    addSystemBubble(schemaRules.prompt);
-                    saveCurrentSession();
-                    return;
-                }
-            }
+// Blob ko Base64 string mein convert karne ka helper
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+// Upgraded Multimodal Engine Interface
+async function processEngineLogic(type, contentData, mimeType = '') {
+     const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+
+     // UI ke chat bubbles se real-time history compile karna
+     const history = [];
+     document.querySelectorAll('#chatArea .bubble').forEach(b => {
+         const textP = b.querySelector('p');
+         if (textP) {
+             if (b.classList.contains('customer-bubble')) {
+                 history.push({ role: 'user', content: textP.innerText });
+             } else if (b.classList.contains('system-bubble')) {
+                 history.push({ role: 'model', content: textP.innerText });
+             }
+         }
+     });
+
+     // Payload Structure for Multimodal Input
+     let bodyData = {
+         message: type === 'text' ? contentData : 'Attached Media File:',
+         history: history,
+         fileData: type !== 'text' ? contentData : null,
+         mimeType: type !== 'text' ? mimeType : null
+     };
+
+    try {
+         const response = await fetch(BRAIN_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bodyData)
+         });
+
+         const data = await response.json();
+
+         if (data.reply) {
+              addSystemBubble(data.reply);
+              
+              // Agar AI ne order summary generate ki hai to use global variable me capture karlo
+              if (data.reply.toLowerCase().includes('summary') || data.reply.toLowerCase().includes('bill') || data.reply.toLowerCase().includes('charges')) {
+                  aiGeneratedSummary = data.reply;
+              }
+         }
+    } catch (error) {
+         console.error("Brain connection error:", error);
+         addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
+    }
+}
 
             for (let productKey in masterSchema) {
                 if (userInput.includes(productKey)) {
