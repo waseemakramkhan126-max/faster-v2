@@ -78,6 +78,11 @@
             background-color: #dcf8c6; 
             border-top-right-radius: 4px; 
         }
+        .ai-bubble { 
+            align-self: flex-start; 
+            background-color: #ffffff; 
+            border-top-left-radius: 4px; 
+        }
         
         .bubble-selected { 
             background-color: #bceb9e !important; 
@@ -291,6 +296,52 @@
             if (playPromise !== undefined) { playPromise.catch(e => console.warn("Auto-play blocked", e)); }
             if (navigator.vibrate) { navigator.vibrate([200, 100, 200]); }
         }
+        // Naya Function: Screen par AI ka message bubble dikhane ke liye
+function addAIBubble(text) {
+    document.getElementById('emptyPlaceholder').style.display = 'none';
+    const chat = document.getElementById('chatArea');
+    const bId = "ai-" + Date.now();
+    const b = document.createElement('div');
+    
+    b.className = "bubble ai-bubble animate-pop"; 
+    b.id = bId;
+    b.innerHTML = `<p class="whitespace-pre-wrap">${text}</p>`;
+    
+    chat.appendChild(b); 
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// Naya Function: Supabase Edge Function ('chat-brain') se reply laane ke liye
+async function getAIReply(userMessage) {
+    // Chat mein temporary loading indicator show karen
+    addAIBubble("⏳ AI soch raha hai...");
+    const chatArea = document.getElementById('chatArea');
+    const lastBubble = chatArea.lastChild; // Loading wale bubble ka reference
+
+    try {
+        // Supabase Edge Function ko invoke karna
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: { 
+                message: userMessage, 
+                phone: userPhone,
+                name: document.getElementById('editName').value 
+            }
+        });
+
+        if (error) throw error;
+
+        // Agar backend se reply aaye toh loading text ko asli reply se badal dein
+        if (data && data.reply) {
+            lastBubble.querySelector('p').innerText = data.reply;
+        } else {
+            lastBubble.querySelector('p').innerText = "Sorry, mujhe samajh nahi aaya. Dubara likhiye.";
+        }
+    } catch (e) {
+        console.error("AI Function Error:", e);
+        lastBubble.querySelector('p').innerText = "⚠️ Server se jor nahi pa raha hoon. Net check karen.";
+    }
+    chatArea.scrollTop = chatArea.scrollHeight;
+}
 
         function unlockAudio() {
             if(sound) {
@@ -552,6 +603,17 @@ function stopVideo() {
             draftData[key].push({ id: bId, data: itemData });
             chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
             document.getElementById('confirmBtnRow').classList.remove('hidden');
+            // ... (baki ka purana addToDraft ka code waise hi rahega)
+            
+            chat.appendChild(b); 
+            chat.scrollTop = chat.scrollHeight;
+            document.getElementById('confirmBtnRow').classList.remove('hidden');
+
+            // FIX: Agar user ne text bhejha hai, toh automatic AI reply trigger karen
+            if (type === 'text') {
+                getAIReply(itemData);
+            }
+        }
         }
 
         function toggleSelect(id, type) {
