@@ -856,67 +856,104 @@
             }
         };
 
-        // --- 9. FINAL CHECKOUT SUBMISSION LOGIC ---
-        // --- UPDATED CHECKOUT LOGIC WITH TIMING & STATUS CONTROL ---
+        // --- SMART VENDOR-TO-CUSTOMER FALLBACK LOGIC (NO HARD ERROR FOR UNREGISTERED VENDORS) ---
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     
     if (currentOrderContext.activeIncompleteItem !== null) {
         return Dialog.show("Missing Information", "Meharbani karke pehle system ke puche gaye adhure sawal ka jawab dein.", "alert");
     }
+
+    let userRole = localStorage.getItem('faster_user_role') || 'customer'; 
+    let userPhone = localStorage.getItem('faster_phone');
+    let userAddress = localStorage.getItem('faster_address') || ""; 
     
-    // User ka entered area aur block fetch karein (Profile ya runtime context se)
-    let userProfileAddress = localStorage.getItem('faster_address') || "";
-    
-    // Simple verification check block setup 
-    if(userProfileAddress) {
-        // Assume address contains Area name. We check area status from database.
-        // Example parsing or simple database match
-        try {
-            // Hum check karenge ki user ka area database me active hai ya closed hai
-            // Chunkay address field single text hai, islye pure table ka list le kar match kar sakte hain
-            const { data: activeMatrix, error } = await _supabase.from('delivery_rates').select('*');
+    let finalCalculatedFee = null; 
+    let matchedRate = null;
+
+    try {
+        // Step 1: Supabase se active delivery rates fetch karein
+        const { data: ratesMatrix, error } = await _supabase
+            .from('delivery_rates')
+            .eq('is_active', true);
+        
+        if (!error && ratesMatrix) {
             
-            if (!error && activeMatrix) {
-                let matchedArea = activeMatrix.find(row => 
-                    userProfileAddress.toLowerCase().includes(row.area.toLowerCase()) &&
-                    userProfileAddress.toLowerCase().includes(row.block.toLowerCase())
+            // Step 2: Agar user Vendor hai, to PEHLE uska specific rate check karein
+            if (userRole === 'vendor') {
+                matchedRate = ratesMatrix.find(row => 
+                    row.vendor_phone === userPhone &&
+                    userAddress.toLowerCase().includes(row.area.toLowerCase()) &&
+                    userAddress.toLowerCase().includes(row.block.toLowerCase())
                 );
-                
-                if (matchedArea) {
-                    // 1. Check Status (Active/Inactive Toggle)
-                    if (!matchedArea.is_active) {
-                        return Dialog.show(
-                            "Coming Soon! 🚀", 
-                            `Hum jald hi aapke area (${matchedArea.area} ${matchedArea.block}) me service start kar rhe hain! Tab tak aap hamari homepage promotions dekh sakte hain.`, 
-                            "alert"
-                        );
-                    }
-                    
-                    // 2. Check Service Timings
-                    let currentTime = new Date().toTimeString().split(' ')[0]; // HH:MM:SS format
-                    let start = matchedArea.start_time;
-                    let end = matchedArea.end_time;
-                    
-                    if (currentTime < start || currentTime > end) {
-                        let formattedStart = start.substring(0,5);
-                        let formattedEnd = end.substring(0,5);
+            }
+
+            // Step 3: FALLBACK CRITICAL LOGIC
+            // Agar vendor ka apna rate nahi mila (unregistered hai) YA user normal customer hai,
+            // toh strictly customer waala standard rate (vendor_phone === null) apply karein
+            if (!matchedRate) {
+                matchedRate = ratesMatrix.find(row => 
+                    row.vendor_phone === null &&
+                    userAddress.toLowerCase().includes(row.area.toLowerCase()) &&
+                    userAddress.toLowerCase().includes(row.block.toLowerCase())
+                );
+            }
+
+            // Step 4: Rate milne par timing check karein
+            if (matchedRate) {
+                let currentTime = new Date().toTimeString().split(' ')[0];
+                if (matchedRate.start_time && matchedRate.end_time) {
+                    if (currentTime < matchedRate.start_time || currentTime > matchedRate.end_time) {
                         return Dialog.show(
                             "Service Closed 🕒", 
-                            `Meharbani karke note farmayein, ${matchedArea.area} me hamari service timing subah ${formattedStart} se raat ${formattedEnd} tak hai. Aap is timing ke doran order place kar sakte hain.`, 
+                            `Meharbani karke note farmayein, ${matchedRate.area} me hamari service timing subah ${matchedRate.start_time.substring(0,5)} se raat ${matchedRate.end_time.substring(0,5)} tak hai.`, 
                             "alert"
                         );
                     }
-                    
-                    // Agar area valid hai to dynamic delivery charges database se set ho jayenge
-                    deliveryCharges = matchedArea.delivery_fee;
                 }
+                finalCalculatedFee = matchedRate.delivery_fee;
             }
-        } catch (e) {
-            console.error("Area status verification failed:", e);
         }
+    } catch (e) {
+        console.error("Matrix Calculation Fail:", e);
     }
 
+    // --- AGAR AREA/BLOCK HI DATABASE ME NAHI HAI TO HII ERROR DIKHAYEGA ---
+    if (finalCalculatedFee === null) {
+        return Dialog.show(
+            "Service Unavailable 🚫", 
+            "Maazrat! Aapke select kiye gaye Area/Block me hamari delivery service filhal active nahi hai.", 
+            "alert"
+        );
+    }
+
+    // Global variable update (Taaki orders table aur wallet me sahi data jaye)
+    deliveryCharges = parseFloat(finalCalculatedFee);
+
+    // --- ONE-TIME OR RATE-CHANGE CONFIRMATION CHECK ---
+    let lastConfirmedFee = localStorage.getItem('faster_last_confirmed_fee');
+
+    // Agar pehli baar order ho rha hai YA admin ne backend se rate change kar diya hai
+    if (lastConfirmedFee === null || parseFloat(lastConfirmedFee) !== deliveryCharges) {
+        
+        const confirmMsg = `Aapke area ke mutabiq Delivery Charges Rs. ${deliveryCharges} hain. Kya aap is rate ko confirm karte hain?`;
+        const userConfirmed = await Dialog.show("Delivery Fee Confirmation", confirmMsg, "confirm");
+        
+        if (userConfirmed) {
+            localStorage.setItem('faster_last_confirmed_fee', deliveryCharges);
+        } else {
+            return; // Order stop agar cancel kiya
+        }
+    } else {
+        console.log("Bypassing popup. Rates matched with last confirmed fee.");
+    }
+
+    // Process to final submission (Wallet management safe zone)
+    const { data: { session } } = await _supabase.auth.getSession();
+    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
+    
+    finalSubmitOrder(session.user.email);
+}
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
     
