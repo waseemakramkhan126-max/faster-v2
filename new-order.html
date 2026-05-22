@@ -326,69 +326,29 @@
         }
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
-        function processEngineLogic(userInput) {
-            if (!userInput) return;
-            userInput = userInput.toLowerCase().trim();
-
-            if (currentOrderContext.awaitingSlotFeedback) {
-                let activeItem = currentOrderContext.activeIncompleteItem;
-                let waitingSlot = currentOrderContext.awaitingSlotFeedback.slot_key;
-                let schemaRules = masterSchema[activeItem.product_key].required_slots[waitingSlot];
-                
-                let matchedValue = userInput.match(new RegExp(schemaRules.regex_fallback));
-                
-                if (matchedValue) {
-                    activeItem.slots[waitingSlot] = matchedValue[1] || matchedValue[0];
-                    currentOrderContext.awaitingSlotFeedback = null;
-                } else {
-                    addSystemBubble(schemaRules.prompt);
-                    saveCurrentSession();
-                    return;
-                }
-            }
-
-            for (let productKey in masterSchema) {
-                if (userInput.includes(productKey)) {
-                    let isAlreadyDone = currentOrderContext.completedItems.some(i => i.product_key === productKey);
-                    
-                    if (!isAlreadyDone) {
-                        let newItem = { product_key: productKey, slots: {} };
-                        for (let slot in masterSchema[productKey].required_slots) {
-                            let pattern = masterSchema[productKey].required_slots[slot].regex_fallback;
-                            let find = userInput.match(new RegExp(pattern));
-                            newItem.slots[slot] = find ? (find[1] || find[0]) : null;
-                        }
-                        currentOrderContext.activeIncompleteItem = newItem;
-                        break; 
-                    }
-                }
-            }
-
-            let activeItem = currentOrderContext.activeIncompleteItem;
-            if (activeItem) {
-                let productRules = masterSchema[activeItem.product_key].required_slots;
-                for (let slotKey in productRules) {
-                    if (activeItem.slots[slotKey] === null) {
-                        currentOrderContext.awaitingSlotFeedback = {
-                            product_key: activeItem.product_key,
-                            slot_key: slotKey
-                        };
-                        addSystemBubble(productRules[slotKey].prompt);
-                        saveCurrentSession();
-                        return;
-                    }
-                }
-                
-                currentOrderContext.completedItems.push(activeItem);
-                currentOrderContext.activeIncompleteItem = null;
-                currentOrderContext.awaitingSlotFeedback = null;
-                
-                // Add a small confirmation from system
-                addSystemBubble(`Done! ${activeItem.product_key.toUpperCase()} order me add ho gaya hai.`);
-            }
-
-            saveCurrentSession();
+        // Purane code ki jagah ye try karein
+async function processEngineLogic(userInput) {
+    const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+    try {
+        const response = await fetch(BRAIN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: userInput })
+        });
+        
+        // Agar response 200 nahi hai, toh error dikhao
+        if (!response.ok) {
+            const errText = await response.text();
+            alert("Error: " + response.status + " - " + errText); // Yeh aapko asli error batayega!
+            return;
         }
+
+        const data = await response.json();
+        addSystemBubble(data.reply);
+    } catch (error) {
+        alert("Fetch Error: " + error.message);
+    }
+}
 
         function addSystemBubble(text) {
             document.getElementById('emptyPlaceholder').style.display = 'none';
