@@ -272,6 +272,9 @@
             activeIncompleteItem: null,
             awaitingSlotFeedback: null
         };
+        
+        // GLOBAL VARIABLE: AI ki final summary capture karne ke liye
+        let aiGeneratedSummary = ""; 
 
         // --- 2. SUPABASE INITIALIZATION ---
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
@@ -300,6 +303,16 @@
         
         const sound = document.getElementById('notifSound');
 
+        // UTILITY: Blob ko Base64 text me transform karne wala function
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
         // --- 3. DATABASE DYNAMIC SCHEMA LOADER ---
         async function loadProductSchemas() {
             try {
@@ -325,109 +338,62 @@
             }
         }
 
-        // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
-        // --- NEW UTILITIES & DATA CAPTURE VARIABLES ---
-let aiGeneratedSummary = ""; // AI ki banayi hui final summary save karne ke liye
+        // --- 4. ENGINE LOGIC FOR MULTIMODAL PROCESSING ---
+        async function processEngineLogic(type, contentData, mimeType = '') {
+             const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
 
-// Blob ko Base64 string mein convert karne ka helper
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
+             // UI bubbles se fresh context history generate karna (Leaving the very last bubble)
+             const bubbles = Array.from(document.querySelectorAll('#chatArea .bubble'));
+             if (bubbles.length > 0) bubbles.pop(); 
 
-// Upgraded Multimodal Engine Interface
-async function processEngineLogic(type, contentData, mimeType = '') {
-     const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+             const history = [];
+             bubbles.forEach(b => {
+                 const textP = b.querySelector('p');
+                 let txt = "";
+                 if (textP) {
+                     txt = textP.innerText;
+                 } else {
+                     const capEl = b.querySelector('.caption-text');
+                     txt = capEl ? capEl.innerText : (b.querySelector('audio') ? "Sent a voice note" : "Sent a media attachment");
+                 }
+                 
+                 if (b.classList.contains('customer-bubble')) {
+                     history.push({ role: 'user', content: txt });
+                 } else if (b.classList.contains('system-bubble')) {
+                     history.push({ role: 'model', content: txt });
+                 }
+             });
 
-     // UI ke chat bubbles se real-time history compile karna
-     const history = [];
-     document.querySelectorAll('#chatArea .bubble').forEach(b => {
-         const textP = b.querySelector('p');
-         if (textP) {
-             if (b.classList.contains('customer-bubble')) {
-                 history.push({ role: 'user', content: textP.innerText });
-             } else if (b.classList.contains('system-bubble')) {
-                 history.push({ role: 'model', content: textP.innerText });
-             }
-         }
-     });
+             // Payload package taiyar karna
+             let bodyData = {
+                 message: type === 'text' ? contentData : (type === 'image' ? 'Sent a photo/image attachment.' : 'Sent a voice note message.'),
+                 history: history,
+                 fileData: type !== 'text' ? contentData : null,
+                 mimeType: type !== 'text' ? mimeType : null
+             };
 
-     // Payload Structure for Multimodal Input
-     let bodyData = {
-         message: type === 'text' ? contentData : 'Attached Media File:',
-         history: history,
-         fileData: type !== 'text' ? contentData : null,
-         mimeType: type !== 'text' ? mimeType : null
-     };
+            try {
+                 const response = await fetch(BRAIN_URL, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(bodyData)
+                 });
 
-    try {
-         const response = await fetch(BRAIN_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bodyData)
-         });
+                 const data = await response.json();
 
-         const data = await response.json();
-
-         if (data.reply) {
-              addSystemBubble(data.reply);
-              
-              // Agar AI ne order summary generate ki hai to use global variable me capture karlo
-              if (data.reply.toLowerCase().includes('summary') || data.reply.toLowerCase().includes('bill') || data.reply.toLowerCase().includes('charges')) {
-                  aiGeneratedSummary = data.reply;
-              }
-         }
-    } catch (error) {
-         console.error("Brain connection error:", error);
-         addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
-    }
-}
-
-            for (let productKey in masterSchema) {
-                if (userInput.includes(productKey)) {
-                    let isAlreadyDone = currentOrderContext.completedItems.some(i => i.product_key === productKey);
-                    
-                    if (!isAlreadyDone) {
-                        let newItem = { product_key: productKey, slots: {} };
-                        for (let slot in masterSchema[productKey].required_slots) {
-                            let pattern = masterSchema[productKey].required_slots[slot].regex_fallback;
-                            let find = userInput.match(new RegExp(pattern));
-                            newItem.slots[slot] = find ? (find[1] || find[0]) : null;
-                        }
-                        currentOrderContext.activeIncompleteItem = newItem;
-                        break; 
-                    }
-                }
+                 if (data.reply) {
+                      addSystemBubble(data.reply);
+                      
+                      // Check karna ke kya AI ne Order Summary display ki hai
+                      const lowerReply = data.reply.toLowerCase();
+                      if (lowerReply.includes('summary') || lowerReply.includes('bill') || lowerReply.includes('estimated bill') || lowerReply.includes('tandoor') || lowerReply.includes('delivery charges')) {
+                          aiGeneratedSummary = data.reply; 
+                      }
+                 }
+            } catch (error) {
+                 console.error("Brain connection error:", error);
+                 addSystemBubble("Sorry, AI connect nahi ho raha. Check internet!");
             }
-
-            let activeItem = currentOrderContext.activeIncompleteItem;
-            if (activeItem) {
-                let productRules = masterSchema[activeItem.product_key].required_slots;
-                for (let slotKey in productRules) {
-                    if (activeItem.slots[slotKey] === null) {
-                        currentOrderContext.awaitingSlotFeedback = {
-                            product_key: activeItem.product_key,
-                            slot_key: slotKey
-                        };
-                        addSystemBubble(productRules[slotKey].prompt);
-                        saveCurrentSession();
-                        return;
-                    }
-                }
-                
-                currentOrderContext.completedItems.push(activeItem);
-                currentOrderContext.activeIncompleteItem = null;
-                currentOrderContext.awaitingSlotFeedback = null;
-                
-                // Add a small confirmation from system
-                addSystemBubble(`Done! ${activeItem.product_key.toUpperCase()} order me add ho gaya hai.`);
-            }
-
-            saveCurrentSession();
         }
 
         function addSystemBubble(text) {
@@ -607,8 +573,9 @@ async function processEngineLogic(type, contentData, mimeType = '') {
                     handleInput(document.getElementById('orderInput')); 
                 }
                 
-                // NEW: Engine Interception Trigger
-                processEngineLogic(val);
+                chat.appendChild(b); 
+                // AI Core Multimodal Link Trigger
+                processEngineLogic('text', val);
 
             } else if (type === 'image') {
                 const imgUrl = URL.createObjectURL(content.file);
@@ -616,10 +583,25 @@ async function processEngineLogic(type, contentData, mimeType = '') {
                     <img src="${imgUrl}" class="media-thumb shadow-sm">
                     ${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}
                 `;
+                chat.appendChild(b);
+                
+                // Image to Base64 execution flow
+                blobToBase64(content.file).then(base64 => {
+                    processEngineLogic('image', base64, content.file.type || 'image/jpeg');
+                });
+
             } else if (type === 'video') {
                 b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm" playsinline preload="metadata"></video>`;
+                chat.appendChild(b);
             } else if (type === 'voice') {
                 b.innerHTML = `<div class="flex items-center gap-1"><audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio></div>`;
+                chat.appendChild(b);
+                
+                // Voice Note to Base64 execution flow
+                blobToBase64(content).then(base64 => {
+                    processEngineLogic('voice', base64, content.type || 'audio/webm');
+                });
+
             } else if (type === 'doc') {
                 let iconClass = "fas fa-file text-gray-500";
                 if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
@@ -634,6 +616,7 @@ async function processEngineLogic(type, contentData, mimeType = '') {
                         </div>
                     </div>
                 `;
+                chat.appendChild(b);
             }
 
             let pressTimer;
@@ -657,7 +640,6 @@ async function processEngineLogic(type, contentData, mimeType = '') {
             const key = type === 'text' ? 'texts' : type + 's';
             draftData[key].push({ id: bId, data: itemData });
             
-            chat.appendChild(b); 
             chat.scrollTop = chat.scrollHeight;
             document.getElementById('confirmBtnRow').classList.remove('hidden');
         }
@@ -933,13 +915,18 @@ async function processEngineLogic(type, contentData, mimeType = '') {
                 
                 const combinedDetails = [...textData, ...captionData, ...structuredTextSummary].join(" | ");
 
-                // Final Insert
+                // MERGED WORKFLOW: Agar AI ne summary ready ki hai toh use sabse top par inject karein
+                const finalOrderDetails = aiGeneratedSummary 
+                    ? `AI GENERATED SUMMARY:\n${aiGeneratedSummary}\n\n[Raw Log System Details: ${combinedDetails}]` 
+                    : combinedDetails;
+
+                // Final Insert (Updates order_details column with AI output summary text)
                 const { error } = await _supabase.from('orders').insert([{
                     customer_phone: userPhone, 
                     customer_name: name, 
                     delivery_address: addr, 
-                    order_details: combinedDetails,
-                    structured_items: currentOrderContext.completedItems, // NEW JSONB COLUMN INJECTED HERE
+                    order_details: finalOrderDetails, // Saved perfectly!
+                    structured_items: currentOrderContext.completedItems, 
                     image_url: imgURLs, 
                     video_url: vidURLs, 
                     voice_url: vceURLs, 
