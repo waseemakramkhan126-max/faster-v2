@@ -326,19 +326,49 @@
         }
 
         // --- 4. ENGINE LOGIC FOR TEXT PROCESSING ---
-        async function processEngineLogic(userInput) {
-    // Current order ka data yahan se uthayein (jo aapke HTML mein kahin store hoga)
-    const currentOrder = document.getElementById('order-summary').innerText; 
+        // 1. AI ki 'Memory' banayein (Yeh line function se bahar sab se upar honi chahiye)
+let conversationHistory = [];
 
-    const response = await fetch(BRAIN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            message: userInput,
-            context: currentOrder // AI ko batayenge ke abhi order kya hai
-        })
-    });
-    // ... baqi code waisa hi rahega
+async function processEngineLogic(userInput) {
+    const BRAIN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/chat-brain";
+    
+    // 2. User ka naya message history mein save karein
+    conversationHistory.push({ role: "user", content: userInput });
+
+    try {
+        const response = await fetch(BRAIN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                message: userInput,
+                history: conversationHistory // 3. Ab hum PURI history AI ko bhej rahe hain
+            })
+        });
+
+        // Agar server se error aaye toh pata chal jaye
+        if (!response.ok) {
+            const errText = await response.text();
+            alert("Error: " + response.status + " - " + errText);
+            return;
+        }
+
+        const data = await response.json();
+        
+        // 4. AI ka jawab screen par dikhayein (Aapka function)
+        addSystemBubble(data.reply); 
+
+        // 5. AI ka jawab bhi history mein save karein taake usay apni baat bhi yaad rahe
+        conversationHistory.push({ role: "model", content: data.reply });
+
+    } catch (error) {
+        alert("Fetch Error: " + error.message);
+    }
+}
+
+// 6. Jab order mukammal ho jaye aur naya order shuru karna ho toh is function ko chalayein
+function resetOrderMemory() {
+    conversationHistory = []; // Is se AI ka dimagh naye customer ke liye clear ho jayega
+    console.log("Memory cleared for new order!");
 }
 
         function addSystemBubble(text) {
