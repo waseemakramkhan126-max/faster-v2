@@ -52,15 +52,20 @@
             height: 100%; height: 100vh; height: 100dvh; 
             display: flex; flex-direction: column; 
             overflow: hidden; margin: 0; 
-            background-color: var(--bg-main); 
+            
+            /* YEH 3 LINES ADD KI HAIN TAAYE PURE PAGE PAR BACKGROUND AAYE */
+            background-color: var(--chat-bg-color); 
+            background-image: var(--chat-bg-image); 
+            background-attachment: fixed;
+            background-size: cover;
+            
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
         }
         
         .chat-bg { 
-            background-color: var(--chat-bg-color); 
-            background-image: var(--chat-bg-image); 
-            background-attachment: fixed;
+            /* Yahan se background hata diya hai kyunke ab wo body par hai */
+            background: transparent; 
             flex: 1; overflow-y: auto; padding: 16px; 
             display: flex; flex-direction: column; gap: 8px; 
             scroll-behavior: smooth;
@@ -152,18 +157,18 @@
         </div>
     </div>
 
-    <div id="confirmBtnRow" class="hidden px-4 py-2 bg-white border-t shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-        <button onclick="goToOverview()" id="finalSubmitBtn" class="w-full bg-[var(--primary-btn)] hover:bg-[var(--primary-btn-hover)] text-white font-bold py-2.5 rounded-xl shadow-sm uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
-            Confirm order <i class="fas fa-arrow-right text-orange-500 bg-white rounded-full text-lg border border-white"></i>
+    <div id="confirmBtnRow" class="hidden px-4 py-2 bg-transparent shrink-0 z-40 flex justify-center">
+        <button onclick="goToOverview()" id="finalSubmitBtn" class="w-2/3 mx-auto bg-[var(--primary-btn)] hover:bg-[var(--primary-btn-hover)] text-white font-bold py-1.5 rounded-xl shadow-sm uppercase text-xs tracking-wide flex items-center justify-center gap-2 transition-colors">
+            Confirm order <i class="fas fa-arrow-right text-orange-500 bg-white rounded-full text-base border border-white"></i>
         </button>
     </div>
 
-    <footer class="bg-white p-2.5 pb-safe flex items-end gap-2 shrink-0 border-t z-50">
+    <footer class="bg-transparent p-2.5 pb-safe flex items-end gap-2 shrink-0 z-50">
         <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
             <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
         
-        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+        <div id="textInputWrapper" class="flex-1 bg-white rounded-3xl flex items-center px-4 shadow-sm">
             <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type order details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
         </div>
 
