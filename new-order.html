@@ -371,6 +371,22 @@
                 }
             } catch (e) { alert("Mic permission denied!"); }
         }
+        // ==========================================
+        // CLOSE ATTACH MENU ON OUTSIDE CLICK LOGIC YAHA SE + ICON MENU CLOES HOGA
+        // ==========================================
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('attachMenu'); // Aapka popup menu
+            const plusBtn = document.getElementById('plusBtn'); // Aapka plus (+) button
+
+            // Check karo: Agar menu open hai (us par 'active' class lagi hui hai)
+            if (menu && menu.classList.contains('active')) {
+                // Aur user ne jahan click kiya hai, wo na to Menu ke andar hai, aur na hi Plus Button hai
+                if (!menu.contains(event.target) && !plusBtn.contains(event.target)) {
+                    // Toh menu ko wapas band kar do (toggle function call karke)
+                    toggleAttachMenu(); 
+                }
+            }
+        });
 
     </script>
 </body>
