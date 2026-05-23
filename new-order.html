@@ -78,7 +78,7 @@
             user-select: none; -webkit-user-select: none; line-height: 1.4;
         }
         .customer-bubble { align-self: flex-end; background-color: var(--user-bubble); border-top-right-radius: 4px; }
-        
+        .ai-bubble { align-self: flex-start; background-color: white; border-top-left-radius: 4px; }
         /* 🔥 NEW: Selection (Long Press) Styling WhatsApp style */
         .bubble-selected { 
             background-color: rgba(0, 119, 185, 0.2) !important;
@@ -147,7 +147,10 @@
         </button>
     </div>
 
-    <footer id="mainFooter" class="bg-transparent px-2.5 pt-1 pb-safe flex items-end gap-2 shrink-0 z-50 transition-all">
+    <footer id="mainFooter" class="bg-transparent px-2.5 pt-1 pb-safe flex items-end gap-2 shrink-0 z-50 transition-all relative">
+        <div id="recordingBadge" class="hidden absolute -top-12 right-4 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-md animate-pulse">
+            <span class="w-2 h-2 bg-white rounded-full"></span> Recording...
+        </div>
         <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-white text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
             <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
@@ -166,10 +169,10 @@
 
     <div id="attachMenu">
         <div class="grid grid-cols-3 gap-6">
-            <div class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+            <label for="cameraInput" onclick="toggleAttachMenu()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                 <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
                 <span class="text-[10px] font-bold text-gray-600">Camera</span>
-            </div>
+            </label>
             <label for="galleryInput" onclick="toggleAttachMenu()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                 <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
                 <span class="text-[10px] font-bold text-gray-600">Gallery</span>
@@ -227,6 +230,7 @@
     </div>
 
     <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="handleGallerySelect(this)">
+    <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" onchange="handleGallerySelect(this)">
     
     <script>
         let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
@@ -496,6 +500,7 @@
             chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
             
             document.getElementById('confirmBtnRow').classList.remove('hidden');
+            simulateAIResponse(); // Trigger AI
         }
 
         // ==========================================
@@ -626,6 +631,71 @@
                 });
 
             closeImageEditor();
+        }
+        // ==========================================
+        // 🎙️ VOICE RECORDING LOGIC
+        // ==========================================
+        let isRecording = false;
+        const voiceBtn = document.getElementById('voiceBtn');
+        const recordingBadge = document.getElementById('recordingBadge');
+        let recordStartTime;
+
+        function startRecording(e) {
+            e.preventDefault();
+            isRecording = true;
+            recordingBadge.classList.remove('hidden');
+            voiceBtn.classList.replace('bg-green-500', 'bg-red-500'); // Button red hoga
+            recordStartTime = Date.now();
+            if(navigator.vibrate) navigator.vibrate(50); // Halka vibrate
+        }
+
+        function stopRecording(e) {
+            e.preventDefault();
+            if (!isRecording) return;
+            isRecording = false;
+            recordingBadge.classList.add('hidden');
+            voiceBtn.classList.replace('bg-red-500', 'bg-green-500'); // Button wapis green
+            
+            // Check kitni der record hua, fake audio bubble add karne ke liye
+            let duration = Math.round((Date.now() - recordStartTime) / 1000);
+            if(duration > 0) {
+                addToDraft('text', `🎵 Voice Note (0:0${duration}s)`); 
+            }
+        }
+
+        // Mouse aur Touch dono ke events
+        voiceBtn.addEventListener('mousedown', startRecording);
+        voiceBtn.addEventListener('touchstart', startRecording, {passive: false});
+        voiceBtn.addEventListener('mouseup', stopRecording);
+        voiceBtn.addEventListener('touchend', stopRecording);
+        voiceBtn.addEventListener('mouseleave', stopRecording);
+
+        // ==========================================
+        // 🤖 AI RESPONSE SIMULATION LOGIC
+        // ==========================================
+        function simulateAIResponse() {
+            const chat = document.getElementById('chatArea');
+            
+            // "AI is typing..." indicator show karein
+            const typingId = "ai-typing-" + Date.now();
+            const typingBubble = document.createElement('div');
+            typingBubble.className = "bubble ai-bubble animate-pop text-gray-500 italic text-xs";
+            typingBubble.id = typingId;
+            typingBubble.innerHTML = "AI is typing...";
+            chat.appendChild(typingBubble);
+            chat.scrollTop = chat.scrollHeight;
+
+            // 1.5 seconds baad typing indicator hide aur message show
+            setTimeout(() => {
+                const typingElement = document.getElementById(typingId);
+                if(typingElement) typingElement.remove();
+                
+                const b = document.createElement('div');
+                b.className = "bubble ai-bubble animate-pop"; 
+                b.innerHTML = `<div class="pr-2 text-gray-800 font-medium"><p>Got it! I've noted down your details. Please click "Confirm order" when you are ready.</p></div>`;
+                chat.appendChild(b); 
+                chat.scrollTop = chat.scrollHeight;
+            }, 1500);
         }
     </script>
 </body>
