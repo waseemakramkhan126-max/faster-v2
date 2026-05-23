@@ -311,7 +311,7 @@
                 b.innerHTML = `<div class="p-2 font-bold text-gray-700"><i class="fas fa-file"></i> ${content.name}</div>`;
             } else if (type === 'voice') {
                 b.innerHTML = `<audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>`;
-            } // (Videos handle if needed)
+            }
 
             const key = type === 'text' ? 'texts' : type + 's';
             draftData[key].push({ id: bId, data: itemData });
@@ -319,10 +319,9 @@
             document.getElementById('confirmBtnRow').classList.remove('hidden');
 
             // ==========================================
-            // 🤖 AI FUTURE LOGIC PLACEHOLDER YAHAN AAYEGA
+            // YAHAN PAR AI KA FUNCTION CALL HOGA 👇
             // ==========================================
-            // Jab user message bhej de (addToDraft), uske baad AI ko trigger karne ka function hum yahan se call karenge.
-            // Example: sendToAI_Backend(type, itemData);
+            processAIResponse(type, itemData);
             // ==========================================
         }
 
@@ -387,6 +386,136 @@
                 }
             }
         });
+        // ==========================================
+        // 🤖 AI LOGIC & INTEGRATION (FASTER AI)
+        // ==========================================
+        
+        let chatHistory = []; // AI ko pichli baatein yaad rakhne ke liye
+
+        // 1. File ko Base64 mein convert karne ka function (Images/Voice ke liye)
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        // 2. Bot (AI) ka message screen par dikhane ka function
+        function renderBotMessage(text) {
+            const chat = document.getElementById('chatArea');
+            const b = document.createElement('div');
+            
+            // Bot bubble styling (White color, left side)
+            b.className = "bubble animate-pop self-start bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-none text-gray-800 shadow-sm p-3 max-w-[85%] mt-2 mb-2 border border-gray-100";
+            
+            // Text formatting (Bold text aur line breaks ko handle karna)
+            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+            
+            b.innerHTML = `
+                <div class="text-[11px] font-extrabold text-orange-500 mb-1 flex items-center gap-1">
+                    <i class="fas fa-robot"></i> Faster AI
+                </div>
+                <div class="text-sm leading-relaxed">${formattedText}</div>
+                <div class="text-[10px] text-gray-400 mt-1 text-left">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            `;
+            
+            chat.appendChild(b);
+            chat.scrollTop = chat.scrollHeight; // Auto scroll to bottom
+        }
+
+        // 3. Typing Indicator dikhana (Jab AI soch raha ho)
+        function showTypingIndicator() {
+            const chat = document.getElementById('chatArea');
+            const ind = document.createElement('div');
+            ind.id = "typingIndicator";
+            ind.className = "bubble self-start bg-white text-gray-400 p-4 rounded-2xl max-w-[85%] mt-2 mb-2 shadow-sm flex items-center gap-1.5";
+            ind.innerHTML = `
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            `;
+            chat.appendChild(ind);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const ind = document.getElementById('typingIndicator');
+            if(ind) ind.remove();
+        }
+
+        // 4. Main Function: Data AI ko bhejna aur Jawab lena
+        async function processAIResponse(type, itemData) {
+            showTypingIndicator(); // Sochne ka animation shuru
+
+            let textMessage = "";
+            let fileData = null;
+            let mimeType = null;
+
+            // Agar message text hai
+            if (type === 'text') {
+                textMessage = itemData;
+            } 
+            // Agar Image ya Voice aayi hai
+            else if (type === 'image' || type === 'voice') {
+                let fileObj = itemData.file ? itemData.file : itemData; 
+                if (fileObj instanceof Blob || fileObj instanceof File) {
+                    fileData = await fileToBase64(fileObj);
+                    mimeType = fileObj.type;
+                    textMessage = type === 'image' ? "[User sent an image]" : "[User sent a voice note]"; 
+                }
+            }
+
+            // A. User ka message history mein daalo
+            chatHistory.push({ role: 'user', content: textMessage });
+
+            try {
+                // B. Supabase Edge Function ko API call bhejna (Apna Deno wala url yahan check karein)
+                const response = await fetch(`${SB_URL}/functions/v1/chat-brain`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SB_KEY}` // Security ke liye anon key
+                    },
+                    body: JSON.stringify({
+                        message: type === 'text' ? textMessage : "", 
+                        history: chatHistory.slice(0, -1), // Current message ke ilawa pichli history
+                        fileData: fileData,
+                        mimeType: mimeType
+                    })
+                });
+
+                if (!response.ok) throw new Error("AI Server Issue");
+
+                const data = await response.json();
+                const aiReply = data.reply;
+
+                hideTypingIndicator(); // Typing animation band karo
+                renderBotMessage(aiReply); // Bot ka reply screen par dikhao
+
+                // C. Bot ka jawab bhi history mein save karo
+                chatHistory.push({ role: 'model', content: aiReply });
+
+                // D. CONFIRM ORDER BUTTON MAGIC ✨
+                // Agar AI ke reply mein "Confirm order" ke alfaaz aayen, toh button ko highlight kar do!
+                if(aiReply.toLowerCase().includes("confirm order")) {
+                    const btn = document.getElementById('finalSubmitBtn');
+                    if(btn) {
+                        btn.classList.add('animate-pulse');
+                        btn.style.boxShadow = "0 0 20px rgba(234, 88, 12, 0.6)"; // Orange glow
+                    }
+                }
+
+            } catch (error) {
+                console.error("AI Logic Error:", error);
+                hideTypingIndicator();
+                renderBotMessage("Maaf kijiye, system thora busy hai. Kya aap dobara bata sakte hain?");
+            }
+        }
 
     </script>
 </body>
