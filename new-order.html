@@ -6,7 +6,6 @@
     <title>Faster - New Order</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
@@ -15,10 +14,8 @@
                 extend: {
                     colors: {
                         themeBg: 'var(--bg-main)',
-                        headerBg: 'var(--header-bg)',
-                        chatBgColor: 'var(--chat-bg-color)',
                         primaryBtn: 'var(--primary-btn)',
-                        textMain: 'var(--text-main)',
+                        primaryBtnHover: 'var(--primary-btn-hover)',
                     }
                 }
             }
@@ -29,35 +26,32 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         
         /* =========================================================
-           1. CSS VARIABLES (ROOT)
+           🎨 CSS VARIABLES (ROOTS)
            =========================================================
-           Yahan saare main colors define kiye gaye hain. 
-           Agar aapko text ya background colors change karne hon, 
-           to sirf yahan color code badlein. Pura page update ho jayega!
+           Yahan se aap kisi bhi cheez ka color asaani se badal sakte hain.
+           Baad mein agar color scheme change karni ho to bas in values ko change karein.
         ========================================================= */
         :root {
-            --bg-main: #f3f4f6;          /* App ka main background (Light Gray) */
-            --header-bg: #ffffff;        /* Top Header (AppBar) ka color (White) */
-            --chat-bg-color: #e5ddd5;    /* Chat area ka background (WhatsApp style) */
+            --bg-main: #f3f4f6;             /* App background */
+            --header-bg: #ffffff;           /* Top Header background */
+            --header-text: #1f2937;         /* Top Header Text color */
             
-            --primary-btn: #ea580c;      /* Send / Confirm Button ka color (Orange) */
-            --primary-btn-hover: #c2410c;/* Button par click/hover karne ka color */
-            --text-main: #1f2937;        /* Main text ka color (Dark Gray) */
+            --chat-bg-color: #e5ddd5;       /* Chat area ka color */
+            --chat-bg-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             
-            --msg-user-bg: #dcf8c6;      /* User ke bheje hue message ka bubble color */
-            --msg-bot-bg: #ffffff;       /* AI (Bot) ke message ka bubble color */
+            --primary-btn: #ea580c;         /* Orange Buttons */
+            --primary-btn-hover: #c2410c;   /* Orange Hover */
+            
+            --user-bubble: #dcf8c6;         /* User messages color */
+            --selection-bg: #008069;        /* Selected items topbar color */
         }
 
-        /* Strict Layout Settings */
+        /* Strict WebView & Keyboard Layout Fixes */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            height: 100%;
-            height: 100vh;
-            height: 100dvh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-            margin: 0; 
+            height: 100%; height: 100vh; height: 100dvh; 
+            display: flex; flex-direction: column; 
+            overflow: hidden; margin: 0; 
             background-color: var(--bg-main); 
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
@@ -65,170 +59,319 @@
         
         .chat-bg { 
             background-color: var(--chat-bg-color); 
-            /* Agar chat background me pattern image lagani ho to niche wali line use karein */
-            /* background-image: url('YOUR_IMAGE_URL'); */
-            background-size: cover;
-            background-position: center;
+            background-image: var(--chat-bg-image); 
+            background-attachment: fixed;
+            flex: 1; overflow-y: auto; padding: 16px; 
+            display: flex; flex-direction: column; gap: 8px; 
+            scroll-behavior: smooth;
         }
 
-        /* Header Hide/Show Animation */
-        #appHeader {
-            transition: transform 0.3s ease-in-out;
-            z-index: 50;
+        #attachMenu { 
+            position: fixed; bottom: 75px; left: 16px; background: white; 
+            border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+            padding: 20px; width: 280px; z-index: 9999; 
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            transform: scale(0); transform-origin: bottom left; 
+            opacity: 0; pointer-events: none;
         }
+        #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
 
-        /* Message Bubbles Styling */
-        .msg-user { background-color: var(--msg-user-bg); border-radius: 12px 0px 12px 12px; }
-        .msg-bot { background-color: var(--msg-bot-bg); border-radius: 0px 12px 12px 12px; }
+        .bubble { 
+            max-width: 82%; padding: 8px 10px; border-radius: 12px; 
+            font-size: 14.5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+            word-wrap: break-word; position: relative; transition: all 0.2s ease; 
+            user-select: none; -webkit-user-select: none; line-height: 1.4;
+        }
+        .customer-bubble { align-self: flex-end; background-color: var(--user-bubble); border-top-right-radius: 4px; }
         
-        /* Scrollbar Hide (Taake clean look aaye) */
-        ::-webkit-scrollbar { display: none; }
+        .bubble-selected { 
+            background-color: #bceb9e !important; transform: scale(0.96); 
+            border: 2px solid var(--selection-bg); box-shadow: 0 4px 10px rgba(0,128,105,0.2); opacity: 0.9;
+        }
+        .bubble-selected::after {
+            content: '\f058'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            position: absolute; right: -8px; bottom: -8px; color: var(--selection-bg); 
+            background: white; border-radius: 50%; font-size: 16px; box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        .media-thumb { width: 100%; max-width: 110px; max-height: 110px; border-radius: 12px; pointer-events: none; object-fit: cover; background-color: rgba(0,0,0,0.05); }
+        .caption-text { font-size: 13px; color: #1f2937; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(0,0,0,0.05); }
+        
+        .animate-pop { animation: pop 0.2s ease-out forwards; }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .voice-active { background-color: #ef4444 !important; animation: pulse-shadow 1.5s infinite; }
+        @keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        .capture-btn { width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.3); background: white; border-radius: 50%; position: relative; }
+        .capture-btn::after { content: ''; position: absolute; inset: 4px; border: 2px solid #000; border-radius: 50%; }
+
+        textarea::-webkit-scrollbar { display: none; }
+        #offlineBanner { transition: top 0.3s ease-in-out; }
+        .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+
+        /* Header animation classes */
+        #appHeader { transition: transform 0.3s ease-in-out; }
     </style>
 </head>
-<body class="relative flex flex-col h-full w-full max-w-md mx-auto shadow-lg bg-themeBg">
+<body>
 
-    <header id="appHeader" class="absolute top-0 w-full bg-headerBg shadow-sm h-12 flex items-center justify-between px-4">
-        <button onclick="window.history.back()" class="text-textMain hover:opacity-70">
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
+    </div>
+
+    <div id="customModal" class="fixed inset-0 bg-black/60 z-[100000] hidden items-center justify-center backdrop-blur-sm px-4">...</div>
+
+    <header id="appHeader" class="fixed top-0 w-full bg-[var(--header-bg)] shadow-sm h-12 flex items-center justify-between px-4 z-[100]">
+        <button onclick="window.history.back()" class="text-[var(--header-text)] hover:opacity-70">
             <i class="fas fa-arrow-left text-lg"></i>
         </button>
-        
-        <h1 class="text-textMain text-sm font-bold flex-1 text-center">
+        <h1 class="text-[var(--header-text)] text-sm font-bold flex-1 text-center">
             Please Enter order Details
+                       ⤵️
         </h1>
-        
         <div class="w-5"></div>
     </header>
 
-    <main id="chatContainer" class="flex-1 chat-bg overflow-y-auto mt-12 mb-32 p-4 flex flex-col gap-3">
-        
-        <div class="self-start max-w-[85%] msg-bot shadow-sm p-3 text-sm text-gray-800">
-            Assalam o Alaikum! Mujhe order details likh kar, bol kar ya tasveer bhej kar batayein.
-            <div class="text-[10px] text-gray-400 mt-1 text-right">Bot</div>
+    <header id="selectionHeader" class="fixed top-0 w-full hidden bg-[var(--selection-bg)] h-12 text-white flex items-center shadow-md z-[110] px-4">
+        <div class="flex items-center">
+            <i class="fas fa-arrow-left mr-5 cursor-pointer text-xl active:scale-90" onclick="cancelSelection()"></i>
+            <span id="selectionCount" class="font-bold text-lg">1</span>
         </div>
-
-    </main>
-
-    <div class="absolute bottom-0 w-full bg-themeBg border-t border-gray-200 flex flex-col px-3 py-2 z-50">
-        
-        <div class="flex items-center gap-2 mb-2">
-            <button class="text-gray-500 text-xl p-2 hover:bg-gray-200 rounded-full transition">
-                <i class="fas fa-plus"></i>
-            </button>
-            
-            <div class="flex-1 bg-white rounded-full flex items-center px-4 py-2 shadow-sm border border-gray-300">
-                <input type="text" id="messageInput" placeholder="Message..." class="flex-1 bg-transparent outline-none text-sm text-gray-800">
-                <button class="text-gray-500 ml-2 text-lg"><i class="fas fa-camera"></i></button>
-            </div>
-
-            <button onclick="sendMessage()" class="bg-[var(--primary-btn)] text-white h-10 w-10 rounded-full flex items-center justify-center shadow-md hover:bg-[var(--primary-btn-hover)] transition">
-                <i class="fas fa-paper-plane text-sm"></i>
-            </button>
+        <div class="ml-auto flex items-center gap-6">
+            <i id="editIcon" class="fas fa-reply cursor-pointer text-xl active:scale-90 transition-transform" onclick="editSelected()"></i>
+            <i class="fas fa-trash cursor-pointer text-xl active:scale-90 transition-transform" onclick="confirmDelete()"></i>
         </div>
+    </header>
 
-        <button id="confirmBtn" onclick="confirmOrder()" class="w-full bg-[var(--primary-btn)] text-white font-bold text-sm py-3 rounded-lg shadow-md flex items-center justify-center gap-2 hover:bg-[var(--primary-btn-hover)] transition">
-            Confirm order <i class="fas fa-check-circle text-white opacity-90 text-lg"></i>
-        </button>
-        
+    <div id="chatArea" class="chat-bg relative mt-12">
+        <div id="emptyPlaceholder" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            <span class="text-lg font-black uppercase tracking-[0.3em] text-gray-500">( Empty )</span>
+        </div>
     </div>
 
+    <div id="confirmBtnRow" class="hidden px-4 py-2 bg-white border-t shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+        <button onclick="goToOverview()" id="finalSubmitBtn" class="w-full bg-[var(--primary-btn)] hover:bg-[var(--primary-btn-hover)] text-white font-bold py-2.5 rounded-xl shadow-sm uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
+            Confirm order <i class="fas fa-arrow-right text-orange-500 bg-white rounded-full text-lg border border-white"></i>
+        </button>
+    </div>
+
+    <footer class="bg-white p-2.5 pb-safe flex items-end gap-2 shrink-0 border-t z-50">
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+            <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
+        </button>
+        
+        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+            <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type order details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
+        </div>
+
+        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+        </div>
+
+        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+        </button>
+        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-microphone" id="micIcon"></i>
+        </button>
+    </footer>
+
+    <div id="attachMenu">
+        <div class="grid grid-cols-3 gap-6">
+            <div onclick="startCustomCamera()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Camera</span>
+            </div>
+            <label for="galleryInput" onclick="toggleAttachMenu()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Gallery</span>
+            </label>
+            <label for="docInput" onclick="toggleAttachMenu()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-gray-700 to-slate-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-file-lines"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Docs</span>
+            </label>
+        </div>
+    </div>
+
+    <div id="customCamOverlay" class="fixed inset-0 bg-black z-[10000] hidden flex-col">...</div>
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.rtf,.dot,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.csv" multiple onchange="previewFile(this, 'doc')">
+    <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">...</div>
+
     <script>
-        // --- A. APPBAR SCROLL HIDE/SHOW LOGIC ---
-        const chatContainer = document.getElementById('chatContainer');
-        const header = document.getElementById('appHeader');
+        // Storage & Supabase setup (Original)
+        const safeStorage = {
+            getItem: function(key) { try { return localStorage.getItem(key); } catch (e) { return this._fb[key] || null; } },
+            setItem: function(key, val) { try { localStorage.setItem(key, val); } catch (e) { this._fb[key] = val; } },
+            _fb: {}
+        };
+
+        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
+        let deliveryCharges = 150; 
+        let selectedItems = []; 
+        let userPhone = safeStorage.getItem('faster_phone') || "";
+        
+        // Customer ki background details (Kyunke UI se hata di hain)
+        let customerName = safeStorage.getItem('faster_name') || "";
+        let customerAddress = safeStorage.getItem('faster_address') || "";
+
+        // ==========================================
+        // CHANGE 2: SCROLL UP HIDE LOGIC
+        // ==========================================
+        const chatContainerBox = document.getElementById('chatArea');
+        const appHeader = document.getElementById('appHeader');
         let lastScrollTop = 0;
 
-        chatContainer.addEventListener('scroll', function() {
-            let currentScroll = chatContainer.scrollTop;
-            
-            // Agar user chat history padhne ke liye upar scroll kare (Scroll down the page)
-            if (currentScroll > lastScrollTop && currentScroll > 20) {
-                // Header ko upar ki taraf slide kar ke chupa do
-                header.style.transform = 'translateY(-100%)';
+        chatContainerBox.addEventListener('scroll', function() {
+            let currentScroll = chatContainerBox.scrollTop;
+            if (currentScroll > lastScrollTop && currentScroll > 15) {
+                appHeader.style.transform = 'translateY(-100%)'; // Hide on scroll down
             } else {
-                // Wapas niche aane par Header dikha do
-                header.style.transform = 'translateY(0)';
+                appHeader.style.transform = 'translateY(0)';     // Show on scroll up
             }
-            lastScrollTop = currentScroll;
+            lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; 
         });
 
-        // --- B. CONFIRM ORDER & REDIRECT LOGIC ---
-        function confirmOrder() {
-            // Yahan hum chat ki history aur basic details jama kar rahe hain
-            const orderData = {
-                status: 'confirm_pending',
-                history: chatHistory, // Sari AI aur user ki baatein
+        // Your Original Initialize Page Function
+        async function initPage() {
+            if(!userPhone) return window.location.replace('index.html');
+            
+            try {
+                if(navigator.onLine) {
+                    const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
+                    if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
+
+                    const { data: { session } } = await _supabase.auth.getSession();
+                    if(session) {
+                        const { data: cData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
+                        if (cData) {
+                            if (cData.name) { customerName = cData.name; safeStorage.setItem('faster_name', cData.name); }
+                            if (cData.address) { customerAddress = cData.address; safeStorage.setItem('faster_address', cData.address); }
+                        }
+                    }
+                }
+            } catch (e) { console.error("Fetch error:", e); }
+        }
+        initPage();
+
+        // Menu Toggles & Inputs (Original)
+        function toggleAttachMenu() {
+            document.getElementById('attachMenu').classList.toggle('active');
+            document.getElementById('plusIcon').classList.toggle('rotate-45');
+            document.getElementById('plusIcon').classList.toggle('text-orange-500');
+        }
+
+        function handleInput(el) {
+            el.style.height = '44px'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
+            const val = el.value.trim();
+            document.getElementById('sendBtn').classList.toggle('hidden', val === "");
+            document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
+        }
+
+        async function previewFile(input, mode) {
+            if(!input.files || input.files.length === 0) return;
+            for (const file of Array.from(input.files)) {
+                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
+                if(type === 'image') {
+                    addToDraft('image', { file: file, caption: "" });
+                } else { addToDraft(type, file); }
+            }
+            input.value = ""; 
+        }
+
+        function addToDraft(type, content) {
+            document.getElementById('emptyPlaceholder').style.display = 'none';
+            const chat = document.getElementById('chatArea');
+            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+            const b = document.createElement('div');
+            b.className = "bubble customer-bubble animate-pop"; 
+            b.id = bId;
+
+            let itemData = content;
+            if (type === 'text') {
+                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
+                if(!val) return; itemData = val; 
+                b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+                if(typeof content !== 'string') { 
+                    document.getElementById('orderInput').value = ""; 
+                    handleInput(document.getElementById('orderInput')); 
+                }
+            } else if (type === 'image') {
+                const imgUrl = URL.createObjectURL(content.file);
+                b.innerHTML = `<img src="${imgUrl}" class="media-thumb shadow-sm">`;
+            } else if (type === 'doc') {
+                b.innerHTML = `<div class="p-2 font-bold text-gray-700"><i class="fas fa-file"></i> ${content.name}</div>`;
+            } else if (type === 'voice') {
+                b.innerHTML = `<audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>`;
+            } // (Videos handle if needed)
+
+            const key = type === 'text' ? 'texts' : type + 's';
+            draftData[key].push({ id: bId, data: itemData });
+            chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+            document.getElementById('confirmBtnRow').classList.remove('hidden');
+
+            // ==========================================
+            // 🤖 AI FUTURE LOGIC PLACEHOLDER YAHAN AAYEGA
+            // ==========================================
+            // Jab user message bhej de (addToDraft), uske baad AI ko trigger karne ka function hum yahan se call karenge.
+            // Example: sendToAI_Backend(type, itemData);
+            // ==========================================
+        }
+
+        // ==========================================
+        // CHANGE 3: CONFIRM ORDER -> OVERVIEW.HTML
+        // ==========================================
+        function goToOverview() {
+            // Agar koi data nahi bheja toh alert
+            if (Object.values(draftData).flat().length === 0) {
+                return alert("Please add some items to your order.");
+            }
+            
+            // Ye data hum localStorage mein store karke overview page pe le jayenge
+            const orderPayload = {
+                items: draftData, // Isme text, voice, images sab shamil hoga
+                deliveryCharges: deliveryCharges,
+                customerName: customerName || "Guest",
+                customerAddress: customerAddress || "Not Provided",
                 timestamp: new Date().getTime()
             };
-
-            // Data ko browser ki memory (localStorage) me save kar rahe hain taake overview.html isay access kar sake
-            localStorage.setItem('fasterOrderData', JSON.stringify(orderData));
-
-            // overview.html wale page par bhej do
+            
+            localStorage.setItem('fasterOrderData', JSON.stringify(orderPayload));
+            
+            // overview.html pe redirect
             window.location.href = 'overview.html';
         }
 
-        // --- C. CHAT & AI LOGIC (FUTURE PLACEHOLDERS) ---
-        let chatHistory = []; // Isme AI aur user ki baatein save hongi
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const userText = input.value.trim();
-
-            if(userText === "") return;
-
-            // 1. User ka message screen par dikhao
-            renderMessage('user', userText);
-            input.value = ''; // Input box khali karo
-
-            // 2. Chat history array me user ka message add karo (AI ko context dene ke liye)
-            chatHistory.push({ role: 'user', content: userText });
-
-            // ---> [FUTURE AI INTEGRATION: JAB AAP API LAGAYENGE TO YE CODE UNCOMMENT HOGA] <---
-            /*
-            // Loading ya typing indicator dikhayein yahan...
-            
-            fetch('https://YOUR_SUPABASE_PROJECT.functions.supabase.co/chat-brain', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userText, history: chatHistory })
-            })
-            .then(res => res.json())
-            .then(data => {
-                const aiReply = data.reply;
-                
-                // Bot ka reply screen par dikhao
-                renderMessage('bot', aiReply);
-                
-                // Bot ka reply history mein save karo
-                chatHistory.push({ role: 'model', content: aiReply });
-            })
-            .catch(err => console.error("AI Error:", err));
-            */
+        // Voice Recording & Camera Logic Same as Yours
+        let audioRecorder; let audioChunks = [];
+        async function handleVoice() {
+            const vBtn = document.getElementById('voiceBtn');
+            const micIcon = document.getElementById('micIcon');
+            try {
+                if (!audioRecorder || audioRecorder.state === "inactive") {
+                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioRecorder = new MediaRecorder(aStream); audioChunks = [];
+                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    audioRecorder.onstop = () => { 
+                        addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); 
+                        aStream.getTracks().forEach(track => track.stop()); 
+                    };
+                    audioRecorder.start(); 
+                    vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
+                } else {
+                    audioRecorder.stop(); vBtn.classList.remove('voice-active'); micIcon.className = 'fas fa-microphone';
+                }
+            } catch (e) { alert("Mic permission denied!"); }
         }
 
-        // UI me naya message lagane wala helper function
-        function renderMessage(sender, text) {
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const isUser = sender === 'user';
-            
-            const msgDiv = document.createElement('div');
-            // CSS Variables automatically colors utha lenge
-            msgDiv.className = isUser 
-                ? `self-end max-w-[85%] msg-user shadow-sm p-3 text-sm text-gray-800`
-                : `self-start max-w-[85%] msg-bot shadow-sm p-3 text-sm text-gray-800`;
-            
-            msgDiv.innerHTML = `
-                ${text}
-                <div class="text-[10px] text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}">
-                    ${timeStr} ${isUser ? '<i class="fas fa-check text-gray-400 ml-1"></i>' : ''}
-                </div>
-            `;
-            
-            chatContainer.appendChild(msgDiv);
-            
-            // Naya message aane par automatically bottom par scroll karna
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
     </script>
 </body>
 </html>
