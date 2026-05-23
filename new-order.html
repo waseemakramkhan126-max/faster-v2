@@ -207,6 +207,25 @@
     <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.rtf,.dot,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.csv" multiple onchange="previewFile(this, 'doc')">
     <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">...</div>
 
+    <div id="imageEditorModal" class="fixed inset-0 bg-black z-[110000] hidden flex-col transition-opacity">
+        <div class="flex items-center justify-between p-4 text-white bg-gray-900 shadow-md">
+            <button onclick="closeImageEditor()" class="text-xl p-2 active:scale-90"><i class="fas fa-times"></i> Cancel</button>
+            <span class="font-bold text-sm">Draw / Highlight</span>
+            <button onclick="saveEditedImage()" class="text-xl p-2 text-green-400 active:scale-90"><i class="fas fa-check"></i> Done</button>
+        </div>
+        
+        <div class="flex-1 relative overflow-hidden flex justify-center items-center bg-black/90">
+            <canvas id="drawingCanvas" class="touch-none shadow-lg"></canvas>
+        </div>
+        
+        <div class="p-5 flex justify-center gap-6 bg-gray-900 pb-safe">
+            <button onclick="setDrawColor('red', this)" class="color-btn w-8 h-8 rounded-full bg-red-500 border-2 border-white transform scale-110 shadow-[0_0_10px_red]"></button>
+            <button onclick="setDrawColor('#0077b9', this)" class="color-btn w-8 h-8 rounded-full bg-[#0077b9] border-2 border-transparent"></button>
+            <button onclick="setDrawColor('#22c55e', this)" class="color-btn w-8 h-8 rounded-full bg-green-500 border-2 border-transparent"></button>
+            <button onclick="setDrawColor('#eab308', this)" class="color-btn w-8 h-8 rounded-full bg-yellow-500 border-2 border-transparent"></button>
+            <button onclick="setDrawColor('white', this)" class="color-btn w-8 h-8 rounded-full bg-white border-2 border-gray-400"></button>
+        </div>
+    </div>
     <script>
         // Storage & Supabase setup (Original)
         const safeStorage = {
@@ -300,19 +319,38 @@
             b.className = "bubble customer-bubble animate-pop"; 
             b.id = bId;
 
+            // Yahan se replace karein 👇
             let itemData = content;
             if (type === 'text') {
                 const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
                 if(!val) return; itemData = val; 
-                b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+                
+                // Text ke sath chota sa edit icon (Pencil) add kar diya hai
+                b.innerHTML = `
+                    <div class="flex justify-between items-start gap-3">
+                        <p class="whitespace-pre-wrap">${val}</p>
+                        <button onclick="editBubbleText('${bId}')" class="text-gray-400 hover:text-[var(--primary-btn)] mt-0.5 active:scale-90">
+                            <i class="fas fa-edit text-sm"></i>
+                        </button>
+                    </div>`;
+                    
                 if(typeof content !== 'string') { 
                     document.getElementById('orderInput').value = ""; 
                     handleInput(document.getElementById('orderInput')); 
                 }
             } else if (type === 'image') {
                 const imgUrl = URL.createObjectURL(content.file);
-                b.innerHTML = `<img src="${imgUrl}" class="media-thumb shadow-sm">`;
+                
+                // Image ke upar draw karne wala pencil icon add kar diya hai
+                b.innerHTML = `
+                    <div class="relative group">
+                        <img id="img-${bId}" src="${imgUrl}" class="media-thumb shadow-sm">
+                        <button onclick="openImageEditor('${bId}', '${imgUrl}')" class="absolute top-1.5 right-1.5 bg-black/60 text-white w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm shadow-md active:scale-90">
+                            <i class="fas fa-pencil-alt text-[11px]"></i>
+                        </button>
+                    </div>`;
             } else if (type === 'doc') {
+             // ... baqi code waisa hi rahega ...
                 b.innerHTML = `<div class="p-2 font-bold text-gray-700"><i class="fas fa-file"></i> ${content.name}</div>`;
             } else if (type === 'voice') {
                 b.innerHTML = `<audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>`;
@@ -546,7 +584,142 @@
                 }
             }
         }
+// ==========================================
+        // 🗑️ DELETE ITEM LOGIC
+        // ==========================================
+        function deleteItem(bId, type) {
+            // 1. Screen se gayab karo
+            const element = document.getElementById(bId);
+            if(element) element.remove();
 
+            // 2. Draft memory se nikalo
+            const key = type === 'text' ? 'texts' : type + 's';
+            draftData[key] = draftData[key].filter(item => item.id !== bId);
+
+            // 3. Agar screen khali ho gayi hai to (Empty) dobara dikhao aur button chupao
+            const allItemsCount = Object.values(draftData).flat().length;
+            if (allItemsCount === 0) {
+                document.getElementById('emptyPlaceholder').style.display = 'flex';
+                document.getElementById('confirmBtnRow').classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // ✍️ TEXT EDIT LOGIC
+        // ==========================================
+        function editBubbleText(bId) {
+            let textObj = draftData.texts.find(item => item.id === bId);
+            if(!textObj) return;
+
+            // 1. Text ko dobara input box mein daalo
+            const input = document.getElementById('orderInput');
+            input.value = textObj.data;
+            handleInput(input);
+            input.focus(); 
+
+            // 2. Purana wala message screen se aur memory se delete kar do
+            deleteItem(bId, 'text');
+        }
+
+        // ==========================================
+        // 🎨 IMAGE DRAWING LOGIC (CANVAS)
+        // ==========================================
+        let drawCanvas = document.getElementById('drawingCanvas');
+        let ctx = drawCanvas.getContext('2d');
+        let isDrawing = false;
+        let currentEditingBubbleId = null;
+        let originalImg = new Image(); // Taake drawing save ho sake
+
+        function openImageEditor(bubbleId, imgSrc) {
+            currentEditingBubbleId = bubbleId;
+            const modal = document.getElementById('imageEditorModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            originalImg.onload = function() {
+                // Canvas ka size fix karna
+                let maxWidth = window.innerWidth;
+                let maxHeight = window.innerHeight - 140; 
+                let ratio = Math.min(maxWidth / originalImg.width, maxHeight / originalImg.height);
+
+                drawCanvas.width = originalImg.width * ratio;
+                drawCanvas.height = originalImg.height * ratio;
+
+                // Picture lagana
+                ctx.drawImage(originalImg, 0, 0, drawCanvas.width, drawCanvas.height);
+                
+                // Pencil ki settings (Default color aapka custom blue)
+                ctx.strokeStyle = "#0077b9"; 
+                ctx.lineWidth = 4;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+            }
+            originalImg.src = imgSrc;
+        }
+
+        function closeImageEditor() {
+            document.getElementById('imageEditorModal').classList.add('hidden');
+            document.getElementById('imageEditorModal').classList.remove('flex');
+        }
+
+        function setDrawColor(color, btnElement) {
+            ctx.strokeStyle = color;
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('transform', 'scale-110', 'border-white', 'shadow-[0_0_10px_red]');
+                btn.classList.add('border-transparent');
+            });
+            btnElement.classList.add('transform', 'scale-110', 'border-white');
+            if(color === 'red') btnElement.classList.add('shadow-[0_0_10px_red]');
+        }
+
+        // Touch & Mouse Drawing Logic
+        function getDrawPos(e) {
+            let rect = drawCanvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function startDrawing(e) {
+            e.preventDefault(); isDrawing = true;
+            let pos = getDrawPos(e);
+            ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+        }
+
+        function drawPath(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            let pos = getDrawPos(e);
+            ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        }
+
+        function stopDrawing() { isDrawing = false; }
+
+        drawCanvas.addEventListener('mousedown', startDrawing);
+        drawCanvas.addEventListener('mousemove', drawPath);
+        drawCanvas.addEventListener('mouseup', stopDrawing);
+        drawCanvas.addEventListener('touchstart', startDrawing, {passive: false});
+        drawCanvas.addEventListener('touchmove', drawPath, {passive: false});
+        drawCanvas.addEventListener('touchend', stopDrawing);
+
+        // Nayi drawing save karna aur choti image update karna
+        function saveEditedImage() {
+            let editedDataUrl = drawCanvas.toDataURL("image/png");
+            
+            let imgEl = document.getElementById(`img-${currentEditingBubbleId}`);
+            if(imgEl) { imgEl.src = editedDataUrl; }
+
+            // Memory me bhi nayi picture save karna
+            fetch(editedDataUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    let newFile = new File([blob], "edited_image.png", {type: "image/png"});
+                    let imgObj = draftData.images.find(item => item.id === currentEditingBubbleId);
+                    if(imgObj) { imgObj.data.file = newFile; }
+                });
+
+            closeImageEditor();
+        }
     </script>
 </body>
 </html>
