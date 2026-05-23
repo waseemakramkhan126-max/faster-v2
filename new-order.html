@@ -316,7 +316,7 @@
             const key = type === 'text' ? 'texts' : type + 's';
             draftData[key].push({ id: bId, data: itemData });
             chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
-            document.getElementById('confirmBtnRow').classList.remove('hidden');
+           // document.getElementById('confirmBtnRow').classList.remove('hidden'); confirm button ko AI control kr rha hai 
 
             // ==========================================
             // YAHAN PAR AI KA FUNCTION CALL HOGA 👇
@@ -470,20 +470,24 @@
                 }
             }
 
-            // A. User ka message history mein daalo
+            // User ka message history mein daalo
             chatHistory.push({ role: 'user', content: textMessage });
 
+            // Button ke elements ko get kar lein
+            const confirmRow = document.getElementById('confirmBtnRow');
+            const confirmBtn = document.getElementById('finalSubmitBtn');
+
             try {
-                // B. Supabase Edge Function ko API call bhejna (Apna Deno wala url yahan check karein)
+                // AI ko Data Bhejna
                 const response = await fetch(`${SB_URL}/functions/v1/chat-brain`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SB_KEY}` // Security ke liye anon key
+                        'Authorization': `Bearer ${SB_KEY}` 
                     },
                     body: JSON.stringify({
                         message: type === 'text' ? textMessage : "", 
-                        history: chatHistory.slice(0, -1), // Current message ke ilawa pichli history
+                        history: chatHistory.slice(0, -1),
                         fileData: fileData,
                         mimeType: mimeType
                     })
@@ -494,26 +498,47 @@
                 const data = await response.json();
                 const aiReply = data.reply;
 
-                hideTypingIndicator(); // Typing animation band karo
-                renderBotMessage(aiReply); // Bot ka reply screen par dikhao
-
-                // C. Bot ka jawab bhi history mein save karo
+                hideTypingIndicator(); 
+                renderBotMessage(aiReply); 
                 chatHistory.push({ role: 'model', content: aiReply });
 
-                // D. CONFIRM ORDER BUTTON MAGIC ✨
-                // Agar AI ke reply mein "Confirm order" ke alfaaz aayen, toh button ko highlight kar do!
+                // ==========================================
+                // ✨ 1. AI SUCCESS LOGIC (AI DEKHEGA BUTTON DIKHANA HAI YA NAHI)
+                // ==========================================
                 if(aiReply.toLowerCase().includes("confirm order")) {
-                    const btn = document.getElementById('finalSubmitBtn');
-                    if(btn) {
-                        btn.classList.add('animate-pulse');
-                        btn.style.boxShadow = "0 0 20px rgba(234, 88, 12, 0.6)"; // Orange glow
+                    // AI ne summary de di hai aur 'confirm order' bola hai -> Button Show karo
+                    confirmRow.classList.remove('hidden');
+                    if(confirmBtn) {
+                        confirmBtn.classList.add('animate-pulse');
+                        confirmBtn.style.boxShadow = "0 0 20px rgba(234, 88, 12, 0.6)"; 
+                    }
+                } else {
+                    // AI abhi mazeed details pooch raha hai -> Button Hide kar do
+                    confirmRow.classList.add('hidden');
+                    if(confirmBtn) {
+                        confirmBtn.classList.remove('animate-pulse');
+                        confirmBtn.style.boxShadow = "none";
                     }
                 }
 
             } catch (error) {
                 console.error("AI Logic Error:", error);
                 hideTypingIndicator();
-                renderBotMessage("Maaf kijiye, system thora busy hai. Kya aap dobara bata sakte hain?");
+                
+                // ==========================================
+                // 🚨 2. AI ERROR/FALLBACK LOGIC
+                // ==========================================
+                // Agar AI ne galat response diya, error aaya, ya limit khatam hui, 
+                // toh hum customer ko direct Confirm Button dikha denge.
+                
+                renderBotMessage("Maaf kijiye, mera system thora busy hai ya network ka masla hai. Aap neechay diye gaye button se direct apna order confirm kar sakte hain!");
+                
+                // Button lazmi Show kar do taake order na ruke
+                confirmRow.classList.remove('hidden');
+                if(confirmBtn) {
+                    confirmBtn.classList.remove('animate-pulse');
+                    confirmBtn.style.boxShadow = "none";
+                }
             }
         }
 
