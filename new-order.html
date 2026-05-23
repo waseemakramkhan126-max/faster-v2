@@ -6,7 +6,6 @@
     <title>Faster - New Order</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
         tailwind.config = {
@@ -25,52 +24,42 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         
-        /* =========================================================
-           🎨 CSS VARIABLES (ROOTS)
-           =========================================================
-           Yahan se aap kisi bhi cheez ka color asaani se badal sakte hain.
-           Baad mein agar color scheme change karni ho to bas in values ko change karein.
-        ========================================================= */
         :root {
-            --bg-main: #f3f4f6;             /* App background */
-            --header-bg: #0077b9;           /* Top Header background */
-            --header-text:white;         /* Top Header Text color */
+            --bg-main: #f3f4f6;             
+            --header-bg: #0077b9;           /* Aapka custom blue color */
+            --header-text: white;         
             
-            --chat-bg-color: #e5ddd5;       /* Chat area ka color */
+            --chat-bg-color: #e5ddd5;       
             --chat-bg-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             
-            --primary-btn: #0077b9;         /* Orange confirm Buttons */
-            --primary-btn-hover: #0077b9;   /* Orange Hover */
+            --primary-btn: #0077b9;         
+            --primary-btn-hover: #005a8c;   
             
-            --user-bubble: #dcf8c6;         /* User messages color */
-            --selection-bg: #008069;        /* Selected items topbar color */
+            --user-bubble: #dcf8c6;         
+            --selection-bg: rgba(0, 119, 185, 0.9); /* Long press pe top bar ka color */
         }
 
-        /* Strict WebView & Keyboard Layout Fixes */
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             height: 100%; height: 100vh; height: 100dvh; 
             display: flex; flex-direction: column; 
             overflow: hidden; margin: 0; 
-            
-            /* YEH 3 LINES ADD KI HAIN TAAYE PURE PAGE PAR BACKGROUND AAYE */
             background-color: var(--chat-bg-color); 
             background-image: var(--chat-bg-image); 
             background-attachment: fixed;
             background-size: cover;
-            
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
         }
         
         .chat-bg { 
-            /* Yahan se background hata diya hai kyunke ab wo body par hai */
             background: transparent; 
             flex: 1; overflow-y: auto; padding: 60px 16px 16px 16px; 
             display: flex; flex-direction: column; gap: 8px; 
             scroll-behavior: smooth;
         }
 
+        /* Menu Styling */
         #attachMenu { 
             position: fixed; bottom: 75px; left: 16px; background: white; 
             border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
@@ -81,6 +70,7 @@
         }
         #attachMenu.active { transform: scale(1); opacity: 1; pointer-events: auto; }
 
+        /* Bubbles */
         .bubble { 
             max-width: 82%; padding: 8px 10px; border-radius: 12px; 
             font-size: 14.5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
@@ -89,45 +79,43 @@
         }
         .customer-bubble { align-self: flex-end; background-color: var(--user-bubble); border-top-right-radius: 4px; }
         
+        /* 🔥 NEW: Selection (Long Press) Styling WhatsApp style */
         .bubble-selected { 
-            background-color: #bceb9e !important; transform: scale(0.96); 
-            border: 2px solid var(--selection-bg); box-shadow: 0 4px 10px rgba(0,128,105,0.2); opacity: 0.9;
+            background-color: rgba(0, 119, 185, 0.2) !important;
         }
         .bubble-selected::after {
-            content: '\f058'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
-            position: absolute; right: -8px; bottom: -8px; color: var(--selection-bg); 
-            background: white; border-radius: 50%; font-size: 16px; box-shadow: 0 0 5px rgba(0,0,0,0.2);
+            content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+            position: absolute; left: -24px; top: 50%; transform: translateY(-50%); 
+            color: white; background: var(--primary-btn); border-radius: 50%; 
+            width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
+            font-size: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.2);
         }
 
-        .media-thumb { width: 100%; max-width: 110px; max-height: 110px; border-radius: 12px; pointer-events: none; object-fit: cover; background-color: rgba(0,0,0,0.05); }
-        .caption-text { font-size: 13px; color: #1f2937; margin-top: 6px; padding-top: 4px; border-top: 1px solid rgba(0,0,0,0.05); }
+        .media-thumb { width: 100%; max-width: 250px; max-height: 250px; border-radius: 12px; object-fit: cover; background-color: rgba(0,0,0,0.05); cursor: pointer;}
+        .caption-text { font-size: 13px; color: #1f2937; margin-top: 6px; padding-top: 4px; }
         
         .animate-pop { animation: pop 0.2s ease-out forwards; }
         @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        
-        .voice-active { background-color: #ef4444 !important; animation: pulse-shadow 1.5s infinite; }
-        @keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-
-        .capture-btn { width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.3); background: white; border-radius: 50%; position: relative; }
-        .capture-btn::after { content: ''; position: absolute; inset: 4px; border: 2px solid #000; border-radius: 50%; }
 
         textarea::-webkit-scrollbar { display: none; }
-        #offlineBanner { transition: top 0.3s ease-in-out; }
         .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
-
-        /* Header animation classes */
         #appHeader { transition: transform 0.3s ease-in-out; }
+        
+        /* 🔥 NEW: Zoom Overlay */
+        .zoom-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.95); z-index: 200000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .zoom-overlay.active { opacity: 1; pointer-events: auto; }
+        #zoomImage {
+            max-width: 100%; max-height: 100%; transition: transform 0.1s ease-out; transform-origin: center center;
+        }
+
     </style>
 </head>
 <body>
-
-    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
-
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
-        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
-    </div>
-
-    <div id="customModal" class="fixed inset-0 bg-black/60 z-[100000] hidden items-center justify-center backdrop-blur-sm px-4">...</div>
 
     <header id="appHeader" class="fixed top-0 w-full bg-[var(--header-bg)] shadow-sm h-12 flex items-center justify-between px-4 z-[100]">
         <button onclick="window.history.back()" class="text-[var(--header-text)] hover:opacity-70">
@@ -135,20 +123,16 @@
         </button>
         <h1 class="text-[var(--header-text)] text-sm font-bold flex-1 text-center">
             Please Enter order Details
-                       ⤵️
         </h1>
         <div class="w-5"></div>
     </header>
 
-    <header id="selectionHeader" class="fixed top-0 w-full hidden bg-[var(--selection-bg)] h-12 text-white flex items-center shadow-md z-[110] px-4">
-        <div class="flex items-center">
-            <i class="fas fa-arrow-left mr-5 cursor-pointer text-xl active:scale-90" onclick="cancelSelection()"></i>
+    <header id="selectionHeader" class="fixed top-0 w-full hidden bg-[var(--selection-bg)] h-12 text-white items-center shadow-md z-[110] px-4 justify-between transition-all">
+        <div class="flex items-center gap-4">
+            <button onclick="clearSelection()" class="text-xl active:scale-90"><i class="fas fa-arrow-left"></i></button>
             <span id="selectionCount" class="font-bold text-lg">1</span>
         </div>
-        <div class="ml-auto flex items-center gap-6">
-            <i id="editIcon" class="fas fa-reply cursor-pointer text-xl active:scale-90 transition-transform" onclick="editSelected()"></i>
-            <i class="fas fa-trash cursor-pointer text-xl active:scale-90 transition-transform" onclick="confirmDelete()"></i>
-        </div>
+        <button onclick="deleteSelectedItems()" class="text-xl active:scale-90"><i class="fas fa-trash"></i></button>
     </header>
 
     <div id="chatArea" class="chat-bg relative">
@@ -158,13 +142,13 @@
     </div>
 
     <div id="confirmBtnRow" class="hidden px-4 pt-2 pb-0 bg-transparent shrink-0 z-40 flex justify-center">
-        <button onclick="goToOverview()" id="finalSubmitBtn" class="w-2/3 mx-auto bg-[var(--primary-btn)] hover:bg-[var(--primary-btn-hover)] text-white font-bold py-1.5 rounded-xl shadow-sm uppercase text-xs tracking-wide flex items-center justify-center gap-2 transition-colors">
-            Confirm order <i class="fas fa-arrow-right text-orange-500 bg-white rounded-full text-base border border-white"></i>
+        <button onclick="goToOverview()" id="finalSubmitBtn" class="w-2/3 mx-auto bg-[var(--primary-btn)] hover:bg-[var(--primary-btn-hover)] text-white font-bold py-2 rounded-xl shadow-sm uppercase text-xs tracking-wide flex items-center justify-center gap-2 transition-colors">
+            Confirm order <i class="fas fa-arrow-right text-[var(--primary-btn)] bg-white rounded-full text-sm p-1"></i>
         </button>
     </div>
 
-    <footer class="bg-transparent px-2.5 pt-1 pb-safe flex items-end gap-2 shrink-0 z-50">
-        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+    <footer id="mainFooter" class="bg-transparent px-2.5 pt-1 pb-safe flex items-end gap-2 shrink-0 z-50 transition-all">
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-white text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
             <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
         
@@ -172,22 +156,17 @@
             <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type order details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
         </div>
 
-        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
-            <i class="fas fa-circle text-[8px] animate-pulse"></i>
-            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
-        </div>
-
-        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-[var(--primary-btn)] text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
             <i class="fas fa-paper-plane text-sm ml-0.5"></i>
         </button>
-        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+        <button id="voiceBtn" class="w-11 h-11 bg-green-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
             <i class="fas fa-microphone" id="micIcon"></i>
         </button>
     </footer>
 
     <div id="attachMenu">
         <div class="grid grid-cols-3 gap-6">
-            <div onclick="startCustomCamera()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+            <div class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                 <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
                 <span class="text-[10px] font-bold text-gray-600">Camera</span>
             </div>
@@ -195,19 +174,35 @@
                 <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
                 <span class="text-[10px] font-bold text-gray-600">Gallery</span>
             </label>
-            <label for="docInput" onclick="toggleAttachMenu()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+            <label class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                 <div class="w-14 h-14 bg-gradient-to-tr from-gray-700 to-slate-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-file-lines"></i></div>
                 <span class="text-[10px] font-bold text-gray-600">Docs</span>
             </label>
         </div>
     </div>
 
-    <div id="customCamOverlay" class="fixed inset-0 bg-black z-[10000] hidden flex-col">...</div>
-    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
-    <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.rtf,.dot,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.csv" multiple onchange="previewFile(this, 'doc')">
-    <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">...</div>
+    <div id="imagePreviewModal" class="fixed inset-0 bg-black z-[120000] hidden flex-col transition-opacity">
+        <div class="flex items-center justify-between p-4 text-white bg-black shadow-md">
+            <button onclick="closeImagePreview()" class="text-xl p-2 active:scale-90"><i class="fas fa-times"></i></button>
+            <button onclick="openImageEditorFromPreview()" class="text-xl p-2 active:scale-90"><i class="fas fa-pencil-alt"></i></button>
+        </div>
+        
+        <div class="flex-1 flex justify-center items-center p-2 relative">
+            <img id="previewModalImage" src="" class="max-w-full max-h-full object-contain">
+        </div>
 
-    <div id="imageEditorModal" class="fixed inset-0 bg-black z-[110000] hidden flex-col transition-opacity">
+        <div class="bg-gray-900 p-2 pb-safe flex items-end gap-2 w-full">
+            <div class="flex-1 bg-gray-800 rounded-3xl flex items-center px-4 border border-gray-700">
+                <textarea id="captionInput" placeholder="Add a caption..." rows="1" class="w-full bg-transparent py-3 outline-none text-white text-sm resize-none max-h-24"></textarea>
+            </div>
+            <button onclick="sendPreviewedImage()" class="w-11 h-11 bg-[var(--primary-btn)] text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+            </button>
+        </div>
+    </div>
+
+
+    <div id="imageEditorModal" class="fixed inset-0 bg-black z-[130000] hidden flex-col transition-opacity">
         <div class="flex items-center justify-between p-4 text-white bg-gray-900 shadow-md">
             <button onclick="closeImageEditor()" class="text-xl p-2 active:scale-90"><i class="fas fa-times"></i> Cancel</button>
             <span class="font-bold text-sm">Draw / Highlight</span>
@@ -215,7 +210,7 @@
         </div>
         
         <div class="flex-1 relative overflow-hidden flex justify-center items-center bg-black/90">
-            <canvas id="drawingCanvas" class="touch-none shadow-lg"></canvas>
+            <canvas id="drawingCanvas" class="touch-none shadow-lg max-w-full max-h-full"></canvas>
         </div>
         
         <div class="p-5 flex justify-center gap-6 bg-gray-900 pb-safe">
@@ -226,72 +221,29 @@
             <button onclick="setDrawColor('white', this)" class="color-btn w-8 h-8 rounded-full bg-white border-2 border-gray-400"></button>
         </div>
     </div>
+
+    <div id="zoomOverlay" class="zoom-overlay" onclick="closeZoom(event)">
+        <img id="zoomImage" src="">
+    </div>
+
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="handleGallerySelect(this)">
+    
     <script>
-        // Storage & Supabase setup (Original)
-        const safeStorage = {
-            getItem: function(key) { try { return localStorage.getItem(key); } catch (e) { return this._fb[key] || null; } },
-            setItem: function(key, val) { try { localStorage.setItem(key, val); } catch (e) { this._fb[key] = val; } },
-            _fb: {}
-        };
-
-        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
-        const _supabase = supabase.createClient(SB_URL, SB_KEY);
-
         let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
-        let deliveryCharges = 150; 
-        let selectedItems = []; 
-        let userPhone = safeStorage.getItem('faster_phone') || "";
         
-        // Customer ki background details (Kyunke UI se hata di hain)
-        let customerName = safeStorage.getItem('faster_name') || "";
-        let customerAddress = safeStorage.getItem('faster_address') || "";
-
-        // ==========================================
-        // CHANGE 2: SCROLL UP HIDE LOGIC
-        // ==========================================
+        // --- SCROLL APPBAR HIDE ---
         const chatContainerBox = document.getElementById('chatArea');
         const appHeader = document.getElementById('appHeader');
         let lastScrollTop = 0;
-
         chatContainerBox.addEventListener('scroll', function() {
             let currentScroll = chatContainerBox.scrollTop;
             if (currentScroll > lastScrollTop && currentScroll > 15) {
-                appHeader.style.transform = 'translateY(-100%)'; // Hide on scroll down
+                appHeader.style.transform = 'translateY(-100%)'; 
             } else {
-                appHeader.style.transform = 'translateY(0)';     // Show on scroll up
+                appHeader.style.transform = 'translateY(0)';     
             }
             lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; 
         });
-
-        // Your Original Initialize Page Function
-        async function initPage() {
-            if(!userPhone) return window.location.replace('index.html');
-            
-            try {
-                if(navigator.onLine) {
-                    const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
-                    if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
-
-                    const { data: { session } } = await _supabase.auth.getSession();
-                    if(session) {
-                        const { data: cData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
-                        if (cData) {
-                            if (cData.name) { customerName = cData.name; safeStorage.setItem('faster_name', cData.name); }
-                            if (cData.address) { customerAddress = cData.address; safeStorage.setItem('faster_address', cData.address); }
-                        }
-                    }
-                }
-            } catch (e) { console.error("Fetch error:", e); }
-        }
-        initPage();
-
-        // Menu Toggles & Inputs (Original)
-        function toggleAttachMenu() {
-            document.getElementById('attachMenu').classList.toggle('active');
-            document.getElementById('plusIcon').classList.toggle('rotate-45');
-            document.getElementById('plusIcon').classList.toggle('text-orange-500');
-        }
 
         function handleInput(el) {
             el.style.height = '44px'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; 
@@ -300,308 +252,250 @@
             document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
         }
 
-        async function previewFile(input, mode) {
-            if(!input.files || input.files.length === 0) return;
-            for (const file of Array.from(input.files)) {
-                const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
-                if(type === 'image') {
-                    addToDraft('image', { file: file, caption: "" });
-                } else { addToDraft(type, file); }
-            }
-            input.value = ""; 
+        function toggleAttachMenu() {
+            document.getElementById('attachMenu').classList.toggle('active');
+            document.getElementById('plusIcon').classList.toggle('rotate-45');
+            document.getElementById('plusIcon').classList.toggle('text-[var(--primary-btn)]');
         }
 
-        function addToDraft(type, content) {
-            document.getElementById('emptyPlaceholder').style.display = 'none';
-            const chat = document.getElementById('chatArea');
-            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
-            const b = document.createElement('div');
-            b.className = "bubble customer-bubble animate-pop"; 
-            b.id = bId;
-
-            // Yahan se replace karein 👇
-            let itemData = content;
-            if (type === 'text') {
-                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
-                if(!val) return; itemData = val; 
-                
-                // Text ke sath chota sa edit icon (Pencil) add kar diya hai
-                b.innerHTML = `
-                    <div class="flex justify-between items-start gap-3">
-                        <p class="whitespace-pre-wrap">${val}</p>
-                        <button onclick="editBubbleText('${bId}')" class="text-gray-400 hover:text-[var(--primary-btn)] mt-0.5 active:scale-90">
-                            <i class="fas fa-edit text-sm"></i>
-                        </button>
-                    </div>`;
-                    
-                if(typeof content !== 'string') { 
-                    document.getElementById('orderInput').value = ""; 
-                    handleInput(document.getElementById('orderInput')); 
-                }
-            } else if (type === 'image') {
-                const imgUrl = URL.createObjectURL(content.file);
-                
-                // Image ke upar draw karne wala pencil icon add kar diya hai
-                b.innerHTML = `
-                    <div class="relative group">
-                        <img id="img-${bId}" src="${imgUrl}" class="media-thumb shadow-sm">
-                        <button onclick="openImageEditor('${bId}', '${imgUrl}')" class="absolute top-1.5 right-1.5 bg-black/60 text-white w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm shadow-md active:scale-90">
-                            <i class="fas fa-pencil-alt text-[11px]"></i>
-                        </button>
-                    </div>`;
-            } else if (type === 'doc') {
-             // ... baqi code waisa hi rahega ...
-                b.innerHTML = `<div class="p-2 font-bold text-gray-700"><i class="fas fa-file"></i> ${content.name}</div>`;
-            } else if (type === 'voice') {
-                b.innerHTML = `<audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio>`;
-            }
-
-            const key = type === 'text' ? 'texts' : type + 's';
-            draftData[key].push({ id: bId, data: itemData });
-            chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
-           // document.getElementById('confirmBtnRow').classList.remove('hidden'); confirm button ko AI control kr rha hai 
-
-            // ==========================================
-            // YAHAN PAR AI KA FUNCTION CALL HOGA 👇
-            // ==========================================
-            processAIResponse(type, itemData);
-            // ==========================================
-        }
-
-        // ==========================================
-        // CHANGE 3: CONFIRM ORDER -> OVERVIEW.HTML
-        // ==========================================
-        function goToOverview() {
-            // Agar koi data nahi bheja toh alert
-            if (Object.values(draftData).flat().length === 0) {
-                return alert("Please add some items to your order.");
-            }
-            
-            // Ye data hum localStorage mein store karke overview page pe le jayenge
-            const orderPayload = {
-                items: draftData, // Isme text, voice, images sab shamil hoga
-                deliveryCharges: deliveryCharges,
-                customerName: customerName || "Guest",
-                customerAddress: customerAddress || "Not Provided",
-                timestamp: new Date().getTime()
-            };
-            
-            localStorage.setItem('fasterOrderData', JSON.stringify(orderPayload));
-            
-            // overview.html pe redirect
-            window.location.href = 'overview.html';
-        }
-
-        // Voice Recording & Camera Logic Same as Yours
-        let audioRecorder; let audioChunks = [];
-        async function handleVoice() {
-            const vBtn = document.getElementById('voiceBtn');
-            const micIcon = document.getElementById('micIcon');
-            try {
-                if (!audioRecorder || audioRecorder.state === "inactive") {
-                    const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audioRecorder = new MediaRecorder(aStream); audioChunks = [];
-                    audioRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    audioRecorder.onstop = () => { 
-                        addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); 
-                        aStream.getTracks().forEach(track => track.stop()); 
-                    };
-                    audioRecorder.start(); 
-                    vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
-                } else {
-                    audioRecorder.stop(); vBtn.classList.remove('voice-active'); micIcon.className = 'fas fa-microphone';
-                }
-            } catch (e) { alert("Mic permission denied!"); }
-        }
-        // ==========================================
-        // CLOSE ATTACH MENU ON OUTSIDE CLICK LOGIC YAHA SE + ICON MENU CLOES HOGA
-        // ==========================================
+        // Close attach menu on outside click
         document.addEventListener('click', function(event) {
-            const menu = document.getElementById('attachMenu'); // Aapka popup menu
-            const plusBtn = document.getElementById('plusBtn'); // Aapka plus (+) button
-
-            // Check karo: Agar menu open hai (us par 'active' class lagi hui hai)
+            const menu = document.getElementById('attachMenu');
+            const plusBtn = document.getElementById('plusBtn');
             if (menu && menu.classList.contains('active')) {
-                // Aur user ne jahan click kiya hai, wo na to Menu ke andar hai, aur na hi Plus Button hai
                 if (!menu.contains(event.target) && !plusBtn.contains(event.target)) {
-                    // Toh menu ko wapas band kar do (toggle function call karke)
                     toggleAttachMenu(); 
                 }
             }
         });
-        // ==========================================
-        // 🤖 AI LOGIC & INTEGRATION (FASTER AI)
-        // ==========================================
-        
-        let chatHistory = []; // AI ko pichli baatein yaad rakhne ke liye
 
-        // 1. File ko Base64 mein convert karne ka function (Images/Voice ke liye)
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    const base64String = reader.result.split(',')[1];
-                    resolve(base64String);
-                };
-                reader.onerror = (error) => reject(error);
+        // ==========================================
+        // 🖼️ CAPTION / PREVIEW LOGIC
+        // ==========================================
+        let pendingImageFile = null;
+        let pendingImageUrl = null;
+
+        function handleGallerySelect(input) {
+            if(!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            
+            if(file.type.startsWith('image/')) {
+                pendingImageFile = file;
+                pendingImageUrl = URL.createObjectURL(file);
+                
+                // Show in modal
+                document.getElementById('previewModalImage').src = pendingImageUrl;
+                document.getElementById('captionInput').value = "";
+                
+                document.getElementById('imagePreviewModal').classList.remove('hidden');
+                document.getElementById('imagePreviewModal').classList.add('flex');
+            }
+            input.value = ""; 
+        }
+
+        function closeImagePreview() {
+            document.getElementById('imagePreviewModal').classList.add('hidden');
+            document.getElementById('imagePreviewModal').classList.remove('flex');
+            pendingImageFile = null;
+            pendingImageUrl = null;
+        }
+
+        function sendPreviewedImage() {
+            const captionText = document.getElementById('captionInput').value.trim();
+            // Send to draft with caption
+            addToDraft('image', { file: pendingImageFile, caption: captionText });
+            closeImagePreview();
+        }
+
+        // ==========================================
+        // 🗑️ LONG PRESS TO SELECT & DELETE LOGIC
+        // ==========================================
+        let holdTimer;
+        let selectedBubbleIds = new Set();
+        let isSelectionMode = false;
+
+        function startHold(e, bubbleId) {
+            if(isSelectionMode) return; 
+            holdTimer = setTimeout(() => {
+                enterSelectionMode(bubbleId);
+            }, 600); // 600ms long press par delete menu aayega
+        }
+
+        function clearHold() {
+            if(holdTimer) clearTimeout(holdTimer);
+        }
+
+        function enterSelectionMode(bubbleId) {
+            isSelectionMode = true;
+            document.getElementById('appHeader').classList.add('hidden');
+            document.getElementById('selectionHeader').classList.remove('hidden');
+            document.getElementById('selectionHeader').classList.add('flex');
+            toggleSelection(bubbleId);
+        }
+
+        function handleBubbleClick(bubbleId, type, itemData) {
+            if (isSelectionMode) {
+                // Agar delete mode on hai to select/deselect hoga
+                toggleSelection(bubbleId);
+            } else {
+                // Agar normal mode hai
+                if(type === 'image') {
+                    openZoom(itemData.file); // Tap karne pe full screen
+                } else if(type === 'text') {
+                    editBubbleText(bubbleId); // Tap karne pe text edit
+                }
+            }
+        }
+
+        function toggleSelection(bubbleId) {
+            const el = document.getElementById(bubbleId);
+            if(selectedBubbleIds.has(bubbleId)) {
+                selectedBubbleIds.delete(bubbleId);
+                el.classList.remove('bubble-selected');
+            } else {
+                selectedBubbleIds.add(bubbleId);
+                el.classList.add('bubble-selected');
+            }
+            
+            document.getElementById('selectionCount').innerText = selectedBubbleIds.size;
+            if(selectedBubbleIds.size === 0) clearSelection();
+        }
+
+        function clearSelection() {
+            isSelectionMode = false;
+            selectedBubbleIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.classList.remove('bubble-selected');
             });
+            selectedBubbleIds.clear();
+            
+            document.getElementById('selectionHeader').classList.add('hidden');
+            document.getElementById('selectionHeader').classList.remove('flex');
+            document.getElementById('appHeader').classList.remove('hidden');
         }
 
-        // 2. Bot (AI) ka message screen par dikhane ka function
-        function renderBotMessage(text) {
-            const chat = document.getElementById('chatArea');
-            const b = document.createElement('div');
-            
-            // Bot bubble styling (White color, left side)
-            b.className = "bubble animate-pop self-start bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-none text-gray-800 shadow-sm p-3 max-w-[85%] mt-2 mb-2 border border-gray-100";
-            
-            // Text formatting (Bold text aur line breaks ko handle karna)
-            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
-            
-            b.innerHTML = `
-                <div class="text-[11px] font-extrabold text-[#0077b9] mb-1 flex items-center gap-1">
-                    <i class="fas fa-robot"></i> Faster AI
-                </div>
-                <div class="text-sm leading-relaxed">${formattedText}</div>
-                <div class="text-[10px] text-gray-400 mt-1 text-left">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-            `;
-            
-            chat.appendChild(b);
-            chat.scrollTop = chat.scrollHeight; // Auto scroll to bottom
-        }
-
-        // 3. Typing Indicator dikhana (Jab AI soch raha ho)
-        function showTypingIndicator() {
-            const chat = document.getElementById('chatArea');
-            const ind = document.createElement('div');
-            ind.id = "typingIndicator";
-            ind.className = "bubble self-start bg-white text-gray-400 p-4 rounded-2xl max-w-[85%] mt-2 mb-2 shadow-sm flex items-center gap-1.5";
-            ind.innerHTML = `
-                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                <div class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-            `;
-            chat.appendChild(ind);
-            chat.scrollTop = chat.scrollHeight;
-        }
-
-        function hideTypingIndicator() {
-            const ind = document.getElementById('typingIndicator');
-            if(ind) ind.remove();
-        }
-
-        // 4. Main Function: Data AI ko bhejna aur Jawab lena
-        async function processAIResponse(type, itemData) {
-            showTypingIndicator(); // Sochne ka animation shuru
-
-            let textMessage = "";
-            let fileData = null;
-            let mimeType = null;
-
-            // Agar message text hai
-            if (type === 'text') {
-                textMessage = itemData;
-            } 
-            // Agar Image ya Voice aayi hai
-            else if (type === 'image' || type === 'voice') {
-                let fileObj = itemData.file ? itemData.file : itemData; 
-                if (fileObj instanceof Blob || fileObj instanceof File) {
-                    fileData = await fileToBase64(fileObj);
-                    mimeType = fileObj.type;
-                    textMessage = type === 'image' ? "[User sent an image]" : "[User sent a voice note]"; 
+        function deleteSelectedItems() {
+            selectedBubbleIds.forEach(bId => {
+                const element = document.getElementById(bId);
+                if(element) {
+                    const type = element.getAttribute('data-type');
+                    element.remove(); // Screen se gayab
+                    
+                    const key = type === 'text' ? 'texts' : type + 's';
+                    draftData[key] = draftData[key].filter(item => item.id !== bId);
                 }
-            }
-
-            // User ka message history mein daalo
-            chatHistory.push({ role: 'user', content: textMessage });
-
-            // Button ke elements ko get kar lein
-            const confirmRow = document.getElementById('confirmBtnRow');
-            const confirmBtn = document.getElementById('finalSubmitBtn');
-
-            try {
-                // AI ko Data Bhejna
-                const response = await fetch(`${SB_URL}/functions/v1/chat-brain`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${SB_KEY}` 
-                    },
-                    body: JSON.stringify({
-                        message: type === 'text' ? textMessage : "", 
-                        history: chatHistory.slice(0, -1),
-                        fileData: fileData,
-                        mimeType: mimeType
-                    })
-                });
-
-                if (!response.ok) throw new Error("AI Server Issue");
-
-                const data = await response.json();
-                const aiReply = data.reply;
-
-                hideTypingIndicator(); 
-                renderBotMessage(aiReply); 
-                chatHistory.push({ role: 'model', content: aiReply });
-
-                // ==========================================
-                // ✨ 1. AI SUCCESS LOGIC (AI DEKHEGA BUTTON DIKHANA HAI YA NAHI)
-                // ==========================================
-                if(aiReply.toLowerCase().includes("confirm order")) {
-                    // AI ne summary de di hai aur 'confirm order' bola hai -> Button Show karo
-                    confirmRow.classList.remove('hidden');
-                    if(confirmBtn) {
-                        confirmBtn.classList.add('animate-pulse');
-                        confirmBtn.style.boxShadow = "0 0 20px rgba(234, 88, 12, 0.6)"; 
-                    }
-                } else {
-                    // AI abhi mazeed details pooch raha hai -> Button Hide kar do
-                    confirmRow.classList.add('hidden');
-                    if(confirmBtn) {
-                        confirmBtn.classList.remove('animate-pulse');
-                        confirmBtn.style.boxShadow = "none";
-                    }
-                }
-
-            } catch (error) {
-                console.error("AI Logic Error:", error);
-                hideTypingIndicator();
-                
-                // ==========================================
-                // 🚨 2. AI ERROR/FALLBACK LOGIC
-                // ==========================================
-                // Agar AI ne galat response diya, error aaya, ya limit khatam hui, 
-                // toh hum customer ko direct Confirm Button dikha denge.
-                
-                renderBotMessage("Sorry for inconvenient, mera system thora busy hai ya network ka masla hai: <b>is liye ap order details send krne k bad.</b> Neechay diye gaye <b>Confirm Order</b> button se direct apna order Place kar sakte hain!");
-                
-                // Button lazmi Show kar do taake order na ruke
-                confirmRow.classList.remove('hidden');
-                if(confirmBtn) {
-                    confirmBtn.classList.remove('animate-pulse');
-                    confirmBtn.style.boxShadow = "none";
-                }
-            }
-        }
-// ==========================================
-        // 🗑️ DELETE ITEM LOGIC
-        // ==========================================
-        function deleteItem(bId, type) {
-            // 1. Screen se gayab karo
-            const element = document.getElementById(bId);
-            if(element) element.remove();
-
-            // 2. Draft memory se nikalo
-            const key = type === 'text' ? 'texts' : type + 's';
-            draftData[key] = draftData[key].filter(item => item.id !== bId);
-
-            // 3. Agar screen khali ho gayi hai to (Empty) dobara dikhao aur button chupao
+            });
+            
+            clearSelection();
+            
             const allItemsCount = Object.values(draftData).flat().length;
             if (allItemsCount === 0) {
                 document.getElementById('emptyPlaceholder').style.display = 'flex';
                 document.getElementById('confirmBtnRow').classList.add('hidden');
             }
+        }
+
+        // ==========================================
+        // 🔍 ZOOM IN / ZOOM OUT LOGIC
+        // ==========================================
+        const zoomOverlay = document.getElementById('zoomOverlay');
+        const zoomImage = document.getElementById('zoomImage');
+        let currentScale = 1;
+
+        function openZoom(fileObj) {
+            const url = URL.createObjectURL(fileObj);
+            zoomImage.src = url;
+            zoomOverlay.classList.add('active');
+            currentScale = 1;
+            zoomImage.style.transform = `scale(${currentScale})`;
+        }
+
+        // Bahar click karne pe zoom band hoga
+        function closeZoom(e) {
+            if(e.target === zoomOverlay) {
+                zoomOverlay.classList.remove('active');
+                zoomImage.src = '';
+            }
+        }
+
+        // Pinch to zoom mathematics
+        let initialDistance = 0;
+        zoomOverlay.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+            }
+        });
+
+        zoomOverlay.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                let currentDistance = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                
+                let scaleChange = currentDistance / initialDistance;
+                currentScale = Math.min(Math.max(1, currentScale * scaleChange), 3); // Max 3x zoom
+                
+                zoomImage.style.transform = `scale(${currentScale})`;
+                initialDistance = currentDistance;
+            }
+        }, { passive: false });
+
+        // ==========================================
+        // ADD TO DRAFT LOGIC
+        // ==========================================
+        function addToDraft(type, content) {
+            document.getElementById('emptyPlaceholder').style.display = 'none';
+            const chat = document.getElementById('chatArea');
+            const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+            const b = document.createElement('div');
+            
+            b.className = "bubble customer-bubble animate-pop"; 
+            b.id = bId;
+            b.setAttribute('data-type', type); 
+
+            let itemData = content;
+            
+            if (type === 'text') {
+                const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
+                if(!val) return; itemData = val; 
+                b.innerHTML = `<div class="pr-2"><p class="whitespace-pre-wrap">${val}</p></div>`;
+                if(typeof content !== 'string') { 
+                    document.getElementById('orderInput').value = ""; 
+                    handleInput(document.getElementById('orderInput')); 
+                }
+            } 
+            else if (type === 'image') {
+                const imgUrl = URL.createObjectURL(content.file);
+                b.innerHTML = `
+                    <div class="flex flex-col">
+                        <img id="img-${bId}" src="${imgUrl}" class="media-thumb">
+                        ${content.caption ? `<div class="caption-text font-semibold">${content.caption}</div>` : ''}
+                    </div>`;
+            }
+
+            // Events attach karna (Long Press & Click ke liye)
+            b.addEventListener('touchstart', (e) => startHold(e, bId));
+            b.addEventListener('touchend', clearHold);
+            b.addEventListener('touchmove', clearHold);
+            b.addEventListener('mousedown', (e) => startHold(e, bId));
+            b.addEventListener('mouseup', clearHold);
+            b.addEventListener('mouseleave', clearHold);
+            
+            // Browser ka apna right-click menu band karna
+            b.addEventListener('contextmenu', e => { e.preventDefault(); });
+
+            b.addEventListener('click', (e) => handleBubbleClick(bId, type, itemData));
+
+            const key = type === 'text' ? 'texts' : type + 's';
+            draftData[key].push({ id: bId, data: itemData });
+            chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+            
+            document.getElementById('confirmBtnRow').classList.remove('hidden');
         }
 
         // ==========================================
@@ -611,24 +505,29 @@
             let textObj = draftData.texts.find(item => item.id === bId);
             if(!textObj) return;
 
-            // 1. Text ko dobara input box mein daalo
             const input = document.getElementById('orderInput');
             input.value = textObj.data;
             handleInput(input);
             input.focus(); 
 
-            // 2. Purana wala message screen se aur memory se delete kar do
-            deleteItem(bId, 'text');
+            // Delete old one
+            document.getElementById(bId).remove();
+            draftData.texts = draftData.texts.filter(item => item.id !== bId);
         }
 
         // ==========================================
-        // 🎨 IMAGE DRAWING LOGIC (CANVAS)
+        // 🎨 IMAGE DRAWING LOGIC 
         // ==========================================
         let drawCanvas = document.getElementById('drawingCanvas');
         let ctx = drawCanvas.getContext('2d');
         let isDrawing = false;
         let currentEditingBubbleId = null;
-        let originalImg = new Image(); // Taake drawing save ho sake
+        let originalImg = new Image(); 
+
+        function openImageEditorFromPreview() {
+            document.getElementById('imagePreviewModal').classList.add('hidden');
+            openImageEditor('pending', pendingImageUrl);
+        }
 
         function openImageEditor(bubbleId, imgSrc) {
             currentEditingBubbleId = bubbleId;
@@ -637,7 +536,6 @@
             modal.classList.add('flex');
 
             originalImg.onload = function() {
-                // Canvas ka size fix karna
                 let maxWidth = window.innerWidth;
                 let maxHeight = window.innerHeight - 140; 
                 let ratio = Math.min(maxWidth / originalImg.width, maxHeight / originalImg.height);
@@ -645,10 +543,8 @@
                 drawCanvas.width = originalImg.width * ratio;
                 drawCanvas.height = originalImg.height * ratio;
 
-                // Picture lagana
                 ctx.drawImage(originalImg, 0, 0, drawCanvas.width, drawCanvas.height);
                 
-                // Pencil ki settings (Default color aapka custom blue)
                 ctx.strokeStyle = "#0077b9"; 
                 ctx.lineWidth = 4;
                 ctx.lineCap = "round";
@@ -660,6 +556,10 @@
         function closeImageEditor() {
             document.getElementById('imageEditorModal').classList.add('hidden');
             document.getElementById('imageEditorModal').classList.remove('flex');
+            if(currentEditingBubbleId === 'pending') {
+                 document.getElementById('imagePreviewModal').classList.remove('hidden');
+                 document.getElementById('imagePreviewModal').classList.add('flex');
+            }
         }
 
         function setDrawColor(color, btnElement) {
@@ -672,7 +572,6 @@
             if(color === 'red') btnElement.classList.add('shadow-[0_0_10px_red]');
         }
 
-        // Touch & Mouse Drawing Logic
         function getDrawPos(e) {
             let rect = drawCanvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -702,14 +601,22 @@
         drawCanvas.addEventListener('touchmove', drawPath, {passive: false});
         drawCanvas.addEventListener('touchend', stopDrawing);
 
-        // Nayi drawing save karna aur choti image update karna
         function saveEditedImage() {
             let editedDataUrl = drawCanvas.toDataURL("image/png");
             
+            if (currentEditingBubbleId === 'pending') {
+                pendingImageUrl = editedDataUrl;
+                document.getElementById('previewModalImage').src = pendingImageUrl;
+                fetch(editedDataUrl).then(res => res.blob()).then(blob => {
+                    pendingImageFile = new File([blob], "edited_image.png", {type: "image/png"});
+                });
+                closeImageEditor();
+                return;
+            }
+
             let imgEl = document.getElementById(`img-${currentEditingBubbleId}`);
             if(imgEl) { imgEl.src = editedDataUrl; }
 
-            // Memory me bhi nayi picture save karna
             fetch(editedDataUrl)
                 .then(res => res.blob())
                 .then(blob => {
