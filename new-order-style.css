@@ -1,6 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-/* Main Body Style */
+/* ==========================================================================
+   MUKAMAL COLOR CONFIGURATION (YAHAN SE SUB COLORS CHANGE HONGAY)
+   ========================================================================== */
+:root {
+    /* 1. MAIN PAGE AUR CHAT AREA */
+    --main-page-bg: #f3f4f6;          /* Poore page ka background color */
+    --chat-area-bg: #e5ddd5;          /* Chat area ka background color (agar wallpaper image load na ho) */
+    
+    /* 2. APPBAR AREA (Enter Order Details) */
+    --appbar-bg: #0077b9;             /* Appbar ka background color */
+    --appbar-text-color: #1f2937;     /* "Enter Order Details" text ka color */
+    --appbar-bottom-border: #e5e7eb;  /* Appbar ke neeche wali patli line ka color */
+
+    /* 3. NEECHY ROW WALE AREA (Confirm Row & Footer Area) */
+    --confirm-row-bg: #f3f4f6;        /* Confirm Order button wali poori row ka background color */
+    --confirm-row-border: #e5e7eb;    /* Confirm row ki oopar wali patli line ka color */
+    --footer-bg: #f3f4f6;             /* Sab se neeche jahan plus, text input aur mic hai us area ka background color */
+    --footer-border: #e5e7eb;         /* Footer area ki oopar wali patli line ka color */
+
+    /* 4. BUTTONS KE BACKGROUND AUR TEXT COLORS */
+    --confirm-btn-bg: #0077b9;        /* "Confirm order" button ka background color */
+    --confirm-btn-text: #ffffff;      /* "Confirm order" button ke andar likhe text ka color */
+    
+    --plus-btn-bg: #f3f4f6;           /* Plus (+) button ka background color */
+    --plus-btn-icon: #6b7280;         /* Plus (+) button ke andar jo icon hai uska color */
+    
+    --send-btn-bg: #f97316;           /* Message send karne wale Teer (arrow) button ka background color */
+    --send-btn-icon: #ffffff;         /* Send button ke andar arrow icon ka color */
+    
+    --mic-btn-bg: #2563eb;            /* Microphone (Voice record) button ka background color */
+    --mic-btn-icon: #ffffff;          /* Microphone button ke andar icon ka color */
+
+    /* 5. TEXT INPUT BOX COLORS */
+    --input-box-bg: #f3f4f6;          /* "Type order details..." jis box me likha jata hai uska background color */
+    --input-text-color: #1f2937;      /* Jo text type ho rha hota hai uska color */
+
+    /* 6. CHAT BUBBLES COLORS (Messages) */
+    --customer-bubble-bg: #dcf8c6;    /* Jo order details chat me add hoti hain unke bubble ka background color */
+    --customer-bubble-text: #000000;  /* Chat ke andar likhe hue details ke text ka color */
+}
+
+/* ==========================================================================
+   CORE STYLE LOGIC (Is hisse ke structure ya logic me koi tabdeeli nahi ki gayi)
+   ========================================================================== */
+
 html, body { 
     font-family: 'Plus Jakarta Sans', sans-serif; 
     height: 100dvh; 
@@ -8,18 +52,24 @@ html, body {
     flex-direction: column; 
     overflow: hidden; 
     margin: 0; 
-    background-color: #f3f4f6; /* Ye Page ke background ka color hai */
+    background-color: var(--main-page-bg) !important; /* Main page ka color yahan apply ho rha hai */
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ====================================================
-   CHAT BACKGROUND (Wallpaper)
-   Agar chat ka wallpaper ya bg color badalna ho to yahan change karein
-   ==================================================== */
+/* Naya AppBar Layout aur Rang */
+#topAppBar {
+    background-color: var(--appbar-bg) !important;
+    border-color: var(--appbar-bottom-border) !important;
+}
+#topAppBar span {
+    color: var(--appbar-text-color) !important;
+}
+
+/* Chat Area Wallpaper aur Background */
 .chat-bg { 
-    background-color: #e5ddd5; /* Solid fallback color */
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Chat bg image link */
+    background-color: var(--chat-area-bg) !important; 
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
     background-attachment: fixed;
     flex: 1; 
     overflow-y: auto; 
@@ -30,7 +80,62 @@ html, body {
     scroll-behavior: smooth;
 }
 
-/* Attachment Menu Modal */
+/* Confirm Order Button Wali Row */
+#confirmBtnRow {
+    background-color: var(--confirm-row-bg) !important;
+    border-color: var(--confirm-row-border) !important;
+}
+#finalSubmitBtn {
+    background-color: var(--confirm-btn-bg) !important;
+    color: var(--confirm-btn-text) !important;
+}
+
+/* Sab se neeche typing area (Footer) aur uske buttons */
+footer {
+    background-color: var(--footer-bg) !important;
+    border-color: var(--footer-border) !important;
+}
+#plusBtn {
+    background-color: var(--plus-btn-bg) !important;
+    color: var(--plus-btn-icon) !important;
+}
+#textInputWrapper {
+    background-color: var(--input-box-bg) !important;
+}
+#orderInput {
+    color: var(--input-text-color) !important;
+}
+#sendBtn {
+    background-color: var(--send-btn-bg) !important;
+    color: var(--send-btn-icon) !important;
+}
+#voiceBtn {
+    background-color: var(--mic-btn-bg) !important;
+    color: var(--mic-btn-icon) !important;
+}
+
+/* Chat Bubbles (Messages) */
+.bubble { 
+    max-width: 82%; 
+    padding: 8px 10px; 
+    border-radius: 12px; 
+    font-size: 14.5px; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+    word-wrap: break-word; 
+    position: relative; 
+    transition: all 0.2s ease; 
+    user-select: none; 
+    -webkit-user-select: none;
+    line-height: 1.4;
+}
+.customer-bubble { 
+    align-self: flex-end; 
+    background-color: var(--customer-bubble-bg) !important; 
+    color: var(--customer-bubble-text) !important; 
+    border-top-right-radius: 4px; 
+}
+
+/* Attachment Menu Box */
 #attachMenu { 
     position: fixed; 
     bottom: 75px; 
@@ -53,31 +158,7 @@ html, body {
     pointer-events: auto; 
 }
 
-/* ====================================================
-   CHAT BUBBLE STYLES (Messages ka text/color)
-   Customer bubble ka text ya border change karna ho to .customer-bubble use karein
-   ==================================================== */
-.bubble { 
-    max-width: 82%; 
-    padding: 8px 10px; 
-    border-radius: 12px; 
-    font-size: 14.5px; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-    word-wrap: break-word; 
-    position: relative; 
-    transition: all 0.2s ease; 
-    user-select: none; 
-    -webkit-user-select: none;
-    line-height: 1.4;
-}
-
-.customer-bubble { 
-    align-self: flex-end; 
-    background-color: #dcf8c6; /* Green Color for customer messages */
-    color: #000; /* Text Color */
-    border-top-right-radius: 4px; 
-}
-
+/* Selection State Custom Design */
 .bubble-selected { 
     background-color: #bceb9e !important; 
     transform: scale(0.96); 
@@ -99,7 +180,7 @@ html, body {
     box-shadow: 0 0 5px rgba(0,0,0,0.2);
 }
 
-/* Media Thumbnail (Photos/Videos) */
+/* Media/Documents Thumbnails */
 .media-thumb { 
     width: 100%; 
     max-width: 110px; 
@@ -109,7 +190,6 @@ html, body {
     object-fit: cover; 
     background-color: rgba(0,0,0,0.05); 
 }
-
 .caption-text { 
     font-size: 13px; 
     color: #1f2937; 
@@ -118,7 +198,7 @@ html, body {
     border-top: 1px solid rgba(0,0,0,0.05); 
 }
 
-/* Animations */
+/* Animations & Extra UI elements */
 .animate-pop { animation: pop 0.2s ease-out forwards; }
 @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
@@ -133,6 +213,4 @@ html, body {
 
 textarea::-webkit-scrollbar { display: none; }
 #offlineBanner { transition: top 0.3s ease-in-out; }
-
-/* FIX: Mobile Footer Safe Area Padding */
 .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
