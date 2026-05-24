@@ -52,7 +52,9 @@ html, body {
     flex-direction: column; 
     overflow: hidden; 
     margin: 0; 
-    background-color: var(--main-page-bg) !important; /* Main page ka color yahan apply ho rha hai */
+    background-color: var(--chat-area-bg) !important; /* Main page ka color yahan apply ho rha hai */
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    background-attachment: fixed;
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
 }
@@ -68,7 +70,7 @@ html, body {
 
 /* Chat Area Wallpaper aur Background */
 .chat-bg { 
-    background-color: var(--chat-area-bg) !important; 
+    background-color: transparent !important; 
     background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
     background-attachment: fixed;
     flex: 1; 
