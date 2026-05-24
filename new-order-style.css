@@ -242,3 +242,13 @@ textarea::-webkit-scrollbar { display: none; }
     padding-bottom: 8px !important; 
     border-radius: 50px !important; /* Pill shape design */
 }
+/* AI Bubble Style */
+.ai-bubble { 
+    background-color: #f3e8ff; 
+    color: #6b21a8; 
+    border-left: 4px solid #9333ea; 
+    padding: 10px; 
+    border-radius: 12px; 
+    margin: 8px 0;
+    font-size: 14px;
+}
