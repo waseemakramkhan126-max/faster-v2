@@ -135,3 +135,8 @@ textarea::-webkit-scrollbar { display: none; }
 
 /* Mobile Footer Safe Area Padding */
 .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+/* Footer aur Confirm Row ko transparent karne ke liye ye code add karein */
+footer, #confirmBtnRow {
+    background-color: transparent !important;
+    border-top: none !important;
+}
