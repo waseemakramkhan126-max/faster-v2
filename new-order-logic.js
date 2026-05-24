@@ -88,7 +88,7 @@ function setupRealtime() {
 }
 
 // -----------------------------------------------------
-// SCROLL LOGIC TO HIDE/SHOW APPBAR
+// SCROLL LOGIC TO HIDE/SHOW APPBAR (BLINKING FIXED)
 // -----------------------------------------------------
 const chatArea = document.getElementById('chatArea');
 const topAppBar = document.getElementById('topAppBar');
@@ -96,12 +96,17 @@ let lastScrollTop = 0;
 
 chatArea.addEventListener('scroll', function() {
     let scrollTop = chatArea.scrollTop;
-    if (scrollTop > lastScrollTop && scrollTop > 10) {
+    
+    // Agar scroll bohat mamooli sa ho to kuch mat karo (Blinking rokne ke liye)
+    if (Math.abs(scrollTop - lastScrollTop) <= 15) return; 
+
+    if (scrollTop > lastScrollTop && scrollTop > 20) {
         // Scroll Down (Hide AppBar)
         topAppBar.style.height = '0px';
         topAppBar.style.paddingTop = '0px';
         topAppBar.style.paddingBottom = '0px';
         topAppBar.style.opacity = '0';
+        topAppBar.style.overflow = 'hidden'; // Ye line jhatka (blink) rokti hai
     } else {
         // Scroll Up (Show AppBar)
         topAppBar.style.height = ''; 
