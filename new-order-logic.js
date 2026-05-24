@@ -365,17 +365,15 @@ async function sendaMessage(userText) {
         };
 
         // Backend ko request bhejein
-        const response = await fetch(SUPABASE_AI_FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestData)
+        // NAYA TARIQA: Purane fetch code ki jagah sirf yeh lines aayengi
+        const { data, error } = await _supabase.functions.invoke('clever-action', {
+            body: requestData
         });
 
-        if (!response.ok) throw new Error("AI Backend se connect nahi ho paya");
+        if (error) throw error;
+        if (data && data.error) throw new Error(data.error);
 
-        const data = await response.json();
         const aiReply = data.reply;
-
         // History mein save karein taake AI pichli baat yaad rakhe
         chatHistory.push({ role: 'user', content: userText });
         chatHistory.push({ role: 'model', content: aiReply });
