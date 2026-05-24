@@ -92,7 +92,7 @@ html, body {
 
 /* Sab se neeche typing area (Footer) aur uske buttons */
 footer {
-    background-color: var(--footer-bg) !important;
+    background-color: transparent !important;
     border-color: var(--footer-border) !important;
 }
 #plusBtn {
