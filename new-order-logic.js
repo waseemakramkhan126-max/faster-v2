@@ -487,7 +487,7 @@ async function finalSubmitOrder(userEmail) {
         
     } catch (err) { 
         await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
-        btn.disabled = false; btn.innerHTML = `Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>`; btn.classList.replace('bg-gray-400', 'bg-orange-600');
+        btn.disabled = false; btn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`; btn.classList.replace('bg-gray-400', 'bg-orange-600');
     }
 }
 
