@@ -8,6 +8,57 @@ let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
 let userPhone = localStorage.getItem('faster_phone');
 let fullSavedAddress = ""; 
+// 🟢🟢🟢 HIGHLIGHT: AI BRAIN FUNCTION YAHAN PASTE KAREIN 🟢🟢🟢
+async function sendaMessage(userText) {
+    if (!userText) return;
+    
+    // AI ka loading indicator dikhane ke liye temp bubble
+    const chat = document.getElementById('chatArea');
+    const loadingBubbleId = "ai-loading-" + Date.now();
+    const loadingBubble = document.createElement('div');
+    loadingBubble.id = loadingBubbleId;
+    loadingBubble.className = "bubble bg-gray-200 text-gray-500 animate-pulse";
+    loadingBubble.innerHTML = `<p>AI soch raha hai...</p>`;
+    chat.appendChild(loadingBubble);
+    chat.scrollTop = chat.scrollHeight;
+
+    try {
+        const requestData = {
+            message: userText,
+            history: chatHistory
+        };
+
+        const response = await fetch(SUPABASE_AI_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) throw new Error("AI Request Failed");
+
+        const data = await response.json();
+        const aiReply = data.reply;
+
+        // History update
+        chatHistory.push({ role: 'user', content: userText });
+        chatHistory.push({ role: 'model', content: aiReply });
+
+        // Loading hata kar asal reply lagayein
+        document.getElementById(loadingBubbleId).remove();
+        
+        const replyBubble = document.createElement('div');
+        // 'bg-blue-100' ko aap apne hisaab se style kar sakte hain
+        replyBubble.className = "bubble bg-blue-100 text-black"; 
+        replyBubble.innerHTML = `<p class="whitespace-pre-wrap">${aiReply}</p>`;
+        chat.appendChild(replyBubble);
+        chat.scrollTop = chat.scrollHeight;
+
+    } catch (error) {
+        console.error("AI Error:", error);
+        document.getElementById(loadingBubbleId).innerHTML = `<p class="text-red-500">System error, dobara try karein.</p>`;
+    }
+}
+// 🟢🟢🟢 HIGHLIGHT END 🟢🟢🟢
 
 // Camera & Video Variables
 let stream = null;
@@ -290,6 +341,74 @@ function handleInput(el) {
     document.getElementById('sendBtn').classList.toggle('hidden', val === "");
     document.getElementById('voiceBtn').classList.toggle('hidden', val !== "");
 }
+// AI ko message bhejne aur uska reply screen par dikhane ka mukammal logic
+async function sendaMessage(userText) {
+    if (!userText) return;
+    
+    const chat = document.getElementById('chatArea');
+    
+    // 1. AI ka "Typing..." wala loading bubble banayein
+    const loadingId = "ai-loading-" + Date.now();
+    const loadingBubble = document.createElement('div');
+    loadingBubble.id = loadingId;
+    // AI ka bubble Left side par hoga aur white color ka hoga
+    loadingBubble.className = "bubble bg-white border border-gray-200 text-gray-500 p-3 rounded-2xl rounded-tl-sm w-[70%] shadow-sm mt-2 mb-2 animate-pulse";
+    loadingBubble.innerHTML = `<p class="text-xs font-bold"><i class="fas fa-robot mr-2 text-orange-500"></i> AI is typing...</p>`;
+    
+    chat.appendChild(loadingBubble);
+    chat.scrollTop = chat.scrollHeight;
+
+    try {
+        const requestData = {
+            message: userText,
+            history: Object.keys(chatHistory).length > 0 ? chatHistory : [] 
+        };
+
+        // Backend ko request bhejein
+        const response = await fetch(SUPABASE_AI_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) throw new Error("AI Backend se connect nahi ho paya");
+
+        const data = await response.json();
+        const aiReply = data.reply;
+
+        // History mein save karein taake AI pichli baat yaad rakhe
+        chatHistory.push({ role: 'user', content: userText });
+        chatHistory.push({ role: 'model', content: aiReply });
+
+        // 2. Loading wala bubble screen se hata dein
+        document.getElementById(loadingId).remove();
+        
+        // 3. AI ka Asal Reply Bubble screen par lagayein
+        const replyBubble = document.createElement('div');
+        replyBubble.className = "bubble bg-white border border-gray-200 text-gray-800 p-3 rounded-2xl rounded-tl-sm w-[85%] shadow-sm mt-2 mb-2";
+        
+        // AI text mein **bold** words ko html <b> tag mein convert karne ke liye chota sa replace function lagaya hai
+        const formattedReply = aiReply.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        
+        replyBubble.innerHTML = `
+            <div class="flex flex-col">
+                <span class="text-[10px] text-orange-500 font-black tracking-wider mb-1"><i class="fas fa-robot mr-1"></i> AI ASSISTANT</span>
+                <p class="whitespace-pre-wrap text-[14px] leading-relaxed">${formattedReply}</p>
+            </div>
+        `;
+        
+        chat.appendChild(replyBubble);
+        chat.scrollTop = chat.scrollHeight;
+
+        // Agar AI ne Notification ring karni ho toh (Optional)
+        ring();
+
+    } catch (error) {
+        console.error("AI Error:", error);
+        document.getElementById(loadingId).innerHTML = `<p class="text-red-500 text-xs"><i class="fas fa-exclamation-triangle mr-1"></i> Error aa gaya, dobara try karein.</p>`;
+    }
+}
+// 🟢🟢🟢 HIGHLIGHT END 🟢🟢🟢
 
 async function previewFile(input, mode) {
     if(!input.files || input.files.length === 0) return;
@@ -344,6 +463,11 @@ function addToDraft(type, content) {
     draftData[key].push({ id: bId, data: itemData });
     chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
     document.getElementById('confirmBtnRow').classList.remove('hidden');
+    // 🟢🟢🟢 HIGHLIGHT: JAB BUBBLE ADD HO JAYE TO AI KO CALL KAREIN 🟢🟢🟢
+    if (type === 'text') {
+        sendaMessage(itemData); // Text AI ko bhej do
+    }
+    // 🟢🟢🟢 HIGHLIGHT END 🟢🟢🟢
 }
 
 function toggleSelect(id, type) {
