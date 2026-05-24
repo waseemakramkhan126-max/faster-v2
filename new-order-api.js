@@ -67,10 +67,10 @@ async function finalSubmitOrder(userEmail) {
     
     if(!name || !addr) { return Dialog.show("Missing Information", "Please provide Name and Address."); }
 
-    // UI COLOR CONTROL: Upload hote waqt button gray ho jayega 'bg-gray-400'
+    // UI COLOR CONTROL: Upload hote waqt button blue se gray ho jayega 'bg-gray-400'
     btn.disabled = true; 
     btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
-    btn.classList.replace('bg-orange-600', 'bg-gray-400');
+    btn.classList.replace('bg-[#0077b9]', 'bg-gray-400');
 
     try {
         if (userEmail) {
@@ -116,8 +116,8 @@ async function finalSubmitOrder(userEmail) {
     } catch (err) { 
         await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
         btn.disabled = false; 
-        // UI COLOR CONTROL: Error aane par button wapas orange ho jayega 'bg-orange-600'
+        // UI COLOR CONTROL: Error aane par button wapas blue ho jayega 'bg-[#0077b9]'
         btn.innerHTML = `Confirm order <i class="fas fa-check-circle text-white opacity-80 text-lg"></i>`; 
-        btn.classList.replace('bg-gray-400', 'bg-orange-600');
+        btn.classList.replace('bg-gray-400', 'bg-[#0077b9]');
     }
 }
