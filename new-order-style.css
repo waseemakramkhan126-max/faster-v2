@@ -10,7 +10,7 @@
     
     /* 2. APPBAR AREA (Enter Order Details) */
     --appbar-bg: #0077b9;             /* Appbar ka background color */
-    --appbar-text-color: white;     /* "Enter Order Details" text ka color */
+    --appbar-text-color: #ffffff;     /* "Enter Order Details" text ka color */
     --appbar-bottom-border: #e5e7eb;  /* Appbar ke neeche wali patli line ka color */
 
     /* 3. NEECHY ROW WALE AREA (Confirm Row & Footer Area) */
