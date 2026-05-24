@@ -214,3 +214,20 @@ footer {
 textarea::-webkit-scrollbar { display: none; }
 #offlineBanner { transition: top 0.3s ease-in-out; }
 .pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+/* ====================================================
+   CONFIRM ORDER BUTTON (Size aur Center Set Karna)
+   ==================================================== */
+
+/* Button wali poori row ko center mein lane ke liye */
+#confirmBtnRow {
+    display: flex !important;
+    justify-content: center !important; 
+}
+
+/* Button ki width aur height kam karne ke liye */
+#finalSubmitBtn {
+    width: 60% !important;          /* Width 100% se kam kar ke 60% kar di (Aap marzi se badal sakte hain) */
+    padding-top: 8px !important;    /* Oopar se height kam karne ke liye */
+    padding-bottom: 8px !important; /* Neeche se height kam karne ke liye */
+    border-radius: 50px !important; /* Button ko thoda zyada gol (pill shape) karne ke liye, acha lagega */
+}
