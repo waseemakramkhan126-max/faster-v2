@@ -14,10 +14,10 @@
     --appbar-bottom-border: #e5e7eb;  /* Appbar ke neeche wali patli line ka color */
 
     /* 3. NEECHY ROW WALE AREA (Confirm Row & Footer Area) */
-    --confirm-row-bg: #f3f4f6;        /* Confirm Order button wali poori row ka background color */
-    --confirm-row-border: #e5e7eb;    /* Confirm row ki oopar wali patli line ka color */
-    --footer-bg: #f3f4f6;             /* Sab se neeche jahan plus, text input aur mic hai us area ka background color */
-    --footer-border: #e5e7eb;         /* Footer area ki oopar wali patli line ka color */
+    --confirm-row-bg: transparent;        /* Confirm Order button wali poori row ka background color */
+    --confirm-row-border: transparent;    /* Confirm row ki oopar wali patli line ka color */
+    --footer-bg: transparent;             /* Sab se neeche jahan plus, text input aur mic hai us area ka background color */
+    --footer-border: transparent;         /* Footer area ki oopar wali patli line ka color */
 
     /* 4. BUTTONS KE BACKGROUND AUR TEXT COLORS */
     --confirm-btn-bg: #0077b9;        /* "Confirm order" button ka background color */
@@ -226,8 +226,8 @@ textarea::-webkit-scrollbar { display: none; }
 
 /* Button ki width aur height kam karne ke liye */
 #finalSubmitBtn {
-    width: 60% !important;          /* Width 100% se kam kar ke 60% kar di (Aap marzi se badal sakte hain) */
-    padding-top: 8px !important;    /* Oopar se height kam karne ke liye */
-    padding-bottom: 8px !important; /* Neeche se height kam karne ke liye */
+    width: 50% !important;          /* Width 100% se kam kar ke 60% kar di (Aap marzi se badal sakte hain) */
+    padding-top: 6px !important;    /* Oopar se height kam karne ke liye */
+    padding-bottom: 4px !important; /* Neeche se height kam karne ke liye */
     border-radius: 50px !important; /* Button ko thoda zyada gol (pill shape) karne ke liye, acha lagega */
 }
