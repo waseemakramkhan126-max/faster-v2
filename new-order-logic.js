@@ -430,6 +430,46 @@ async function handleVoice() {
         }
     } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
 }
+// AI Functionality
+async function askAI() {
+    const inputField = document.getElementById('orderInput');
+    const userPrompt = inputField.value.trim();
+    
+    if (!userPrompt) {
+        return Dialog.show("Error", "Pehle kuch type karein.");
+    }
+
+    const btn = document.getElementById('aiBtn');
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+    
+    try {
+        // Apne Supabase Edge Function ka name yahan likhein (e.g., 'ai-chat')
+        const { data, error } = await _supabase.functions.invoke('ai-chat', {
+            body: { prompt: userPrompt }
+        });
+
+        if (error) throw error;
+
+        // Response ko chat mein show karein
+        addAiBubble(data.reply);
+        inputField.value = ""; 
+    } catch (err) {
+        Dialog.show("Error", "AI respond nahi kar raha: " + err.message);
+    } finally {
+        btn.innerHTML = originalContent;
+    }
+}
+
+// AI Message Bubble
+function addAiBubble(text) {
+    const chat = document.getElementById('chatArea');
+    const b = document.createElement('div');
+    b.className = "bubble self-start ai-bubble";
+    b.innerHTML = `<p class="font-bold text-xs mb-1 opacity-70">AI Assistant:</p><p>${text}</p>`;
+    chat.appendChild(b);
+    chat.scrollTop = chat.scrollHeight;
+}
 
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
