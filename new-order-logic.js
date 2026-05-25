@@ -29,12 +29,20 @@ const sound = document.getElementById('notifSound');
 
 function ring() { 
     if(!sound) return;
-    sound.currentTime = 0; 
+    sound.currentTime = 0; // Aawaz ko shuru se play karne ke liye
+    
+    // Play() ek promise return karta hai, hum usko check karte hain
     let playPromise = sound.play();
-    if (playPromise !== undefined) { 
-        playPromise.catch(error => { console.warn("Auto-play blocked:", error); }); 
+
+    if (playPromise !== undefined) {
+        playPromise.then(_ => {
+            // Aawaz theek se play ho gayi
+        })
+        .catch(error => {
+            // Browser ne aawaz block kar di kyunke user ne abhi click nahi kiya tha
+            console.log("Browser ne aawaz block kar di. User interaction required.");
+        });
     }
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
 }
 
 function unlockAudio() {
@@ -132,8 +140,12 @@ async function startCustomCamera() {
     }
 }
 
+// Naya function: Camera stream ko properly band karne ke liye
 function stopCustomCamera() {
-    if(stream) stream.getTracks().forEach(t => t.stop());
+    if(stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null; // Stream ko null karna zaroori hai taake camera background mein band ho jaye
+    }
     document.getElementById('customCamOverlay').classList.add('hidden');
     document.getElementById('customCamOverlay').classList.remove('flex');
 }
@@ -435,43 +447,6 @@ async function handleVoice() {
         }
     } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
 }
-// AI Functionality
-async function askAI() {
-    const inputField = document.getElementById('orderInput');
-    const userPrompt = inputField.value.trim();
-
-    if (!userPrompt) {
-        return Dialog.show("Error", "Pehle kuch type karein.");
-    }
-
-    const btn = document.getElementById('aiBtn');
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
-
-    try {
-
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userPrompt
-            }
-        });
-
-        if (error) throw error;
-
-        addAiBubble(data.reply);
-
-        inputField.value = "";
-
-    } catch (err) {
-
-        Dialog.show("Error", "AI respond nahi kar raha: " + err.message);
-
-    } finally {
-
-        btn.innerHTML = originalContent;
-
-    }
-}
 
 // AI Message Bubble
 function addAiBubble(text) {
@@ -494,6 +469,11 @@ async function handleConfirmPrompt() {
 }
 
 async function finalSubmitOrder(userEmail) {
+    // Submit hone se theek pehle dobara internet check
+    if (!navigator.onLine) {
+        return Dialog.show("No Internet", "Internet connection nahi hai. Kripya online aane ka intezar karein.", "alert");
+    }
+    
     const btn = document.getElementById('finalSubmitBtn');
     const name = document.getElementById('editName').value.trim();
     const addr = fullSavedAddress || document.getElementById('editAddress').value.trim(); 
@@ -509,7 +489,9 @@ async function finalSubmitOrder(userEmail) {
             const promises = items.map(async (item) => {
                 const file = item.data.file || item.data; 
                 const ext = file.name ? file.name.split('.').pop() : defaultExt;
-                const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
+                // File name se spaces aur special characters hata kar underscore lagana
+                const cleanName = file.name ? file.name.replace(/[^a-zA-Z0-9.\-]/g, '_') : 'file';
+                const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,6)}_${cleanName}`;
                 const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
                 if(error) throw error;
                 return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
@@ -559,31 +541,32 @@ document.addEventListener('click', function(event) {
 
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
-async function getAiReply(userMessage) {
 
+async function askAI(userMessage) {
     try {
-
-        const { data, error } =
-        await _supabase.functions.invoke('chat-brain', {
-
-            body: {
-                message: userMessage
-            }
-
+        // 1. Supabase Edge Function ko user ka message bhejna
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: { message: userMessage }
         });
 
-        if(error) throw error;
-
-        if(data?.reply) {
-
-            addAiBubble(data.reply);
-
+        // 2. Agar connection ya Supabase mein koi error aaye toh usko pakarna
+        if (error) {
+            console.error("AI Invoke Error:", error);
+            throw error;
         }
 
-    } catch(err) {
+        // 3. Agar AI ka successful jawab aa jaye
+        if (data && data.reply) {
+            // (Yahan aapka woh function aayega jo AI ka jawab screen par add karta hai, misal ke tor par:)
+            // addAiBubble(data.reply); 
+            console.log("AI Reply:", data.reply);
+            
+            return data.reply; // Jawab wapis bhej dena taake code mein jahan zaroorat ho use ho sake
+        }
 
-        console.error("AI Error:", err);
-
+    } catch (err) {
+        console.error("AI Error:", err.message);
+        // Agar net chala jaye ya AI down ho, toh silently fail na ho balke console mein error de
+        // Aap chahain toh yahan user ko toast/alert bhi dikha sakte hain.
     }
-
-    }
+}
