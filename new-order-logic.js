@@ -544,29 +544,29 @@ window.addEventListener('online', () => { document.getElementById('offlineBanner
 
 async function askAI(userMessage) {
     try {
-        // 1. Supabase Edge Function ko user ka message bhejna
+        // Supabase Edge Function ko call karna
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: { message: userMessage }
         });
 
-        // 2. Agar connection ya Supabase mein koi error aaye toh usko pakarna
+        // Agar connection mein masla aye
         if (error) {
-            console.error("AI Invoke Error:", error);
             throw error;
         }
 
-        // 3. Agar AI ka successful jawab aa jaye
+        // Agar AI successful jawab de
         if (data && data.reply) {
-            // (Yahan aapka woh function aayega jo AI ka jawab screen par add karta hai, misal ke tor par:)
             addAiBubble(data.reply); 
             console.log("AI Reply:", data.reply);
-            
-            return data.reply; // Jawab wapis bhej dena taake code mein jahan zaroorat ho use ho sake
+            return data.reply;
+        } else {
+            throw new Error("AI ne koi jawab nahi bheja (Empty response).");
         }
 
     } catch (err) {
         console.error("AI Error:", err.message);
-        // Agar net chala jaye ya AI down ho, toh silently fail na ho balke console mein error de
-        // Aap chahain toh yahan user ko toast/alert bhi dikha sakte hain.
+        
+        // YEH NAYI LINE HAI: Error ko chat bubble mein show karna
+        addAiBubble(`⚠️ AI Error: ${err.message}. Kripya thori der baad dobara koshish karein.`);
     }
 }
