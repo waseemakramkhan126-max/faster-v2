@@ -344,7 +344,9 @@ function addToDraft(type, content) {
 
     }
 
-    askAI(val);
+    setTimeout(() => {
+   askAI(val);
+}, 300);
 
     }
 
@@ -542,56 +544,161 @@ document.addEventListener('click', function(event) {
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
 
+let aiThinking = false;
+
 async function askAI(userMessage) {
+
+    if (!navigator.onLine) {
+        addAiBubble("⚠️ Internet connection nahi hai.");
+        return;
+    }
+
+    if (!userMessage || !userMessage.trim()) {
+        return;
+    }
+
+    if (aiThinking) {
+        console.log("AI already thinking...");
+        return;
+    }
+
+    aiThinking = true;
+
     try {
+
         const chatElements = document.querySelectorAll('#chatArea .bubble');
+
         let rawHistory = [];
 
         chatElements.forEach(el => {
+
             const text = el.innerText.trim();
-            if (text && !text.startsWith("⚠️")) { 
-                if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace("AI Assistant:", "").trim();
-                    rawHistory.push({ role: 'model', content: cleanText });
-                } else if (el.classList.contains('customer-bubble')) {
-                    rawHistory.push({ role: 'user', content: text });
+
+            if (!text) return;
+
+            // AI Bubble
+            if (el.classList.contains('ai-bubble')) {
+
+                let cleanText = text
+                    .replace("AI Assistant:", "")
+                    .replace("⚠️", "")
+                    .trim();
+
+                if (cleanText) {
+                    rawHistory.push({
+                        role: 'model',
+                        content: cleanText
+                    });
                 }
+
             }
+
+            // User Bubble
+            else if (el.classList.contains('customer-bubble')) {
+
+                rawHistory.push({
+                    role: 'user',
+                    content: text
+                });
+
+            }
+
         });
 
-        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+        // Duplicate last message remove
+        if (
+            rawHistory.length > 0 &&
+            rawHistory[rawHistory.length - 1].content === userMessage
+        ) {
             rawHistory.pop();
         }
 
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: { 
-                message: userMessage,
-                history: rawHistory 
+        console.log("AI REQUEST HISTORY:", rawHistory);
+
+        // Typing bubble
+        const typingId = "aiTypingBubble";
+
+        const typingBubble = document.createElement("div");
+
+        typingBubble.id = typingId;
+
+        typingBubble.className = "bubble self-start ai-bubble";
+
+        typingBubble.innerHTML = `
+            <p class="font-bold text-xs mb-1 opacity-70">
+                AI Assistant:
+            </p>
+
+            <p>
+                Typing...
+            </p>
+        `;
+
+        document.getElementById('chatArea').appendChild(typingBubble);
+
+        document.getElementById('chatArea').scrollTop =
+            document.getElementById('chatArea').scrollHeight;
+
+        // Supabase Function Call
+        const { data, error } = await _supabase.functions.invoke(
+            'chat-brain',
+            {
+                body: {
+                    message: userMessage,
+                    history: rawHistory
+                }
             }
-        });
+        );
 
-        // 1. Agar Supabase ka apna koi network masla ho
+        // Remove typing
+        const typingEl = document.getElementById(typingId);
+
+        if (typingEl) {
+            typingEl.remove();
+        }
+
+        // Supabase error
         if (error) {
-            throw new Error(`Connection Error: ${error.message}`);
-        }
-        
-        // 2. YAHAN HUM ASAL ERROR PAKAR RAHE HAIN JO AB CHUPEGA NAHI
-        if (data && data.error) {
-            throw new Error(`Backend Error: ${data.error}`);
+
+            console.error("SUPABASE FUNCTION ERROR:", error);
+
+            throw new Error(
+                error.message || "Supabase function failed"
+            );
         }
 
-        // 3. Agar AI ne jawab de diya
-        if (data && data.reply) {
-            addAiBubble(data.reply); 
-            console.log("AI Reply:", data.reply);
-            return data.reply;
-        } else {
-            throw new Error("AI se koi jawab wapis nahi aya.");
+        // Backend error
+        if (data?.error) {
+
+            console.error("BACKEND ERROR:", data.error);
+
+            throw new Error(data.error);
         }
+
+        // Empty reply
+        if (!data?.reply) {
+
+            console.error("EMPTY AI REPLY:", data);
+
+            throw new Error("AI ne koi jawab nahi diya");
+        }
+
+        // Final success
+        addAiBubble(data.reply);
+
+        console.log("AI SUCCESS:", data.reply);
 
     } catch (err) {
-        console.error("AI Error:", err.message);
-        // Ab aapko non-2xx ki bajaye ASAL wajah screen par nazar aayegi
-        addAiBubble(`⚠️ AI Error: ${err.message}`);
+
+        console.error("AI ERROR:", err);
+
+        addAiBubble(
+            `⚠️ AI Error: ${err.message || err}`
+        );
+
+    } finally {
+
+        aiThinking = false;
+
     }
 }
