@@ -544,13 +544,11 @@ window.addEventListener('online', () => { document.getElementById('offlineBanner
 
 async function askAI(userMessage) {
     try {
-        // 1. Screen se pichli saari chat read karna
         const chatElements = document.querySelectorAll('#chatArea .bubble');
         let rawHistory = [];
 
         chatElements.forEach(el => {
             const text = el.innerText.trim();
-            // Errors ya khali messages ko history mein mat daalo
             if (text && !text.startsWith("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
                     let cleanText = text.replace("AI Assistant:", "").trim();
@@ -561,65 +559,39 @@ async function askAI(userMessage) {
             }
         });
 
-        // Current message ko list se nikalna (kyunke wo alag se bheja ja raha hai)
         if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
             rawHistory.pop();
         }
 
-        // ==========================================
-        // HISTORY MERGER LOGIC (CRASH ROKNE KE LIYE)
-        // ==========================================
-        let chatHistory = [];
-        for (let msg of rawHistory) {
-            if (chatHistory.length === 0) {
-                // Pehla message hamesha 'user' hona chahiye
-                if (msg.role === 'user') chatHistory.push(msg);
-            } else {
-                let lastMsg = chatHistory[chatHistory.length - 1];
-                // Agar lagataar do same role (user-user ya model-model) aayen, to unko mila do
-                if (lastMsg.role === msg.role) {
-                    lastMsg.content += " | " + msg.content; 
-                } else {
-                    chatHistory.push(msg);
-                }
-            }
-        }
-
-        // Agar aakhri message bhi user ka hai, toh usko abhi wale naye message k sath mila do
-        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
-            let lastUserMsg = chatHistory.pop();
-            userMessage = lastUserMsg.content + " | " + userMessage;
-        }
-        // ==========================================
-
-        // 2. Supabase Edge Function ko Safe Message + History bhejna
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: { 
                 message: userMessage,
-                history: chatHistory 
+                history: rawHistory 
             }
         });
 
+        // 1. Agar Supabase ka apna koi network masla ho
         if (error) {
-            // Agar network ya backend crash ho
-            throw new Error(`Edge Function Fail: ${error.message}`);
+            throw new Error(`Connection Error: ${error.message}`);
         }
         
+        // 2. YAHAN HUM ASAL ERROR PAKAR RAHE HAIN JO AB CHUPEGA NAHI
         if (data && data.error) {
-            // Agar hamare fallback backend ne koi specific error bheja ho
-            throw new Error(data.error);
+            throw new Error(`Backend Error: ${data.error}`);
         }
 
+        // 3. Agar AI ne jawab de diya
         if (data && data.reply) {
             addAiBubble(data.reply); 
             console.log("AI Reply:", data.reply);
             return data.reply;
         } else {
-            throw new Error("AI se text receive nahi hua.");
+            throw new Error("AI se koi jawab wapis nahi aya.");
         }
 
     } catch (err) {
         console.error("AI Error:", err.message);
-        addAiBubble(`⚠️ AI Error: ${err.message}. Kripya thori der baad dobara koshish karein.`);
+        // Ab aapko non-2xx ki bajaye ASAL wajah screen par nazar aayegi
+        addAiBubble(`⚠️ AI Error: ${err.message}`);
     }
 }
