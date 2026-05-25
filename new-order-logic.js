@@ -445,7 +445,7 @@ async function askAI() {
     
     try {
         // Apne Supabase Edge Function ka name yahan likhein (e.g., 'ai-chat')
-        const { data, error } = await _supabase.functions.invoke('ai-chat', {
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: { prompt: userPrompt }
         });
 
