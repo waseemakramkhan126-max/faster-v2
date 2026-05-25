@@ -544,40 +544,70 @@ window.addEventListener('online', () => { document.getElementById('offlineBanner
 
 async function askAI(userMessage) {
     try {
-        // 1. Screen se pichli saari chat read karna taake AI ko context bheja ja sake
+        // 1. Screen se pichli saari chat read karna
         const chatElements = document.querySelectorAll('#chatArea .bubble');
-        let chatHistory = [];
+        let rawHistory = [];
 
         chatElements.forEach(el => {
             const text = el.innerText.trim();
             // Errors ya khali messages ko history mein mat daalo
-            if (text && !text.startsWith("⚠️ AI Error")) { 
+            if (text && !text.startsWith("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
-                    // "AI Assistant:" wala label hata kar sirf asal text bhejna
                     let cleanText = text.replace("AI Assistant:", "").trim();
-                    chatHistory.push({ role: 'model', content: cleanText });
+                    rawHistory.push({ role: 'model', content: cleanText });
                 } else if (el.classList.contains('customer-bubble')) {
-                    chatHistory.push({ role: 'user', content: text });
+                    rawHistory.push({ role: 'user', content: text });
                 }
             }
         });
 
-        // Current user message history mein sab se aakhir mein aya hoga, usko remove karna
-        // kyunke usko hum 'message' parameter mein alag se bhej rahe hain
-        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].content === userMessage) {
-            chatHistory.pop();
+        // Current message ko list se nikalna (kyunke wo alag se bheja ja raha hai)
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
         }
 
-        // 2. Supabase Edge Function ko Message + History dono bhejna
+        // ==========================================
+        // HISTORY MERGER LOGIC (CRASH ROKNE KE LIYE)
+        // ==========================================
+        let chatHistory = [];
+        for (let msg of rawHistory) {
+            if (chatHistory.length === 0) {
+                // Pehla message hamesha 'user' hona chahiye
+                if (msg.role === 'user') chatHistory.push(msg);
+            } else {
+                let lastMsg = chatHistory[chatHistory.length - 1];
+                // Agar lagataar do same role (user-user ya model-model) aayen, to unko mila do
+                if (lastMsg.role === msg.role) {
+                    lastMsg.content += " | " + msg.content; 
+                } else {
+                    chatHistory.push(msg);
+                }
+            }
+        }
+
+        // Agar aakhri message bhi user ka hai, toh usko abhi wale naye message k sath mila do
+        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].role === 'user') {
+            let lastUserMsg = chatHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
+        // ==========================================
+
+        // 2. Supabase Edge Function ko Safe Message + History bhejna
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: { 
                 message: userMessage,
-                history: chatHistory // NAYA: Ab AI pichli baatein nahi bhoolega
+                history: chatHistory 
             }
         });
 
         if (error) {
-            throw error;
+            // Agar network ya backend crash ho
+            throw new Error(`Edge Function Fail: ${error.message}`);
+        }
+        
+        if (data && data.error) {
+            // Agar hamare fallback backend ne koi specific error bheja ho
+            throw new Error(data.error);
         }
 
         if (data && data.reply) {
@@ -585,7 +615,7 @@ async function askAI(userMessage) {
             console.log("AI Reply:", data.reply);
             return data.reply;
         } else {
-            throw new Error("AI API se koi text receive nahi hua.");
+            throw new Error("AI se text receive nahi hua.");
         }
 
     } catch (err) {
