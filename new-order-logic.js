@@ -344,7 +344,7 @@ function addToDraft(type, content) {
 
     }
 
-    getAiReply(val);
+    askAI(val);
 
     }
 
@@ -558,7 +558,7 @@ async function askAI(userMessage) {
         // 3. Agar AI ka successful jawab aa jaye
         if (data && data.reply) {
             // (Yahan aapka woh function aayega jo AI ka jawab screen par add karta hai, misal ke tor par:)
-            // addAiBubble(data.reply); 
+            addAiBubble(data.reply); 
             console.log("AI Reply:", data.reply);
             
             return data.reply; // Jawab wapis bhej dena taake code mein jahan zaroorat ho use ho sake
