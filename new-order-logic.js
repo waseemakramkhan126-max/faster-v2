@@ -313,22 +313,27 @@ function addToDraft(type, content) {
     let itemData = content;
     
     if (type === 'text') {
-        const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
-        if(!val) return; 
-        itemData = val; b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
-        if(typeof content !== 'string') { document.getElementById('orderInput').value = ""; handleInput(document.getElementById('orderInput')); }
-    } else if (type === 'image') {
-        const imgUrl = URL.createObjectURL(content.file);
-        b.innerHTML = `<img src="${imgUrl}" class="media-thumb shadow-sm">${content.caption ? `<div class="caption-text font-bold text-gray-800">${content.caption}</div>` : ''}`;
-    } else if (type === 'video') {
-        b.innerHTML = `<video src="${URL.createObjectURL(content)}" class="media-thumb shadow-sm" playsinline preload="metadata"></video>`;
-    } else if (type === 'voice') {
-        b.innerHTML = `<div class="flex items-center gap-1"><audio src="${URL.createObjectURL(content)}" controls class="h-8 w-44"></audio></div>`;
-    } else if (type === 'doc') {
-        let iconClass = "fas fa-file text-gray-500";
-        if(content.name.endsWith('.pdf')) iconClass = "fas fa-file-pdf text-red-500";
-        else if(content.name.match(/\.(doc|docx)$/)) iconClass = "fas fa-file-word text-blue-500";
-        b.innerHTML = `<div class="flex items-center gap-3 p-1 text-sm font-bold text-gray-700"><div class="bg-gray-100 p-3 rounded-lg"><i class="${iconClass} text-xl"></i></div><div class="flex flex-col truncate w-32"><span class="truncate">${content.name}</span><span class="text-[10px] text-gray-400 font-normal">${(content.size / 1024).toFixed(1)} KB</span></div></div>`;
+
+    const val = (typeof content === 'string')
+        ? content
+        : document.getElementById('orderInput').value.trim();
+
+    if(!val) return;
+
+    itemData = val;
+
+    b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+
+    if(typeof content !== 'string') {
+
+        document.getElementById('orderInput').value = "";
+
+        handleInput(document.getElementById('orderInput'));
+
+    }
+
+    getAiReply(val);
+
     }
 
     let pressTimer;
@@ -554,3 +559,31 @@ document.addEventListener('click', function(event) {
 
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
+async function getAiReply(userMessage) {
+
+    try {
+
+        const { data, error } =
+        await _supabase.functions.invoke('chat-brain', {
+
+            body: {
+                message: userMessage
+            }
+
+        });
+
+        if(error) throw error;
+
+        if(data?.reply) {
+
+            addAiBubble(data.reply);
+
+        }
+
+    } catch(err) {
+
+        console.error("AI Error:", err);
+
+    }
+
+    }
