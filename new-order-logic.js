@@ -544,29 +544,52 @@ window.addEventListener('online', () => { document.getElementById('offlineBanner
 
 async function askAI(userMessage) {
     try {
-        // Supabase Edge Function ko call karna
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: { message: userMessage }
+        // 1. Screen se pichli saari chat read karna taake AI ko context bheja ja sake
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let chatHistory = [];
+
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            // Errors ya khali messages ko history mein mat daalo
+            if (text && !text.startsWith("⚠️ AI Error")) { 
+                if (el.classList.contains('ai-bubble')) {
+                    // "AI Assistant:" wala label hata kar sirf asal text bhejna
+                    let cleanText = text.replace("AI Assistant:", "").trim();
+                    chatHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    chatHistory.push({ role: 'user', content: text });
+                }
+            }
         });
 
-        // Agar connection mein masla aye
+        // Current user message history mein sab se aakhir mein aya hoga, usko remove karna
+        // kyunke usko hum 'message' parameter mein alag se bhej rahe hain
+        if (chatHistory.length > 0 && chatHistory[chatHistory.length - 1].content === userMessage) {
+            chatHistory.pop();
+        }
+
+        // 2. Supabase Edge Function ko Message + History dono bhejna
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: { 
+                message: userMessage,
+                history: chatHistory // NAYA: Ab AI pichli baatein nahi bhoolega
+            }
+        });
+
         if (error) {
             throw error;
         }
 
-        // Agar AI successful jawab de
         if (data && data.reply) {
             addAiBubble(data.reply); 
             console.log("AI Reply:", data.reply);
             return data.reply;
         } else {
-            throw new Error("AI ne koi jawab nahi bheja (Empty response).");
+            throw new Error("AI API se koi text receive nahi hua.");
         }
 
     } catch (err) {
         console.error("AI Error:", err.message);
-        
-        // YEH NAYI LINE HAI: Error ko chat bubble mein show karna
         addAiBubble(`⚠️ AI Error: ${err.message}. Kripya thori der baad dobara koshish karein.`);
     }
 }
