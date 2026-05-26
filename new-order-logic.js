@@ -436,53 +436,103 @@ async function handleVoice() {
     } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
 }
 // AI Functionality
+// =====================================================
+// AI FUNCTIONALITY (FIXED & OPTIMIZED MEMORY FLOW)
+// =====================================================
+
+// 1. Jab user AI Button par click karega
 async function askAI() {
     const inputField = document.getElementById('orderInput');
-    const userPrompt = inputField.value.trim();
-
-    if (!userPrompt) {
+    if (!inputField.value.trim()) {
         return Dialog.show("Error", "Pehle kuch type karein.");
     }
+    
+    // Alag se API call karne ki zaroorat nahi, seedha screen par bubble add karo
+    // Yeh line input box ko khali bhi karegii aur khud hi getAiReply() ko call kar legi.
+    addToDraft('text');
+}
 
+// 2. Screen se poori history uthakar AI se jawab mangwana
+async function getAiReply(userMessage) {
     const btn = document.getElementById('aiBtn');
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+    let originalContent = "";
+    
+    // Button par loading spinner dikhana
+    if (btn) {
+        originalContent = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+    }
 
     try {
+        // A. Screen se pichli saari chat (bubbles) uthana
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let rawHistory = [];
 
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userPrompt
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            if (text && !text.startsWith("⚠️")) { 
+                if (el.classList.contains('ai-bubble')) {
+                    let cleanText = text.replace("AI Assistant:", "").trim();
+                    rawHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    rawHistory.push({ role: 'user', content: text });
+                }
             }
         });
 
-        if (error) throw error;
+        // Agar aakhri message wahi hai jo user ne abhi bheja hai, toh use history array se nikal do
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
+        }
 
-        addAiBubble(data.reply);
+        // B. CRASH-PROOF HISTORY MERGER (Gemini Roles Alignment)
+        let safeHistory = [];
+        let expectedRole = 'user';
+        
+        for (let msg of rawHistory) {
+            if (msg.role === expectedRole) {
+                safeHistory.push(msg);
+                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+            } else if (safeHistory.length > 0) {
+                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
+            }
+        }
 
-        inputField.value = "";
+        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
+            let lastUserMsg = safeHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
 
-    } catch (err) {
+        // C. Supabase Edge Function ko Message aur History dono bhejna
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: {
+                message: userMessage,
+                history: safeHistory // <--- Ab AI ko hamesha context yaad rahega
+            }
+        });
 
-        Dialog.show("Error", "AI respond nahi kar raha: " + err.message);
+        if (error) {
+            addAiBubble(`⚠️ Network Error: ${error.message}`);
+            return;
+        }
 
+        if (data && data.error) {
+            addAiBubble(`⚠️ Backend Error: ${data.error}`);
+            return;
+        }
+
+        if (data && data.reply) {
+            addAiBubble(data.reply);
+        }
+
+    } catch(err) {
+        console.error("AI Error:", err);
+        addAiBubble(`⚠️ System Error: ${err.message}`);
     } finally {
-
-        btn.innerHTML = originalContent;
-
+        // Loading spinner hatakar button ko wapas normal karna
+        if (btn) btn.innerHTML = originalContent;
     }
 }
-
-// AI Message Bubble
-function addAiBubble(text) {
-    const chat = document.getElementById('chatArea');
-    const b = document.createElement('div');
-    b.className = "bubble self-start ai-bubble";
-    b.innerHTML = `<p class="font-bold text-xs mb-1 opacity-70">AI Assistant:</p><p>${text}</p>`;
-    chat.appendChild(b);
-    chat.scrollTop = chat.scrollHeight;
-}
-
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
@@ -559,73 +609,3 @@ document.addEventListener('click', function(event) {
 
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
-async function getAiReply(userMessage) {
-    try {
-        // 1. Screen se pichli saari chat uthana
-        const chatElements = document.querySelectorAll('#chatArea .bubble');
-        let rawHistory = [];
-
-        chatElements.forEach(el => {
-            const text = el.innerText.trim();
-            if (text && !text.startsWith("⚠️")) { 
-                if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace("AI Assistant:", "").trim();
-                    rawHistory.push({ role: 'model', content: cleanText });
-                } else if (el.classList.contains('customer-bubble')) {
-                    rawHistory.push({ role: 'user', content: text });
-                }
-            }
-        });
-
-        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
-            rawHistory.pop();
-        }
-
-        // ==========================================
-        // CRASH-PROOF HISTORY MERGER
-        // ==========================================
-        let safeHistory = [];
-        let expectedRole = 'user';
-        
-        for (let msg of rawHistory) {
-            if (msg.role === expectedRole) {
-                safeHistory.push(msg);
-                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
-            } else if (safeHistory.length > 0) {
-                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
-            }
-        }
-
-        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
-            let lastUserMsg = safeHistory.pop();
-            userMessage = lastUserMsg.content + " | " + userMessage;
-        }
-
-        // 2. Ab Supabase ko 'Naya Message' aur 'Pichli Baatein' dono bhejna
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userMessage,
-                history: safeHistory // <--- YAHAN SE AI KO PATA CHALEGA KE COKE KI BAAT HO RAHI THI
-            }
-        });
-
-        // 3. Jawab screen par lagana
-        if (error) {
-            addAiBubble(`⚠️ Network Error: ${error.message}`);
-            return;
-        }
-
-        if (data && data.error) {
-            addAiBubble(`⚠️ Backend Error: ${data.error}`);
-            return;
-        }
-
-        if (data && data.reply) {
-            addAiBubble(data.reply);
-        }
-
-    } catch(err) {
-        console.error("AI Error:", err);
-        addAiBubble(`⚠️ System Error: ${err.message}`);
-    }
-}
