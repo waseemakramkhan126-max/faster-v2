@@ -313,27 +313,23 @@ function addToDraft(type, content) {
     let itemData = content;
     
     if (type === 'text') {
+        const val = (typeof content === 'string')
+            ? content
+            : document.getElementById('orderInput').value.trim();
 
-    const val = (typeof content === 'string')
-        ? content
-        : document.getElementById('orderInput').value.trim();
+        if(!val) return;
 
-    if(!val) return;
+        itemData = val;
 
-    itemData = val;
+        b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
 
-    b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
+        if(typeof content !== 'string') {
+            document.getElementById('orderInput').value = "";
+            handleInput(document.getElementById('orderInput'));
+        }
 
-    if(typeof content !== 'string') {
-
-        document.getElementById('orderInput').value = "";
-
-        handleInput(document.getElementById('orderInput'));
-
-    }
-
-    askAI(val);
-
+        // CORRECTED: Direct call to getAiReply
+        getAiReply(val);
     }
 
     let pressTimer;
@@ -435,10 +431,25 @@ async function handleVoice() {
         }
     } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
 }
-// AI Functionality
+
 // =====================================================
 // AI FUNCTIONALITY (FIXED & OPTIMIZED MEMORY FLOW)
 // =====================================================
+
+// ADDED: Root level function so it doesn't cause reference errors
+function addAiBubble(text) {
+    const chat = document.getElementById('chatArea');
+    const bId = "ai-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+    const b = document.createElement('div');
+    
+    // UI mein difference laane ke liye ai-bubble aur background color classes add ki hain
+    b.className = "bubble ai-bubble animate-pop bg-gray-100 text-gray-800 p-3 rounded-lg my-2 max-w-[80%] self-start"; 
+    b.id = bId;
+    b.innerHTML = `<p class="whitespace-pre-wrap"><strong>AI Assistant:</strong><br>${text}</p>`;
+    
+    chat.appendChild(b);
+    chat.scrollTop = chat.scrollHeight; // Naya message aane par auto-scroll down
+}
 
 // 1. Jab user AI Button par click karega
 async function askAI() {
@@ -448,7 +459,7 @@ async function askAI() {
     }
     
     // Alag se API call karne ki zaroorat nahi, seedha screen par bubble add karo
-    // Yeh line input box ko khali bhi karegii aur khud hi getAiReply() ko call kar legi.
+    // Yeh line input box ko khali bhi karegii aur khud hi getAiReply() ko call kar legi (ab theek se set hai)
     addToDraft('text');
 }
 
@@ -533,6 +544,7 @@ async function getAiReply(userMessage) {
         if (btn) btn.innerHTML = originalContent;
     }
 }
+
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
