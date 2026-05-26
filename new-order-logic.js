@@ -585,15 +585,36 @@ async function finalSubmitOrder(userEmail) {
             uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
         ]);
         
-        const textData = draftData.texts.map(t => t.data);
-        const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-        const combinedDetails = [...textData, ...captionData].join(" | ");
+        // 1. Screen se aakhri AI message (Final Summary) nikalna
+const aiBubbles = document.querySelectorAll('.ai-bubble');
+let finalOrderSummary = "";
 
-        const { error } = await _supabase.from('orders').insert([{
-            customer_phone: userPhone, customer_name: name, delivery_address: addr, 
-            order_details: combinedDetails, image_url: imgURLs, video_url: vidURLs, 
-            voice_url: vceURLs, doc_url: docURLs, status: 'pending', dc_amount: deliveryCharges 
-        }]);
+if (aiBubbles.length > 0) {
+    // Sab se aakhri AI bubble ka text uthana aur "AI Assistant:" wala label hatana
+    let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
+    finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
+}
+
+// Fallback: Agar kisi wajah se AI ki summary nahi mili, to backup ke tor par user ka input use karein
+if (!finalOrderSummary) {
+    const textData = draftData.texts.map(t => t.data);
+    const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
+    finalOrderSummary = [...textData, ...captionData].join(" | ");
+}
+
+// 2. Supabase mein insert karte waqt 'finalOrderSummary' bhejna
+const { error } = await _supabase.from('orders').insert([{
+    customer_phone: userPhone, 
+    customer_name: name, 
+    delivery_address: addr, 
+    order_details: finalOrderSummary, // <--- Yahan ab sirf AI ki banayi hui summary jayegi
+    image_url: imgURLs, 
+    video_url: vidURLs, 
+    voice_url: vceURLs, 
+    doc_url: docURLs, 
+    status: 'pending', 
+    dc_amount: deliveryCharges 
+}]);
         
         if(error) throw error;
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
