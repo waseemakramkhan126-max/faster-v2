@@ -332,7 +332,7 @@ function addToDraft(type, content) {
 
     }
 
-    getAiReply(val);
+    askAI(val);
 
     }
 
