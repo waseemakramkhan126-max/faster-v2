@@ -561,70 +561,32 @@ window.addEventListener('offline', () => document.getElementById('offlineBanner'
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
 async function getAiReply(userMessage) {
     try {
-        // 1. Screen se pichli saari chat uthana taake AI ko context yaad rahe
-        const chatElements = document.querySelectorAll('#chatArea .bubble');
-        let rawHistory = [];
-
-        chatElements.forEach(el => {
-            const text = el.innerText.trim();
-            // Sirf actual messages history mein dalen, errors ko ignore karein
-            if (text && !text.startsWith("⚠️")) { 
-                if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace("AI Assistant:", "").trim();
-                    rawHistory.push({ role: 'model', content: cleanText });
-                } else if (el.classList.contains('customer-bubble')) {
-                    rawHistory.push({ role: 'user', content: text });
-                }
-            }
-        });
-
-        // Jo message aap abhi bhej rahe hain, usko history se nikalna (wo alag se jayega)
-        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
-            rawHistory.pop();
-        }
-
-        // ==========================================
-        // CRASH-PROOF HISTORY MERGER
-        // Google Gemini ko strictly [User -> Model -> User -> Model] chahiye
-        // ==========================================
-        let safeHistory = [];
-        let expectedRole = 'user';
-        
-        for (let msg of rawHistory) {
-            if (msg.role === expectedRole) {
-                safeHistory.push(msg);
-                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
-            } else if (safeHistory.length > 0) {
-                // Agar lagataar do message ek hi bande ke hon (jaise user ne 2 dafa enter dabaya)
-                // Toh unko ek sath jor do taake Gemini crash na ho
-                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
-            }
-        }
-
-        // Gemini API ka sakht asool: Naya message bhejte waqt history hamesha 'model' (AI) par khatam honi chahiye
-        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
-            let lastUserMsg = safeHistory.pop();
-            // Aakhri user message ko naye message ke sath jor do
-            userMessage = lastUserMsg.content + " | " + userMessage;
-        }
-
-        // 2. Ab Supabase ko 'Naya Message' aur 'Pichli Baatein' (History) dono bhej rahe hain
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: { 
-                message: userMessage,
-                history: safeHistory
+            body: {
+                message: userMessage
             }
         });
 
-        if (error) throw error;
+        // 1. Agar Supabase ya internet connection ka koi masla ho
+        if (error) {
+            addAiBubble(`⚠️ Network Error: ${error.message}`);
+            return;
+        }
 
-        // 3. AI ka mukammal jawab screen par lagana
+        // 2. YAHAN MASLA CHUPA THA! Agar backend ne 200 status ke sath error bheja ho
+        if (data && data.error) {
+            addAiBubble(`⚠️ Backend Error: ${data.error}`);
+            return;
+        }
+
+        // 3. Agar AI ka theek jawab aa jaye
         if (data && data.reply) {
             addAiBubble(data.reply);
         }
 
     } catch(err) {
+        // Agar code mein koi aur crash ho
         console.error("AI Error:", err);
-        addAiBubble(`⚠️ AI Error: ${err.message}`);
+        addAiBubble(`⚠️ System Error: ${err.message}`);
     }
 }
