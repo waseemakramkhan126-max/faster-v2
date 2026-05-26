@@ -561,31 +561,70 @@ window.addEventListener('offline', () => document.getElementById('offlineBanner'
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
 async function getAiReply(userMessage) {
     try {
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userMessage
+        // 1. Screen se pichli saari chat uthana
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let rawHistory = [];
+
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            if (text && !text.startsWith("⚠️")) { 
+                if (el.classList.contains('ai-bubble')) {
+                    let cleanText = text.replace("AI Assistant:", "").trim();
+                    rawHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    rawHistory.push({ role: 'user', content: text });
+                }
             }
         });
 
-        // 1. Agar Supabase ya internet connection ka koi masla ho
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
+        }
+
+        // ==========================================
+        // CRASH-PROOF HISTORY MERGER
+        // ==========================================
+        let safeHistory = [];
+        let expectedRole = 'user';
+        
+        for (let msg of rawHistory) {
+            if (msg.role === expectedRole) {
+                safeHistory.push(msg);
+                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+            } else if (safeHistory.length > 0) {
+                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
+            }
+        }
+
+        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
+            let lastUserMsg = safeHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
+
+        // 2. Ab Supabase ko 'Naya Message' aur 'Pichli Baatein' dono bhejna
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: {
+                message: userMessage,
+                history: safeHistory // <--- YAHAN SE AI KO PATA CHALEGA KE COKE KI BAAT HO RAHI THI
+            }
+        });
+
+        // 3. Jawab screen par lagana
         if (error) {
             addAiBubble(`⚠️ Network Error: ${error.message}`);
             return;
         }
 
-        // 2. YAHAN MASLA CHUPA THA! Agar backend ne 200 status ke sath error bheja ho
         if (data && data.error) {
             addAiBubble(`⚠️ Backend Error: ${data.error}`);
             return;
         }
 
-        // 3. Agar AI ka theek jawab aa jaye
         if (data && data.reply) {
             addAiBubble(data.reply);
         }
 
     } catch(err) {
-        // Agar code mein koi aur crash ho
         console.error("AI Error:", err);
         addAiBubble(`⚠️ System Error: ${err.message}`);
     }
