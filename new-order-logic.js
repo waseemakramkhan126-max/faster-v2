@@ -475,76 +475,49 @@ async function getAiReply(userMessage) {
     }
 
     try {
-        // A. Screen se pichli saari chat (bubbles) uthana
-        const chatElements = document.querySelectorAll('#chatArea .bubble');
-        let rawHistory = [];
+        // Screen se aakhri AI message nikalna
+const aiBubbles = document.querySelectorAll('.ai-bubble');
+let finalOrderSummary = "";
 
-        chatElements.forEach(el => {
-            const text = el.innerText.trim();
-            if (text && !text.startsWith("⚠️")) { 
-                if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace("AI Assistant:", "").trim();
-                    rawHistory.push({ role: 'model', content: cleanText });
-                } else if (el.classList.contains('customer-bubble')) {
-                    rawHistory.push({ role: 'user', content: text });
-                }
-            }
-        });
+if (aiBubbles.length > 0) {
+    let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
+    
+    // Yahan hum extract kar rahe hain "**Order Summary:**" se lekar "* **Delivery Charges:**" tak ka hissa
+    const startMarker = "**Order Summary:**";
+    const endMarker = "* **Delivery Charges:**"; 
 
-        // Agar aakhri message wahi hai jo user ne abhi bheja hai, toh use history array se nikal do
-        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
-            rawHistory.pop();
-        }
+    const startIndex = lastAiText.indexOf(startMarker);
+    const endIndex = lastAiText.indexOf(endMarker);
 
-        // B. CRASH-PROOF HISTORY MERGER (Gemini Roles Alignment)
-        let safeHistory = [];
-        let expectedRole = 'user';
-        
-        for (let msg of rawHistory) {
-            if (msg.role === expectedRole) {
-                safeHistory.push(msg);
-                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
-            } else if (safeHistory.length > 0) {
-                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
-            }
-        }
-
-        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
-            let lastUserMsg = safeHistory.pop();
-            userMessage = lastUserMsg.content + " | " + userMessage;
-        }
-
-        // C. Supabase Edge Function ko Message aur History dono bhejna
-        const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userMessage,
-                history: safeHistory // <--- Ab AI ko hamesha context yaad rahega
-            }
-        });
-
-        if (error) {
-            addAiBubble(`⚠️ Network Error: ${error.message}`);
-            return;
-        }
-
-        if (data && data.error) {
-            addAiBubble(`⚠️ Backend Error: ${data.error}`);
-            return;
-        }
-
-        if (data && data.reply) {
-            addAiBubble(data.reply);
-        }
-
-    } catch(err) {
-        console.error("AI Error:", err);
-        addAiBubble(`⚠️ System Error: ${err.message}`);
-    } finally {
-        // Loading spinner hatakar button ko wapas normal karna
-        if (btn) btn.innerHTML = originalContent;
+    if (startIndex !== -1 && endIndex !== -1) {
+        // Dono markers ke darmiyan ka text nikal lo
+        finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
+    } else {
+        // Agar format match na ho, toh default poora text le lo
+        finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
     }
 }
 
+// Fallback: Agar kisi wajah se AI ki summary nahi mili
+if (!finalOrderSummary) {
+    const textData = draftData.texts.map(t => t.data);
+    const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
+    finalOrderSummary = [...textData, ...captionData].join(" | ");
+}
+
+// Ab 'finalOrderSummary' mein sirf aapki desired item list hogi
+const { error } = await _supabase.from('orders').insert([{
+    customer_phone: userPhone, 
+    customer_name: name, 
+    delivery_address: addr, 
+    order_details: finalOrderSummary, // <--- Sirf summary save hogi
+    image_url: imgURLs, 
+    video_url: vidURLs, 
+    voice_url: vceURLs, 
+    doc_url: docURLs, 
+    status: 'pending', 
+    dc_amount: deliveryCharges 
+}]);
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
