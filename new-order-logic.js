@@ -635,7 +635,8 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
 
         chatElements.forEach(el => {
             const text = el.innerText.trim();
-            if (text && !text.startsWith("⚠️")) { 
+            // ⚠️ Wale error messages ko history mein shamil nahi karna
+            if (text && !text.includes("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
                     let cleanText = text.replace(/Faster AI:/i, "").trim();
                     rawHistory.push({ role: 'model', content: cleanText });
@@ -675,14 +676,28 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             }
         });
 
-        if (error) {
-            addAiBubble(`⚠️ Network Error: ${error.message}`);
-            return;
-        }
+        // ==========================================
+        // DYNAMIC ERROR & LIMIT DETECTION LOGIC
+        // ==========================================
+        let hasError = false;
+        let errorMsg = "";
 
-        if (data && data.error) {
-            addAiBubble(`⚠️ Backend Error: ${data.error}`);
-            return;
+        if (error) { hasError = true; errorMsg = error.message || error.toString(); }
+        if (data && data.error) { hasError = true; errorMsg = data.error; }
+
+        if (hasError) {
+            let lowerError = errorMsg.toLowerCase();
+            // Agar backend se Limit, Quota, Exceeded ya 429 ka error aata hai
+            if (lowerError.includes("limit") || lowerError.includes("quota") || lowerError.includes("exceeded") || lowerError.includes("429")) {
+                Dialog.show(
+                    "Limit Reached", 
+                    "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", 
+                    "alert"
+                );
+            } else {
+                addAiBubble(`⚠️ System Error: ${errorMsg}`);
+            }
+            return; // Yahan ruk jayega aur AI bubble nahi banayega
         }
 
         if (data && data.reply) {
@@ -691,7 +706,16 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
 
     } catch(err) {
         console.error("AI Error:", err);
-        addAiBubble(`⚠️ System Error: ${err.message}`);
+        // Agar network try-catch mein limit hit hoti hai
+        if (err.message.toLowerCase().includes("limit") || err.message.toLowerCase().includes("quota")) {
+            Dialog.show(
+                "Limit Reached", 
+                "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", 
+                "alert"
+            );
+        } else {
+            addAiBubble(`⚠️ System Error: ${err.message}`);
+        }
     } finally {
         if (btn) btn.innerHTML = originalContent;
     }
