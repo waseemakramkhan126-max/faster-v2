@@ -336,38 +336,32 @@ function addToDraft(type, content) {
         const objUrl = URL.createObjectURL(content);
         
         b.innerHTML = `
-            <div class="voice-player-container flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
-                <button type="button" class="play-btn-custom flex items-center justify-center w-10 h-8 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
-                    <i class="fas fa-play text-sm ml-0.5 pointer-events-none"></i>
-                </button>
-                
-                <div class="flex flex-col flex-grow gap-1 pointer-events-none">
-                    <div class="flex items-center gap-[3px] h-5 opacity-60">
-                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-2 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-5 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-2 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-5 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
-                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
-                    </div>
-                    <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
-                        <span class="time-current">0:00</span>
-                        <div class="flex items-center gap-0.5 text-[#5cb1e6]">
-                            <i class="fas fa-check-double text-[10px]"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <audio src="${objUrl}" playsinline preload="auto" style="position: absolute; opacity: 0; pointer-events: none; width: 0px; height: 0px;"></audio>
-                
-                <div class="text-[#0077b9] pr-1 pointer-events-none">
-                    <i class="fas fa-microphone text-lg"></i>
-                </div>
+            <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] p-2 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
+        <button type="button" class="play-btn-custom flex items-center justify-center w-8 h-8 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 32px; z-index: 10;">
+            <i class="fas fa-play text-xs ml-0.5 pointer-events-none"></i>
+        </button>
+        
+        <div class="flex flex-col flex-grow gap-0.5 pointer-events-none">
+            <div class="flex items-center gap-[2px] h-3 opacity-60">
+                <div class="w-[2px] h-2 bg-white rounded-full"></div>
+                <div class="w-[2px] h-3 bg-white rounded-full"></div>
+                <div class="w-[2px] h-1.5 bg-white rounded-full"></div>
+                <div class="w-[2px] h-3 bg-white rounded-full"></div>
+                <div class="w-[2px] h-2 bg-white rounded-full"></div>
+                <div class="w-[2px] h-3 bg-white rounded-full"></div>
             </div>
+            <div class="flex justify-between items-center text-[10px] text-white font-medium">
+                <span class="time-current">0:00</span>
+                <i class="fas fa-check-double text-[9px]"></i>
+            </div>
+        </div>
+        
+        <audio src="${objUrl}" playsinline preload="auto" style="position: absolute; opacity: 0; pointer-events: none; width: 0px; height: 0px;"></audio>
+        
+        <div class="text-white pr-1 pointer-events-none">
+            <i class="fas fa-microphone text-sm"></i>
+        </div>
+    </div>
         `;
         
         setTimeout(() => {
