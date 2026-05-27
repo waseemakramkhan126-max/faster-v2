@@ -37,7 +37,7 @@
     --input-text-color: #1f2937;      /* Jo text type ho rha hota hai uska color */
 
     /* 6. CHAT BUBBLES COLORS (Messages) */
-    --customer-bubble-bg: #dcf8c6;    /* Jo order details chat me add hoti hain unke bubble ka background color */
+    --customer-bubble-bg: #0077b9;    /* Jo order details chat me add hoti hain unke bubble ka background color */
     --customer-bubble-text: #000000;  /* Chat ke andar likhe hue details ke text ka color */
 }
 
