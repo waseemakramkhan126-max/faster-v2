@@ -580,14 +580,22 @@ function addAiBubble(text) {
     const bId = "ai-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
     const b = document.createElement('div');
     
+    // Yahan humne AI ka naam "Faster AI" aur sath icon add kar diya hai
     b.className = "bubble ai-bubble animate-pop bg-gray-100 text-gray-800 p-3 rounded-lg my-2 max-w-[80%] self-start"; 
     b.id = bId;
-    b.innerHTML = `<p class="whitespace-pre-wrap"><strong>AI Assistant:</strong><br>${text}</p>`;
+    b.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+            <div class="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px]">
+                <i class="fas fa-robot"></i>
+            </div>
+            <strong class="text-xs text-orange-600">Faster AI</strong>
+        </div>
+        <p class="whitespace-pre-wrap">${text}</p>
+    `;
     
     chat.appendChild(b);
     chat.scrollTop = chat.scrollHeight; 
 }
-
 async function askAI() {
     const inputField = document.getElementById('orderInput');
     if (!inputField.value.trim()) {
@@ -629,7 +637,7 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             const text = el.innerText.trim();
             if (text && !text.startsWith("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace(/AI Assistant:/i, "").trim();
+                    let cleanText = text.replace(/Faster AI:/i, "").trim();
                     rawHistory.push({ role: 'model', content: cleanText });
                 } else if (el.classList.contains('customer-bubble')) {
                     rawHistory.push({ role: 'user', content: text });
