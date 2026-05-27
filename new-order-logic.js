@@ -88,32 +88,32 @@ function setupRealtime() {
 }
 
 // -----------------------------------------------------
-// SCROLL LOGIC TO HIDE/SHOW APPBAR (BLINKING FIXED)
+// SCROLL LOGIC TO HIDE/SHOW APPBAR
 // -----------------------------------------------------
 const chatArea = document.getElementById('chatArea');
 const topAppBar = document.getElementById('topAppBar');
 let lastScrollTop = 0;
 
-chatArea.addEventListener('scroll', function() {
-    let scrollTop = chatArea.scrollTop;
-    
-    if (Math.abs(scrollTop - lastScrollTop) <= 15) return; 
+if(chatArea && topAppBar) {
+    chatArea.addEventListener('scroll', function() {
+        let scrollTop = chatArea.scrollTop;
+        if (Math.abs(scrollTop - lastScrollTop) <= 15) return; 
 
-    if (scrollTop > lastScrollTop && scrollTop > 20) {
-        topAppBar.style.height = '0px';
-        topAppBar.style.paddingTop = '0px';
-        topAppBar.style.paddingBottom = '0px';
-        topAppBar.style.opacity = '0';
-        topAppBar.style.overflow = 'hidden'; 
-    } else {
-        topAppBar.style.height = ''; 
-        topAppBar.style.paddingTop = '';
-        topAppBar.style.paddingBottom = '';
-        topAppBar.style.opacity = '1';
-    }
-    lastScrollTop = scrollTop;
-});
-// -----------------------------------------------------
+        if (scrollTop > lastScrollTop && scrollTop > 20) {
+            topAppBar.style.height = '0px';
+            topAppBar.style.paddingTop = '0px';
+            topAppBar.style.paddingBottom = '0px';
+            topAppBar.style.opacity = '0';
+            topAppBar.style.overflow = 'hidden'; 
+        } else {
+            topAppBar.style.height = ''; 
+            topAppBar.style.paddingTop = '';
+            topAppBar.style.paddingBottom = '';
+            topAppBar.style.opacity = '1';
+        }
+        lastScrollTop = scrollTop;
+    });
+}
 
 // Custom Camera Logic
 async function startCustomCamera() {
@@ -299,6 +299,9 @@ async function previewFile(input, mode) {
     input.value = ""; 
 }
 
+// -----------------------------------------------------
+// CLEANED & FIXED ADD TO DRAFT FUNCTION
+// -----------------------------------------------------
 function addToDraft(type, content) {
     document.getElementById('emptyPlaceholder').style.display = 'none';
     const chat = document.getElementById('chatArea');
@@ -318,10 +321,9 @@ function addToDraft(type, content) {
             document.getElementById('orderInput').value = "";
             handleInput(document.getElementById('orderInput'));
         }
-        getAiReply(val); // Text AI ko bhej diya
+        getAiReply(val); 
     } 
     else if (type === 'image') {
-        // Picture show karein aur AI ko bhejein
         const objUrl = URL.createObjectURL(content.file);
         b.innerHTML = `
             <img src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
@@ -331,39 +333,18 @@ function addToDraft(type, content) {
         sendMediaToAI(content.file, promptText);
     } 
     else if (type === 'voice') {
-        // Voice note show karein aur AI ko bhejein
         const objUrl = URL.createObjectURL(content);
         b.innerHTML = `<audio controls src="${objUrl}" class="w-full mt-1 mb-1"></audio>`;
         sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     } 
     else if (type === 'doc') {
-        // Document icon show karein aur AI ko bhejein
         b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
         sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
     }
     else if (type === 'video') {
-        // Video player show karein
         const objUrl = URL.createObjectURL(content);
         b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
         sendMediaToAI(content, "Is video ko check karein.");
-    }
-
-    let pressTimer;
-    b.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleSelect(bId, type); if(navigator.vibrate) navigator.vibrate(50); }, 500); });
-    b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
-    b.addEventListener('touchend', () => clearTimeout(pressTimer));
-    b.addEventListener('click', () => {
-        if (selectedItems.length > 0) toggleSelect(bId, type); 
-        else if (type === 'image' || type === 'video') openFull({src: type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content)}, type === 'image' ? 'img' : 'vid');
-    });
-
-    const key = type === 'text' ? 'texts' : type + 's';
-    draftData[key].push({ id: bId, data: itemData });
-    chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
-    document.getElementById('confirmBtnRow').classList.remove('hidden');
-}
-
-        getAiReply(val);
     }
 
     let pressTimer;
@@ -490,6 +471,7 @@ async function askAI() {
     }
     addToDraft('text');
 }
+
 // File ko Base64 banakar AI ko bhejne wala function
 function sendMediaToAI(file, promptText) {
     const reader = new FileReader();
@@ -497,7 +479,6 @@ function sendMediaToAI(file, promptText) {
     reader.onload = async () => {
         const base64String = reader.result.split(',')[1];
         const mimeType = file.type;
-        // getAiReply ko message ke sath file ka data bhi pass kiya gaya
         await getAiReply(promptText, base64String, mimeType);
     };
     reader.onerror = error => {
@@ -505,9 +486,10 @@ function sendMediaToAI(file, promptText) {
         Dialog.show("Error", "File read nahi ho saki.", "alert");
     };
 }
+
 // Function parameters mein fileData aur mimeType add kiya gaya
 async function getAiReply(userMessage, fileData = null, mimeType = null) {
-    const btn = document.getElementById('aiBtn');
+    const btn = document.getElementById('sendBtn'); // Input button targeted
     let originalContent = "";
     
     if (btn) {
@@ -526,7 +508,6 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
                     let cleanText = text.replace("AI Assistant:", "").trim();
                     rawHistory.push({ role: 'model', content: cleanText });
                 } else if (el.classList.contains('customer-bubble')) {
-                    // Agar bubble mein koi text hai to utha lo
                     rawHistory.push({ role: 'user', content: text });
                 }
             }
@@ -553,13 +534,12 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             userMessage = lastUserMsg.content + " | " + userMessage;
         }
 
-        // Yahan edge function ko fileData aur mimeType bhi bheja ja raha hai!
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: {
                 message: userMessage,
                 history: safeHistory,
-                fileData: fileData,  // Base64 file string
-                mimeType: mimeType   // Jaise 'image/jpeg' ya 'audio/webm'
+                fileData: fileData, 
+                mimeType: mimeType  
             }
         });
 
@@ -626,7 +606,7 @@ async function finalSubmitOrder(userEmail) {
         ]);
         
         // =====================================================
-        // FIXED & ROBUST SUMMARY EXTRACTION LOGIC
+        // FIXED SUMMARY EXTRACTION LOGIC
         // =====================================================
         const aiBubbles = document.querySelectorAll('.ai-bubble');
         let finalOrderSummary = "";
@@ -634,18 +614,15 @@ async function finalSubmitOrder(userEmail) {
         if (aiBubbles.length > 0) {
             let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
             
-            // "Order Summary" ka start index nikalna
             let startIndex = lastAiText.indexOf("Order Summary");
             if (startIndex === -1) startIndex = lastAiText.indexOf("Order summary");
             if (startIndex === -1) startIndex = lastAiText.indexOf("Summary");
 
-            // Naya End Index: Ab hum 'Delivery Charges' ki jagah is aakhri line ko end point banayenge
             let endIndex = lastAiText.indexOf("Aapka order bilkul ready hai");
             if (endIndex === -1) endIndex = lastAiText.indexOf("Baraye meharbani ab neeche");
 
             if (startIndex !== -1) {
                 if (endIndex !== -1 && endIndex > startIndex) {
-                    // Agar confirmation line mil jaye to wahan tak ka text uthao
                     finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
                 } else {
                     finalOrderSummary = lastAiText.substring(startIndex).trim();
@@ -655,15 +632,12 @@ async function finalSubmitOrder(userEmail) {
             }
         }
         
-        // Safety Check: Saare double asterisks (**) aur koi bhi bachi hui fuzool line remove karna
         if (finalOrderSummary) {
             finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
-            // Ek aur strict cut, taake har haal mein yeh line remove ho jaye
             finalOrderSummary = finalOrderSummary.split("Aapka order bilkul ready hai")[0].trim(); 
             finalOrderSummary = finalOrderSummary.split("Baraye meharbani")[0].trim();
         }
 
-        // Fallback: Agar upar kisi wajah se kuch bhi na bacha ho
         if (!finalOrderSummary) {
             const textData = draftData.texts.map(t => t.data);
             const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
