@@ -337,7 +337,7 @@ function addToDraft(type, content) {
         
         b.innerHTML = `
             <div class="voice-player-container flex items-center gap-3 bg-[#e4ffd6] p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
-                <button class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
+                <button type="button" class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
                     <i class="fas fa-play text-sm ml-0.5 pointer-events-none"></i>
                 </button>
                 
@@ -362,7 +362,7 @@ function addToDraft(type, content) {
                     </div>
                 </div>
                 
-                <audio src="${objUrl}" playsinline preload="auto" class="hidden"></audio>
+                <audio src="${objUrl}" playsinline preload="auto" style="position: absolute; opacity: 0; pointer-events: none; width: 0px; height: 0px;"></audio>
                 
                 <div class="text-[#e0532b] pr-1 pointer-events-none">
                     <i class="fas fa-microphone text-lg"></i>
@@ -379,34 +379,31 @@ function addToDraft(type, content) {
             
             if (!audioEl || !playBtn || !container) return;
 
-            // Long press roko lekin button ka click mat roko (passive: true mobile ke liye best hai)
+            // Stop click propagation to bubble
             const stopSelect = (e) => e.stopPropagation();
             container.addEventListener('click', stopSelect);
             container.addEventListener('touchstart', stopSelect, { passive: true });
             container.addEventListener('touchend', stopSelect, { passive: true });
 
-            playBtn.addEventListener('click', (e) => {
-                e.preventDefault(); 
+            playBtn.addEventListener('click', async (e) => {
+                // IMPORTANT FIX: e.preventDefault() HATA DIYA GAYA HAI! Yeh mobile par audio rok raha tha.
                 e.stopPropagation();
 
                 if (audioEl.paused) {
-                    // Dusre audio pause karo
+                    // Dusri chalne wali audios rokein
                     document.querySelectorAll('audio').forEach(aud => {
-                        if(aud !== audioEl) {
+                        if(aud !== audioEl && !aud.paused) {
                             aud.pause();
                             const btn = aud.parentElement.querySelector('.play-btn-custom i');
                             if(btn) btn.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
                         }
                     });
 
-                    // Promise based play taake browser isay block na kare
-                    let playPromise = audioEl.play();
-                    if (playPromise !== undefined) {
-                        playPromise.then(() => {
-                            playIcon.className = 'fas fa-pause text-sm pointer-events-none';
-                        }).catch(err => {
-                            console.error("Playback failed:", err);
-                        });
+                    try {
+                        await audioEl.play();
+                        playIcon.className = 'fas fa-pause text-sm pointer-events-none';
+                    } catch(err) {
+                        console.error("Playback failed:", err);
                     }
                 } else {
                     audioEl.pause();
@@ -529,6 +526,9 @@ function stopVoiceTimer() {
     document.getElementById('textInputWrapper').classList.remove('hidden');
 }
 
+// -----------------------------------------------------
+// FIXED HANDLE VOICE: Mobile browser auto priority 
+// -----------------------------------------------------
 async function handleVoice() {
     const vBtn = document.getElementById('voiceBtn');
     const micIcon = document.getElementById('micIcon');
@@ -538,12 +538,14 @@ async function handleVoice() {
         if (!audioRecorder || audioRecorder.state === "inactive") {
             const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // Mobile browser ke mutabiq best format khud select karna
+            // PRIORITY: mp4 pehle check karo (iOS ke liye), phir opus/webm check karo
             let options = {};
-            if (MediaRecorder.isTypeSupported('audio/webm')) {
-                options = { mimeType: 'audio/webm' };
-            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 options = { mimeType: 'audio/mp4' };
+            } else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                options = { mimeType: 'audio/webm;codecs=opus' };
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options = { mimeType: 'audio/webm' };
             }
             
             audioRecorder = new MediaRecorder(aStream, options); 
@@ -633,7 +635,7 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             const text = el.innerText.trim();
             if (text && !text.startsWith("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
-                    let cleanText = text.replace("AI Assistant:", "").trim();
+                    let cleanText = text.replace(/AI Assistant:/i, "").trim();
                     rawHistory.push({ role: 'model', content: cleanText });
                 } else if (el.classList.contains('customer-bubble')) {
                     rawHistory.push({ role: 'user', content: text });
@@ -718,7 +720,16 @@ async function finalSubmitOrder(userEmail) {
         const uploadAll = async (items, prefix, defaultExt) => {
             const promises = items.map(async (item) => {
                 const file = item.data.file || item.data; 
-                const ext = file.name ? file.name.split('.').pop() : defaultExt;
+                
+                // Mime/Ext bug fix: File ki original extension extract karna 
+                let ext = defaultExt;
+                if (file.name) {
+                    ext = file.name.split('.').pop();
+                } else if (file.type) {
+                    const mimeExt = file.type.split('/')[1]?.split(';')[0];
+                    if (mimeExt) ext = mimeExt;
+                }
+
                 const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
                 const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
                 if(error) throw error;
@@ -734,7 +745,7 @@ async function finalSubmitOrder(userEmail) {
         ]);
         
         // =====================================================
-        // FIXED SUMMARY EXTRACTION LOGIC
+        // ROBUST SUMMARY EXTRACTION LOGIC (Case Insensitive Fix)
         // =====================================================
         const aiBubbles = document.querySelectorAll('.ai-bubble');
         let finalOrderSummary = "";
@@ -742,12 +753,12 @@ async function finalSubmitOrder(userEmail) {
         if (aiBubbles.length > 0) {
             let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
             
-            let startIndex = lastAiText.indexOf("Order Summary");
-            if (startIndex === -1) startIndex = lastAiText.indexOf("Order summary");
-            if (startIndex === -1) startIndex = lastAiText.indexOf("Summary");
+            // Match in any case (Order summary, ORDER SUMMARY, etc)
+            let startMatch = lastAiText.match(/order\s*summary/i) || lastAiText.match(/summary/i);
+            let startIndex = startMatch ? startMatch.index : -1;
 
-            let endIndex = lastAiText.indexOf("Aapka order bilkul ready hai");
-            if (endIndex === -1) endIndex = lastAiText.indexOf("Baraye meharbani ab neeche");
+            let endMatch = lastAiText.match(/aapka order bilkul ready hai/i) || lastAiText.match(/baraye meharbani/i);
+            let endIndex = endMatch ? endMatch.index : -1;
 
             if (startIndex !== -1) {
                 if (endIndex !== -1 && endIndex > startIndex) {
@@ -756,14 +767,15 @@ async function finalSubmitOrder(userEmail) {
                     finalOrderSummary = lastAiText.substring(startIndex).trim();
                 }
             } else {
-                finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
+                finalOrderSummary = lastAiText.replace(/AI Assistant:/i, "").trim();
             }
         }
         
         if (finalOrderSummary) {
             finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
-            finalOrderSummary = finalOrderSummary.split("Aapka order bilkul ready hai")[0].trim(); 
-            finalOrderSummary = finalOrderSummary.split("Baraye meharbani")[0].trim();
+            // Strict Fallback replace
+            finalOrderSummary = finalOrderSummary.split(/Aapka order bilkul ready hai/i)[0].trim(); 
+            finalOrderSummary = finalOrderSummary.split(/Baraye meharbani/i)[0].trim();
         }
 
         if (!finalOrderSummary) {
