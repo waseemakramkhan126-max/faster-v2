@@ -335,14 +335,13 @@ function addToDraft(type, content) {
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
         
-        // WhatsApp Style Custom Player UI
         b.innerHTML = `
-            <div class="flex items-center gap-3 bg-[#e4ffd6] p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
-                <button class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px;">
-                    <i class="fas fa-play text-sm ml-0.5"></i>
+            <div class="voice-player-container flex items-center gap-3 bg-[#e4ffd6] p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
+                <button class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
+                    <i class="fas fa-play text-sm ml-0.5 pointer-events-none"></i>
                 </button>
                 
-                <div class="flex flex-col flex-grow gap-1">
+                <div class="flex flex-col flex-grow gap-1 pointer-events-none">
                     <div class="flex items-center gap-[3px] h-5 opacity-60">
                         <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
                         <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
@@ -363,75 +362,78 @@ function addToDraft(type, content) {
                     </div>
                 </div>
                 
-                <audio src="${objUrl}" playsinline preload="metadata" class="hidden"></audio>
+                <audio src="${objUrl}" playsinline preload="auto" class="hidden"></audio>
                 
-                <div class="text-[#e0532b] pr-1">
+                <div class="text-[#e0532b] pr-1 pointer-events-none">
                     <i class="fas fa-microphone text-lg"></i>
                 </div>
             </div>
         `;
         
-        // CUSTOM PLAYER INTERACTION LOGIC
         setTimeout(() => {
-            const container = b.querySelector('.bg-\\[\\#e4ffd6\\]');
+            const container = b.querySelector('.voice-player-container');
             const audioEl = b.querySelector('audio');
             const playBtn = b.querySelector('.play-btn-custom');
             const playIcon = playBtn.querySelector('i');
             const timeCurrent = b.querySelector('.time-current');
             
-            if (!audioEl || !playBtn) return;
+            if (!audioEl || !playBtn || !container) return;
 
-            // 1. WhatsApp jaisa single click behavior (Bubble actions ko stop karna)
-            const preventAll = (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-            };
-            container.addEventListener('click', preventAll);
-            container.addEventListener('touchstart', preventAll);
+            // Long press roko lekin button ka click mat roko (passive: true mobile ke liye best hai)
+            const stopSelect = (e) => e.stopPropagation();
+            container.addEventListener('click', stopSelect);
+            container.addEventListener('touchstart', stopSelect, { passive: true });
+            container.addEventListener('touchend', stopSelect, { passive: true });
 
-            // 2. Play/Pause toggle logic
             playBtn.addEventListener('click', (e) => {
+                e.preventDefault(); 
                 e.stopPropagation();
+
                 if (audioEl.paused) {
-                    // Baqi saare playing audio notes ko stop karne ke liye
+                    // Dusre audio pause karo
                     document.querySelectorAll('audio').forEach(aud => {
                         if(aud !== audioEl) {
                             aud.pause();
-                            const btn = aud.closest('div')?.querySelector('.play-btn-custom i');
-                            if(btn) btn.className = 'fas fa-play text-sm ml-0.5';
+                            const btn = aud.parentElement.querySelector('.play-btn-custom i');
+                            if(btn) btn.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
                         }
                     });
-                    audioEl.play().catch(err => console.log("Audio play blocked:", err));
-                    playIcon.className = 'fas fa-pause text-sm';
+
+                    // Promise based play taake browser isay block na kare
+                    let playPromise = audioEl.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            playIcon.className = 'fas fa-pause text-sm pointer-events-none';
+                        }).catch(err => {
+                            console.error("Playback failed:", err);
+                        });
+                    }
                 } else {
                     audioEl.pause();
-                    playIcon.className = 'fas fa-play text-sm ml-0.5';
+                    playIcon.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
                 }
             });
 
-            // 3. Audio Duration & Time update logic
+            const formatTime = (seconds) => {
+                if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
+                const min = Math.floor(seconds / 60);
+                const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+                return `${min}:${sec}`;
+            };
+
             audioEl.addEventListener('loadedmetadata', () => {
-                const min = Math.floor(audioEl.duration / 60);
-                const sec = Math.floor(audioEl.duration % 60).toString().padStart(2, '0');
-                timeCurrent.textContent = `${min}:${sec}`;
+                timeCurrent.textContent = formatTime(audioEl.duration);
             });
 
             audioEl.addEventListener('timeupdate', () => {
-                // Jab audio chal raha ho to bacha hua time ya current time dikhana
-                const remDuration = audioEl.duration - audioEl.currentTime;
-                const min = Math.floor(remDuration / 60);
-                const sec = Math.floor(remDuration % 60).toString().padStart(2, '0');
-                if(!isNaN(remDuration)) {
-                    timeCurrent.textContent = `${min}:${sec}`;
-                }
+                let remDuration = audioEl.duration - audioEl.currentTime;
+                if (remDuration < 0) remDuration = 0;
+                timeCurrent.textContent = formatTime(remDuration);
             });
 
-            // 4. Audio khatam hone par wapas reset karna
             audioEl.addEventListener('ended', () => {
-                playIcon.className = 'fas fa-play text-sm ml-0.5';
-                const min = Math.floor(audioEl.duration / 60);
-                const sec = Math.floor(audioEl.duration % 60).toString().padStart(2, '0');
-                timeCurrent.textContent = `${min}:${sec}`;
+                playIcon.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
+                timeCurrent.textContent = formatTime(audioEl.duration);
             });
 
         }, 150);
