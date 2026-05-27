@@ -309,12 +309,8 @@ function addToDraft(type, content) {
     let itemData = content;
     
     if (type === 'text') {
-        const val = (typeof content === 'string')
-            ? content
-            : document.getElementById('orderInput').value.trim();
-
+        const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
         if(!val) return;
-
         itemData = val;
         b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
 
@@ -322,6 +318,50 @@ function addToDraft(type, content) {
             document.getElementById('orderInput').value = "";
             handleInput(document.getElementById('orderInput'));
         }
+        getAiReply(val); // Text AI ko bhej diya
+    } 
+    else if (type === 'image') {
+        // Picture show karein aur AI ko bhejein
+        const objUrl = URL.createObjectURL(content.file);
+        b.innerHTML = `
+            <img src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
+            ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
+        `;
+        let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
+        sendMediaToAI(content.file, promptText);
+    } 
+    else if (type === 'voice') {
+        // Voice note show karein aur AI ko bhejein
+        const objUrl = URL.createObjectURL(content);
+        b.innerHTML = `<audio controls src="${objUrl}" class="w-full mt-1 mb-1"></audio>`;
+        sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
+    } 
+    else if (type === 'doc') {
+        // Document icon show karein aur AI ko bhejein
+        b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
+        sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
+    }
+    else if (type === 'video') {
+        // Video player show karein
+        const objUrl = URL.createObjectURL(content);
+        b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
+        sendMediaToAI(content, "Is video ko check karein.");
+    }
+
+    let pressTimer;
+    b.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleSelect(bId, type); if(navigator.vibrate) navigator.vibrate(50); }, 500); });
+    b.addEventListener('touchmove', () => clearTimeout(pressTimer)); 
+    b.addEventListener('touchend', () => clearTimeout(pressTimer));
+    b.addEventListener('click', () => {
+        if (selectedItems.length > 0) toggleSelect(bId, type); 
+        else if (type === 'image' || type === 'video') openFull({src: type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content)}, type === 'image' ? 'img' : 'vid');
+    });
+
+    const key = type === 'text' ? 'texts' : type + 's';
+    draftData[key].push({ id: bId, data: itemData });
+    chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+    document.getElementById('confirmBtnRow').classList.remove('hidden');
+}
 
         getAiReply(val);
     }
@@ -450,8 +490,23 @@ async function askAI() {
     }
     addToDraft('text');
 }
-
-async function getAiReply(userMessage) {
+// File ko Base64 banakar AI ko bhejne wala function
+function sendMediaToAI(file, promptText) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+        const base64String = reader.result.split(',')[1];
+        const mimeType = file.type;
+        // getAiReply ko message ke sath file ka data bhi pass kiya gaya
+        await getAiReply(promptText, base64String, mimeType);
+    };
+    reader.onerror = error => {
+        console.error("File reading error:", error);
+        Dialog.show("Error", "File read nahi ho saki.", "alert");
+    };
+}
+// Function parameters mein fileData aur mimeType add kiya gaya
+async function getAiReply(userMessage, fileData = null, mimeType = null) {
     const btn = document.getElementById('aiBtn');
     let originalContent = "";
     
@@ -471,6 +526,7 @@ async function getAiReply(userMessage) {
                     let cleanText = text.replace("AI Assistant:", "").trim();
                     rawHistory.push({ role: 'model', content: cleanText });
                 } else if (el.classList.contains('customer-bubble')) {
+                    // Agar bubble mein koi text hai to utha lo
                     rawHistory.push({ role: 'user', content: text });
                 }
             }
@@ -497,10 +553,13 @@ async function getAiReply(userMessage) {
             userMessage = lastUserMsg.content + " | " + userMessage;
         }
 
+        // Yahan edge function ko fileData aur mimeType bhi bheja ja raha hai!
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
             body: {
                 message: userMessage,
-                history: safeHistory 
+                history: safeHistory,
+                fileData: fileData,  // Base64 file string
+                mimeType: mimeType   // Jaise 'image/jpeg' ya 'audio/webm'
             }
         });
 
