@@ -336,29 +336,29 @@ function addToDraft(type, content) {
         const objUrl = URL.createObjectURL(content);
         
         b.innerHTML = `
-            <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] p-2 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
-        <button type="button" class="play-btn-custom flex items-center justify-center w-14 h-6 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 32px; z-index: 10;">
-            <i class="fas fa-play text-xs ml-0.5 pointer-events-none"></i>
+            <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+        
+        <button type="button" class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 28px;">
+            <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
         </button>
         
-        <div class="flex flex-col flex-grow gap-0.5 pointer-events-none">
-            <div class="flex items-center gap-[2px] h-3 opacity-60">
-                <div class="w-[2px] h-2 bg-white rounded-full"></div>
-                <div class="w-[2px] h-3 bg-white rounded-full"></div>
-                <div class="w-[2px] h-1.5 bg-white rounded-full"></div>
-                <div class="w-[2px] h-3 bg-white rounded-full"></div>
-                <div class="w-[2px] h-2 bg-white rounded-full"></div>
-                <div class="w-[2px] h-3 bg-white rounded-full"></div>
-            </div>
-            <div class="flex justify-between items-center text-[10px] text-white font-medium">
-                <span class="time-current">0:00</span>
-                <i class="fas fa-check-double text-[9px]"></i>
-            </div>
+        <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1 pointer-events-none">
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-5 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-6 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-5 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+        </div>
+
+        <div class="text-[10px] text-white font-medium min-w-[35px] text-right pointer-events-none">
+            <span class="time-current">0:00</span>
         </div>
         
-        <audio src="${objUrl}" playsinline preload="auto" style="position: absolute; opacity: 0; pointer-events: none; width: 0px; height: 0px;"></audio>
+        <audio src="${objUrl}" playsinline preload="auto" style="display:none;"></audio>
         
-        <div class="text-white pr-1 pointer-events-none">
+        <div class="text-white pl-1 pointer-events-none">
             <i class="fas fa-microphone text-sm"></i>
         </div>
     </div>
