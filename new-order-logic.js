@@ -334,23 +334,107 @@ function addToDraft(type, content) {
     } 
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
+        
+        // WhatsApp Style Custom Player UI
         b.innerHTML = `
-            <div class="flex items-center gap-2 mb-1 ml-1">
-                <i class="fas fa-microphone text-orange-600"></i>
-                <span class="font-bold text-xs text-gray-600">Voice Note</span>
+            <div class="flex items-center gap-3 bg-[#e4ffd6] p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
+                <button class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px;">
+                    <i class="fas fa-play text-sm ml-0.5"></i>
+                </button>
+                
+                <div class="flex flex-col flex-grow gap-1">
+                    <div class="flex items-center gap-[3px] h-5 opacity-60">
+                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-2 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-5 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-2 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-5 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-3 bg-gray-600 rounded-full"></div>
+                        <div class="w-[3px] h-4 bg-gray-600 rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[11px] text-gray-500 font-medium">
+                        <span class="time-current">0:00</span>
+                        <div class="flex items-center gap-0.5 text-[#5cb1e6]">
+                            <i class="fas fa-check-double text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <audio src="${objUrl}" playsinline preload="metadata" class="hidden"></audio>
+                
+                <div class="text-[#e0532b] pr-1">
+                    <i class="fas fa-microphone text-lg"></i>
+                </div>
             </div>
-            <audio controls playsinline preload="metadata" src="${objUrl}" class="w-full rounded" style="height: 45px;"></audio>
         `;
         
-        // BUBBLE CLICK INTERFERENCE FIX: 
-        // Jab audio player par touch ho to bubble ke select wale function ko rok do
+        // CUSTOM PLAYER INTERACTION LOGIC
         setTimeout(() => {
+            const container = b.querySelector('.bg-\\[\\#e4ffd6\\]');
             const audioEl = b.querySelector('audio');
-            if (audioEl) {
-                audioEl.addEventListener('click', (e) => e.stopPropagation());
-                audioEl.addEventListener('touchstart', (e) => e.stopPropagation());
-            }
-        }, 100);
+            const playBtn = b.querySelector('.play-btn-custom');
+            const playIcon = playBtn.querySelector('i');
+            const timeCurrent = b.querySelector('.time-current');
+            
+            if (!audioEl || !playBtn) return;
+
+            // 1. WhatsApp jaisa single click behavior (Bubble actions ko stop karna)
+            const preventAll = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            };
+            container.addEventListener('click', preventAll);
+            container.addEventListener('touchstart', preventAll);
+
+            // 2. Play/Pause toggle logic
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (audioEl.paused) {
+                    // Baqi saare playing audio notes ko stop karne ke liye
+                    document.querySelectorAll('audio').forEach(aud => {
+                        if(aud !== audioEl) {
+                            aud.pause();
+                            const btn = aud.closest('div')?.querySelector('.play-btn-custom i');
+                            if(btn) btn.className = 'fas fa-play text-sm ml-0.5';
+                        }
+                    });
+                    audioEl.play().catch(err => console.log("Audio play blocked:", err));
+                    playIcon.className = 'fas fa-pause text-sm';
+                } else {
+                    audioEl.pause();
+                    playIcon.className = 'fas fa-play text-sm ml-0.5';
+                }
+            });
+
+            // 3. Audio Duration & Time update logic
+            audioEl.addEventListener('loadedmetadata', () => {
+                const min = Math.floor(audioEl.duration / 60);
+                const sec = Math.floor(audioEl.duration % 60).toString().padStart(2, '0');
+                timeCurrent.textContent = `${min}:${sec}`;
+            });
+
+            audioEl.addEventListener('timeupdate', () => {
+                // Jab audio chal raha ho to bacha hua time ya current time dikhana
+                const remDuration = audioEl.duration - audioEl.currentTime;
+                const min = Math.floor(remDuration / 60);
+                const sec = Math.floor(remDuration % 60).toString().padStart(2, '0');
+                if(!isNaN(remDuration)) {
+                    timeCurrent.textContent = `${min}:${sec}`;
+                }
+            });
+
+            // 4. Audio khatam hone par wapas reset karna
+            audioEl.addEventListener('ended', () => {
+                playIcon.className = 'fas fa-play text-sm ml-0.5';
+                const min = Math.floor(audioEl.duration / 60);
+                const sec = Math.floor(audioEl.duration % 60).toString().padStart(2, '0');
+                timeCurrent.textContent = `${min}:${sec}`;
+            });
+
+        }, 150);
 
         sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     }
