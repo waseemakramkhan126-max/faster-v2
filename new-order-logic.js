@@ -558,36 +558,56 @@ async function finalSubmitOrder(userEmail) {
             uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
         ]);
         
-        // 1. Screen se aakhri AI message (Final Summary) nikalna
-const aiBubbles = document.querySelectorAll('.ai-bubble');
-let finalOrderSummary = "";
+        // =====================================================
+        // FIXED & ROBUST SUMMARY EXTRACTION LOGIC
+        // =====================================================
+        const aiBubbles = document.querySelectorAll('.ai-bubble');
+        let finalOrderSummary = "";
 
-if (aiBubbles.length > 0) {
-    // Sab se aakhri AI bubble ka text uthana aur "AI Assistant:" wala label hatana
-    let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
-    finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
-}
+        if (aiBubbles.length > 0) {
+            let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
+            
+            // Roman Urdu aur English dono formats ko handle karne ke liye smart checks
+            let startIndex = lastAiText.indexOf("Order Summary");
+            if (startIndex === -1) startIndex = lastAiText.indexOf("Order summary");
+            if (startIndex === -1) startIndex = lastAiText.indexOf("Summary");
 
-// Fallback: Agar kisi wajah se AI ki summary nahi mili, to backup ke tor par user ka input use karein
-if (!finalOrderSummary) {
-    const textData = draftData.texts.map(t => t.data);
-    const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-    finalOrderSummary = [...textData, ...captionData].join(" | ");
-}
+            let endIndex = lastAiText.indexOf("Delivery Charges");
+            if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery charges");
+            if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery Fee");
 
-// 2. Supabase mein insert karte waqt 'finalOrderSummary' bhejna
-const { error } = await _supabase.from('orders').insert([{
-    customer_phone: userPhone, 
-    customer_name: name, 
-    delivery_address: addr, 
-    order_details: finalOrderSummary, // <--- Yahan ab sirf AI ki banayi hui summary jayegi
-    image_url: imgURLs, 
-    video_url: vidURLs, 
-    voice_url: vceURLs, 
-    doc_url: docURLs, 
-    status: 'pending', 
-    dc_amount: deliveryCharges 
-}]);
+            if (startIndex !== -1) {
+                if (endIndex !== -1 && endIndex > startIndex) {
+                    // Agar dono mil jayein to beech ka hissa nikal lo
+                    finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
+                } else {
+                    // Agar delivery charges ka marker na mile to Order Summary se lekar end tak sab utha lo
+                    finalOrderSummary = lastAiText.substring(startIndex).trim();
+                }
+            } else {
+                // Agar "Order Summary" ka lafadh hi na mile to pure text se label saaf kar ke save karo
+                finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
+            }
+        }
+        
+        // Clean markdown symbols like double asterisks if any remain
+        if (finalOrderSummary) {
+            finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
+        }
+
+        // Fallback: Agar upar kisi wajah se kuch bhi na bacha ho
+        if (!finalOrderSummary) {
+            const textData = draftData.texts.map(t => t.data);
+            const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
+            finalOrderSummary = [...textData, ...captionData].join(" | ");
+        }
+        // =====================================================
+
+        const { error } = await _supabase.from('orders').insert([{
+            customer_phone: userPhone, customer_name: name, delivery_address: addr, 
+            order_details: finalOrderSummary, image_url: imgURLs, video_url: vidURLs, 
+            voice_url: vceURLs, doc_url: docURLs, status: 'pending', dc_amount: deliveryCharges 
+        }]);
         
         if(error) throw error;
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
