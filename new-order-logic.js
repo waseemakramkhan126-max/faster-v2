@@ -97,18 +97,15 @@ let lastScrollTop = 0;
 chatArea.addEventListener('scroll', function() {
     let scrollTop = chatArea.scrollTop;
     
-    // Agar scroll bohat mamooli sa ho to kuch mat karo (Blinking rokne ke liye)
     if (Math.abs(scrollTop - lastScrollTop) <= 15) return; 
 
     if (scrollTop > lastScrollTop && scrollTop > 20) {
-        // Scroll Down (Hide AppBar)
         topAppBar.style.height = '0px';
         topAppBar.style.paddingTop = '0px';
         topAppBar.style.paddingBottom = '0px';
         topAppBar.style.opacity = '0';
-        topAppBar.style.overflow = 'hidden'; // Ye line jhatka (blink) rokti hai
+        topAppBar.style.overflow = 'hidden'; 
     } else {
-        // Scroll Up (Show AppBar)
         topAppBar.style.height = ''; 
         topAppBar.style.paddingTop = '';
         topAppBar.style.paddingBottom = '';
@@ -244,7 +241,6 @@ const Dialog = {
 async function initPage() {
     if(!userPhone) return window.location.replace('index.html');
     
-    // Values stored in hidden inputs for submission processing
     document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
     document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
     
@@ -320,7 +316,6 @@ function addToDraft(type, content) {
         if(!val) return;
 
         itemData = val;
-
         b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
 
         if(typeof content !== 'string') {
@@ -328,7 +323,6 @@ function addToDraft(type, content) {
             handleInput(document.getElementById('orderInput'));
         }
 
-        // CORRECTED: Direct call to getAiReply
         getAiReply(val);
     }
 
@@ -355,7 +349,7 @@ function toggleSelect(id, type) {
     else { selectedItems.push({ id, type }); el.classList.add('bubble-selected'); }
 
     if (selectedItems.length > 0) {
-        document.getElementById('topAppBar').classList.add('hidden'); // Selection me title chhupa denge
+        document.getElementById('topAppBar').classList.add('hidden');
         document.getElementById('selectionHeader').classList.remove('hidden');
         document.getElementById('selectionCount').innerText = selectedItems.length;
         const showEdit = (selectedItems.length === 1 && (selectedItems[0].type === 'text' || selectedItems[0].type === 'image'));
@@ -367,7 +361,7 @@ function cancelSelection() {
     selectedItems.forEach(item => { const el = document.getElementById(item.id); if (el) el.classList.remove('bubble-selected'); });
     selectedItems = [];
     document.getElementById('selectionHeader').classList.add('hidden');
-    document.getElementById('topAppBar').classList.remove('hidden'); // title wapas display hojaye
+    document.getElementById('topAppBar').classList.remove('hidden');
 }
 
 function editSelected() {
@@ -433,91 +427,105 @@ async function handleVoice() {
 }
 
 // =====================================================
-// AI FUNCTIONALITY (FIXED & OPTIMIZED MEMORY FLOW)
+// AI FUNCTIONALITY 
 // =====================================================
 
-// ADDED: Root level function so it doesn't cause reference errors
 function addAiBubble(text) {
     const chat = document.getElementById('chatArea');
     const bId = "ai-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
     const b = document.createElement('div');
     
-    // UI mein difference laane ke liye ai-bubble aur background color classes add ki hain
     b.className = "bubble ai-bubble animate-pop bg-gray-100 text-gray-800 p-3 rounded-lg my-2 max-w-[80%] self-start"; 
     b.id = bId;
     b.innerHTML = `<p class="whitespace-pre-wrap"><strong>AI Assistant:</strong><br>${text}</p>`;
     
     chat.appendChild(b);
-    chat.scrollTop = chat.scrollHeight; // Naya message aane par auto-scroll down
+    chat.scrollTop = chat.scrollHeight; 
 }
 
-// 1. Jab user AI Button par click karega
 async function askAI() {
     const inputField = document.getElementById('orderInput');
     if (!inputField.value.trim()) {
         return Dialog.show("Error", "Pehle kuch type karein.");
     }
-    
-    // Alag se API call karne ki zaroorat nahi, seedha screen par bubble add karo
-    // Yeh line input box ko khali bhi karegii aur khud hi getAiReply() ko call kar legi (ab theek se set hai)
     addToDraft('text');
 }
 
-// 2. Screen se poori history uthakar AI se jawab mangwana
 async function getAiReply(userMessage) {
     const btn = document.getElementById('aiBtn');
     let originalContent = "";
     
-    // Button par loading spinner dikhana
     if (btn) {
         originalContent = btn.innerHTML;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
     }
 
     try {
-        // Screen se aakhri AI message nikalna
-const aiBubbles = document.querySelectorAll('.ai-bubble');
-let finalOrderSummary = "";
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let rawHistory = [];
 
-if (aiBubbles.length > 0) {
-    let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
-    
-    // Yahan hum extract kar rahe hain "**Order Summary:**" se lekar "* **Delivery Charges:**" tak ka hissa
-    const startMarker = "**Order Summary:**";
-    const endMarker = "* **Delivery Charges:**"; 
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            if (text && !text.startsWith("⚠️")) { 
+                if (el.classList.contains('ai-bubble')) {
+                    let cleanText = text.replace("AI Assistant:", "").trim();
+                    rawHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    rawHistory.push({ role: 'user', content: text });
+                }
+            }
+        });
 
-    const startIndex = lastAiText.indexOf(startMarker);
-    const endIndex = lastAiText.indexOf(endMarker);
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
+        }
 
-    if (startIndex !== -1 && endIndex !== -1) {
-        // Dono markers ke darmiyan ka text nikal lo
-        finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
-    } else {
-        // Agar format match na ho, toh default poora text le lo
-        finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
+        let safeHistory = [];
+        let expectedRole = 'user';
+        
+        for (let msg of rawHistory) {
+            if (msg.role === expectedRole) {
+                safeHistory.push(msg);
+                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+            } else if (safeHistory.length > 0) {
+                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
+            }
+        }
+
+        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
+            let lastUserMsg = safeHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
+
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: {
+                message: userMessage,
+                history: safeHistory 
+            }
+        });
+
+        if (error) {
+            addAiBubble(`⚠️ Network Error: ${error.message}`);
+            return;
+        }
+
+        if (data && data.error) {
+            addAiBubble(`⚠️ Backend Error: ${data.error}`);
+            return;
+        }
+
+        if (data && data.reply) {
+            addAiBubble(data.reply);
+        }
+
+    } catch(err) {
+        console.error("AI Error:", err);
+        addAiBubble(`⚠️ System Error: ${err.message}`);
+    } finally {
+        if (btn) btn.innerHTML = originalContent;
     }
 }
 
-// Fallback: Agar kisi wajah se AI ki summary nahi mili
-if (!finalOrderSummary) {
-    const textData = draftData.texts.map(t => t.data);
-    const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-    finalOrderSummary = [...textData, ...captionData].join(" | ");
-}
-
-// Ab 'finalOrderSummary' mein sirf aapki desired item list hogi
-const { error } = await _supabase.from('orders').insert([{
-    customer_phone: userPhone, 
-    customer_name: name, 
-    delivery_address: addr, 
-    order_details: finalOrderSummary, // <--- Sirf summary save hogi
-    image_url: imgURLs, 
-    video_url: vidURLs, 
-    voice_url: vceURLs, 
-    doc_url: docURLs, 
-    status: 'pending', 
-    dc_amount: deliveryCharges 
-}]);
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
@@ -558,50 +566,43 @@ async function finalSubmitOrder(userEmail) {
             uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
         ]);
         
-        // =====================================================
-        // FIXED & ROBUST SUMMARY EXTRACTION LOGIC
-        // =====================================================
         const aiBubbles = document.querySelectorAll('.ai-bubble');
         let finalOrderSummary = "";
 
         if (aiBubbles.length > 0) {
             let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
             
-            // Roman Urdu aur English dono formats ko handle karne ke liye smart checks
+            // "Order Summary" ka start index nikalna
             let startIndex = lastAiText.indexOf("Order Summary");
             if (startIndex === -1) startIndex = lastAiText.indexOf("Order summary");
             if (startIndex === -1) startIndex = lastAiText.indexOf("Summary");
 
+            // "Delivery Charges" ka end index nikalna
             let endIndex = lastAiText.indexOf("Delivery Charges");
             if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery charges");
             if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery Fee");
 
             if (startIndex !== -1) {
                 if (endIndex !== -1 && endIndex > startIndex) {
-                    // Agar dono mil jayein to beech ka hissa nikal lo
                     finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
                 } else {
-                    // Agar delivery charges ka marker na mile to Order Summary se lekar end tak sab utha lo
                     finalOrderSummary = lastAiText.substring(startIndex).trim();
                 }
             } else {
-                // Agar "Order Summary" ka lafadh hi na mile to pure text se label saaf kar ke save karo
                 finalOrderSummary = lastAiText.replace("AI Assistant:", "").trim();
             }
         }
         
-        // Clean markdown symbols like double asterisks if any remain
+        // Saare double asterisks (**) remove karna
         if (finalOrderSummary) {
             finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
         }
 
-        // Fallback: Agar upar kisi wajah se kuch bhi na bacha ho
         if (!finalOrderSummary) {
             const textData = draftData.texts.map(t => t.data);
             const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
             finalOrderSummary = [...textData, ...captionData].join(" | ");
         }
-        // =====================================================
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, customer_name: name, delivery_address: addr, 
