@@ -337,7 +337,7 @@ function addToDraft(type, content) {
         
         b.innerHTML = `
             <div class="voice-player-container flex items-center gap-3 bg-[#0077b9] p-3 rounded-2xl shadow-sm max-w-[280px] my-1" style="border-radius: 18px 18px 0px 18px;">
-                <button type="button" class="play-btn-custom flex items-center justify-center w-10 h-10 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
+                <button type="button" class="play-btn-custom flex items-center justify-center w-10 h-8 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 40px; z-index: 10;">
                     <i class="fas fa-play text-sm ml-0.5 pointer-events-none"></i>
                 </button>
                 
@@ -364,7 +364,7 @@ function addToDraft(type, content) {
                 
                 <audio src="${objUrl}" playsinline preload="auto" style="position: absolute; opacity: 0; pointer-events: none; width: 0px; height: 0px;"></audio>
                 
-                <div class="text-[#BBF1C4] pr-1 pointer-events-none">
+                <div class="text-[#0077b9] pr-1 pointer-events-none">
                     <i class="fas fa-microphone text-lg"></i>
                 </div>
             </div>
