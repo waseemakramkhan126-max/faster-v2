@@ -566,6 +566,9 @@ async function finalSubmitOrder(userEmail) {
             uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
         ]);
         
+        // =====================================================
+        // FIXED & ROBUST SUMMARY EXTRACTION LOGIC
+        // =====================================================
         const aiBubbles = document.querySelectorAll('.ai-bubble');
         let finalOrderSummary = "";
 
@@ -577,13 +580,13 @@ async function finalSubmitOrder(userEmail) {
             if (startIndex === -1) startIndex = lastAiText.indexOf("Order summary");
             if (startIndex === -1) startIndex = lastAiText.indexOf("Summary");
 
-            // "Delivery Charges" ka end index nikalna
-            let endIndex = lastAiText.indexOf("Delivery Charges");
-            if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery charges");
-            if (endIndex === -1) endIndex = lastAiText.indexOf("Delivery Fee");
+            // Naya End Index: Ab hum 'Delivery Charges' ki jagah is aakhri line ko end point banayenge
+            let endIndex = lastAiText.indexOf("Aapka order bilkul ready hai");
+            if (endIndex === -1) endIndex = lastAiText.indexOf("Baraye meharbani ab neeche");
 
             if (startIndex !== -1) {
                 if (endIndex !== -1 && endIndex > startIndex) {
+                    // Agar confirmation line mil jaye to wahan tak ka text uthao
                     finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
                 } else {
                     finalOrderSummary = lastAiText.substring(startIndex).trim();
@@ -593,16 +596,21 @@ async function finalSubmitOrder(userEmail) {
             }
         }
         
-        // Saare double asterisks (**) remove karna
+        // Safety Check: Saare double asterisks (**) aur koi bhi bachi hui fuzool line remove karna
         if (finalOrderSummary) {
             finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
+            // Ek aur strict cut, taake har haal mein yeh line remove ho jaye
+            finalOrderSummary = finalOrderSummary.split("Aapka order bilkul ready hai")[0].trim(); 
+            finalOrderSummary = finalOrderSummary.split("Baraye meharbani")[0].trim();
         }
 
+        // Fallback: Agar upar kisi wajah se kuch bhi na bacha ho
         if (!finalOrderSummary) {
             const textData = draftData.texts.map(t => t.data);
             const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
             finalOrderSummary = [...textData, ...captionData].join(" | ");
         }
+        // =====================================================
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, customer_name: name, delivery_address: addr, 
