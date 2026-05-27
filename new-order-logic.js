@@ -334,14 +334,24 @@ function addToDraft(type, content) {
     } 
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
-        // Player ke upar ek chota sa label aur proper height
         b.innerHTML = `
             <div class="flex items-center gap-2 mb-1 ml-1">
                 <i class="fas fa-microphone text-orange-600"></i>
                 <span class="font-bold text-xs text-gray-600">Voice Note</span>
             </div>
-            <audio controls src="${objUrl}" class="w-full rounded" style="height: 45px;"></audio>
+            <audio controls playsinline preload="metadata" src="${objUrl}" class="w-full rounded" style="height: 45px;"></audio>
         `;
+        
+        // BUBBLE CLICK INTERFERENCE FIX: 
+        // Jab audio player par touch ho to bubble ke select wale function ko rok do
+        setTimeout(() => {
+            const audioEl = b.querySelector('audio');
+            if (audioEl) {
+                audioEl.addEventListener('click', (e) => e.stopPropagation());
+                audioEl.addEventListener('touchstart', (e) => e.stopPropagation());
+            }
+        }, 100);
+
         sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     }
     else if (type === 'doc') {
@@ -437,26 +447,46 @@ async function handleVoice() {
     const vBtn = document.getElementById('voiceBtn');
     const micIcon = document.getElementById('micIcon');
     if (!navigator.mediaDevices) return Dialog.show("Error", "Microphone access blocked.", "alert");
+    
     try {
         if (!audioRecorder || audioRecorder.state === "inactive") {
             const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioRecorder = new MediaRecorder(aStream); audioChunks = [];
-            audioRecorder.ondataavailable = e => audioChunks.push(e.data);
+            
+            // Mobile browser ke mutabiq best format khud select karna
+            let options = {};
+            if (MediaRecorder.isTypeSupported('audio/webm')) {
+                options = { mimeType: 'audio/webm' };
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                options = { mimeType: 'audio/mp4' };
+            }
+            
+            audioRecorder = new MediaRecorder(aStream, options); 
+            audioChunks = [];
+            
+            audioRecorder.ondataavailable = e => {
+                if (e.data && e.data.size > 0) audioChunks.push(e.data);
+            };
+            
             audioRecorder.onstop = () => { 
-                // Browser jo bhi format (mp4/webm) de raha hai usay detect karna
-                let actualMimeType = audioRecorder.mimeType;
-                if (!actualMimeType) actualMimeType = 'audio/webm'; // Fallback
-                
-                addToDraft('voice', new Blob(audioChunks, { type: actualMimeType })); 
+                const finalMime = audioRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: finalMime });
+                addToDraft('voice', audioBlob); 
                 aStream.getTracks().forEach(track => track.stop()); 
                 stopVoiceTimer(); 
             };
-            audioRecorder.start(); startVoiceTimer();
-            vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
+            
+            audioRecorder.start(); 
+            startVoiceTimer();
+            vBtn.classList.add('voice-active'); 
+            micIcon.className = 'fas fa-stop text-red-500';
         } else {
-            audioRecorder.stop(); vBtn.classList.remove('voice-active'); micIcon.className = 'fas fa-microphone';
+            audioRecorder.stop(); 
+            vBtn.classList.remove('voice-active'); 
+            micIcon.className = 'fas fa-microphone text-gray-500';
         }
-    } catch (e) { Dialog.show("Error", "Please allow microphone permission.", "alert"); }
+    } catch (e) { 
+        Dialog.show("Error", "Please allow microphone permission.", "alert"); 
+    }
 }
 
 // =====================================================
