@@ -334,9 +334,16 @@ function addToDraft(type, content) {
     } 
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
-        b.innerHTML = `<audio controls src="${objUrl}" class="w-full mt-1 mb-1"></audio>`;
+        // Player ke upar ek chota sa label aur proper height
+        b.innerHTML = `
+            <div class="flex items-center gap-2 mb-1 ml-1">
+                <i class="fas fa-microphone text-orange-600"></i>
+                <span class="font-bold text-xs text-gray-600">Voice Note</span>
+            </div>
+            <audio controls src="${objUrl}" class="w-full rounded" style="height: 45px;"></audio>
+        `;
         sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
-    } 
+    }
     else if (type === 'doc') {
         b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
         sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
@@ -436,8 +443,13 @@ async function handleVoice() {
             audioRecorder = new MediaRecorder(aStream); audioChunks = [];
             audioRecorder.ondataavailable = e => audioChunks.push(e.data);
             audioRecorder.onstop = () => { 
-                addToDraft('voice', new Blob(audioChunks, { type: 'audio/webm' })); 
-                aStream.getTracks().forEach(track => track.stop()); stopVoiceTimer(); 
+                // Browser jo bhi format (mp4/webm) de raha hai usay detect karna
+                let actualMimeType = audioRecorder.mimeType;
+                if (!actualMimeType) actualMimeType = 'audio/webm'; // Fallback
+                
+                addToDraft('voice', new Blob(audioChunks, { type: actualMimeType })); 
+                aStream.getTracks().forEach(track => track.stop()); 
+                stopVoiceTimer(); 
             };
             audioRecorder.start(); startVoiceTimer();
             vBtn.classList.add('voice-active'); micIcon.className = 'fas fa-stop';
