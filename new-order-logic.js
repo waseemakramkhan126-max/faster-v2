@@ -314,6 +314,28 @@ function addToDraft(type, content) {
     if (type === 'text') {
         const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
         if(!val) return;
+
+        // ==========================================
+        // SMART AUTO-TRIGGER (Confirm Order Detection)
+        // ==========================================
+        let lowerVal = val.toLowerCase().replace(/[^a-z ]/g, '').trim(); 
+        const confirmKeywords = ["ok", "okay", "done", "theek hai", "thek hai", "thk", "theek", "confirm", "confirm order", "order confirm", "done karo", "bhej do", "yes"];
+        
+        // Check karega ke customer ne pehle koi item (text, image, voice) bheja hai ya nahi
+        let totalItems = draftData.texts.length + draftData.images.length + draftData.voices.length + draftData.videos.length + draftData.docs.length;
+        
+        // Agar pehle se order data maujood hai aur customer ne sirf exact keyword bheja hai
+        if (totalItems > 0 && confirmKeywords.includes(lowerVal)) {
+            if(typeof content !== 'string') {
+                document.getElementById('orderInput').value = "";
+                handleInput(document.getElementById('orderInput'));
+            }
+            // AI ko bhejne ke bajaye direct Confirm Popup khol dega
+            handleConfirmPrompt();
+            return; 
+        }
+        // ==========================================
+
         itemData = val;
         b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
 
@@ -322,7 +344,7 @@ function addToDraft(type, content) {
             handleInput(document.getElementById('orderInput'));
         }
         getAiReply(val); 
-    } 
+    }
     else if (type === 'image') {
         const objUrl = URL.createObjectURL(content.file);
         b.innerHTML = `
@@ -621,12 +643,23 @@ function sendMediaToAI(file, promptText) {
 
 // Function parameters mein fileData aur mimeType add kiya gaya
 async function getAiReply(userMessage, fileData = null, mimeType = null) {
-    const btn = document.getElementById('sendBtn'); // Input button targeted
-    let originalContent = "";
+    const btn = document.getElementById('sendBtn'); 
+    const confirmBtnRow = document.getElementById('confirmBtnRow');
+    const confirmBtn = document.getElementById('finalSubmitBtn'); // Asal Confirm Button
     
+    let originalContent = "";
+    let originalConfirmContent = "";
+    
+    // AI ki loading ke waqt buttons ko disable (freeze) karna
     if (btn) {
         originalContent = btn.innerHTML;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        btn.disabled = true;
+    }
+    if (confirmBtnRow && !confirmBtnRow.classList.contains('hidden')) {
+        originalConfirmContent = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Wait...`;
+        confirmBtn.classList.add('opacity-50', 'pointer-events-none'); // Button halka gray aur unclickable ho jayega
     }
 
     try {
@@ -635,7 +668,6 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
 
         chatElements.forEach(el => {
             const text = el.innerText.trim();
-            // ⚠️ Wale error messages ko history mein shamil nahi karna
             if (text && !text.includes("⚠️")) { 
                 if (el.classList.contains('ai-bubble')) {
                     let cleanText = text.replace(/Faster AI:/i, "").trim();
@@ -668,17 +700,9 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
         }
 
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: {
-                message: userMessage,
-                history: safeHistory,
-                fileData: fileData, 
-                mimeType: mimeType  
-            }
+            body: { message: userMessage, history: safeHistory, fileData: fileData, mimeType: mimeType }
         });
 
-        // ==========================================
-        // DYNAMIC ERROR & LIMIT DETECTION LOGIC
-        // ==========================================
         let hasError = false;
         let errorMsg = "";
 
@@ -687,7 +711,6 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
 
         if (hasError) {
             let lowerError = errorMsg.toLowerCase();
-            // Agar backend se Limit, Quota, Exceeded ya 429 ka error aata hai
             if (lowerError.includes("limit") || lowerError.includes("quota") || lowerError.includes("exceeded") || lowerError.includes("429")) {
                 Dialog.show(
                     "Limit Reached", 
@@ -695,9 +718,10 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
                     "alert"
                 );
             } else {
-                addAiBubble(`⚠️ System Error: ${errorMsg}`);
+                // AI Fail hone par Professional Fallback Message
+                addAiBubble(`⚠️ System Error: ${errorMsg}\n\n*Apne order ki mukammal tafseelat bhejne ke baad, baraye meharbani neeche maujood 'Confirm Order' button ko dabayen.*\n*(Please press the 'Confirm Order' button below once you have sent all your order details.)*`);
             }
-            return; // Yahan ruk jayega aur AI bubble nahi banayega
+            return; 
         }
 
         if (data && data.reply) {
@@ -706,7 +730,6 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
 
     } catch(err) {
         console.error("AI Error:", err);
-        // Agar network try-catch mein limit hit hoti hai
         if (err.message.toLowerCase().includes("limit") || err.message.toLowerCase().includes("quota")) {
             Dialog.show(
                 "Limit Reached", 
@@ -714,10 +737,19 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
                 "alert"
             );
         } else {
-            addAiBubble(`⚠️ System Error: ${err.message}`);
+            // Network Try-Catch mein bhi Fallback Message
+            addAiBubble(`⚠️ System Error: ${err.message}\n\n*Apne order ki mukammal tafseelat bhejne ke baad, baraye meharbani neeche maujood 'Confirm Order' button ko dabayen.*\n*(Please press the 'Confirm Order' button below once you have sent all your order details.)*`);
         }
     } finally {
-        if (btn) btn.innerHTML = originalContent;
+        // Response aane par dono buttons wapas normal ho jayenge
+        if (btn) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+        if (confirmBtnRow && !confirmBtnRow.classList.contains('hidden')) {
+            confirmBtn.innerHTML = originalConfirmContent;
+            confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
+        }
     }
 }
 
@@ -771,39 +803,50 @@ async function finalSubmitOrder(userEmail) {
         ]);
         
         // =====================================================
-        // ROBUST SUMMARY EXTRACTION LOGIC (Case Insensitive Fix)
+        // ROBUST REVERSE SUMMARY EXTRACTION LOGIC
         // =====================================================
         const aiBubbles = document.querySelectorAll('.ai-bubble');
         let finalOrderSummary = "";
 
-        if (aiBubbles.length > 0) {
-            let lastAiText = aiBubbles[aiBubbles.length - 1].innerText;
+        // Loop backward: Sab se naye message se purane ki taraf check karega
+        for (let i = aiBubbles.length - 1; i >= 0; i--) {
+            let aiText = aiBubbles[i].innerText;
             
-            // Match in any case (Order summary, ORDER SUMMARY, etc)
-            let startMatch = lastAiText.match(/order\s*summary/i) || lastAiText.match(/summary/i);
-            let startIndex = startMatch ? startMatch.index : -1;
+            // Check karega ke kya is message mein "Order Summary" ka lafz hai?
+            let startMatch = aiText.match(/order\s*summary/i) || aiText.match(/summary/i);
+            
+            if (startMatch) {
+                let startIndex = startMatch.index;
+                let endMatch = aiText.match(/aapka order bilkul ready hai/i) || aiText.match(/baraye meharbani/i);
+                let endIndex = endMatch ? endMatch.index : -1;
 
-            let endMatch = lastAiText.match(/aapka order bilkul ready hai/i) || lastAiText.match(/baraye meharbani/i);
-            let endIndex = endMatch ? endMatch.index : -1;
-
-            if (startIndex !== -1) {
                 if (endIndex !== -1 && endIndex > startIndex) {
-                    finalOrderSummary = lastAiText.substring(startIndex, endIndex).trim();
+                    finalOrderSummary = aiText.substring(startIndex, endIndex).trim();
                 } else {
-                    finalOrderSummary = lastAiText.substring(startIndex).trim();
+                    finalOrderSummary = aiText.substring(startIndex).trim();
                 }
-            } else {
-                finalOrderSummary = lastAiText.replace(/AI Assistant:/i, "").trim();
+                
+                // Jese hi asal summary mil jaye, loop ko rok do!
+                break; 
             }
+        }
+        
+        // Agar AI bubbles mein "Summary" lafz mila hi nahi (strict fallback)
+        if (!finalOrderSummary && aiBubbles.length > 0) {
+             let veryLastText = aiBubbles[aiBubbles.length - 1].innerText;
+             // Make sure ke fallback mein wo "process ho raha hai" wala message na uthaye
+             if (!veryLastText.match(/process ho raha hai/i)) {
+                 finalOrderSummary = veryLastText.replace(/Faster AI:/i, "").trim();
+             }
         }
         
         if (finalOrderSummary) {
             finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
-            // Strict Fallback replace
             finalOrderSummary = finalOrderSummary.split(/Aapka order bilkul ready hai/i)[0].trim(); 
             finalOrderSummary = finalOrderSummary.split(/Baraye meharbani/i)[0].trim();
         }
 
+        // Aakhri Rasta: Agar AI ki kisi bhi baat se summary na mil sakay
         if (!finalOrderSummary) {
             const textData = draftData.texts.map(t => t.data);
             const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
