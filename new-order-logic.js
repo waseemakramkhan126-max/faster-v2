@@ -564,7 +564,7 @@ async function handleVoice() {
         } else {
             audioRecorder.stop(); 
             vBtn.classList.remove('voice-active'); 
-            micIcon.className = 'fas fa-microphone text-gray-500';
+            micIcon.className = 'fas fa-microphone text-white';
         }
     } catch (e) { 
         Dialog.show("Error", "Please allow microphone permission.", "alert"); 
