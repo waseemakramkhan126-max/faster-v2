@@ -38,7 +38,7 @@
 
     /* 6. CHAT BUBBLES COLORS (Messages) */
     --customer-bubble-bg: #0077b9;    /* Jo order details chat me add hoti hain unke bubble ka background color */
-    --customer-bubble-text: #000000;  /* Chat ke andar likhe hue details ke text ka color */
+    --customer-bubble-text: #ffffff;  /* Chat ke andar likhe hue details ke text ka color */
 }
 
 /* ==========================================================================
