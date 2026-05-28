@@ -641,32 +641,29 @@ function sendMediaToAI(file, promptText) {
     };
 }
 
-// Function parameters mein fileData aur mimeType add kiya gaya 645se 781 tak ye function hai
+// Function parameters mein fileData aur mimeType add kiya gaya 645 se 787
 async function getAiReply(userMessage, fileData = null, mimeType = null) {
     const btn = document.getElementById('sendBtn'); 
-    const confirmBtnRow = document.getElementById('confirmBtnRow');
     const confirmBtn = document.getElementById('finalSubmitBtn'); 
     
     let originalContent = "";
-    let originalConfirmContent = ""; // Confirm button ka original design save karne ke liye
     
     // ==========================================
-    // LOADING START (GHOOMNE WALA SPINNER)
+    // 1. LOADING (SPINNER) LOGIC
     // ==========================================
     if (btn) {
         originalContent = btn.innerHTML;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
         btn.disabled = true;
     }
-    if (confirmBtnRow && !confirmBtnRow.classList.contains('hidden')) {
-        originalConfirmContent = confirmBtn.innerHTML; // Purana text save kiya
+    if (confirmBtn) {
+        confirmBtn.classList.add('opacity-50', 'pointer-events-none');
         confirmBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Wait...`;
-        confirmBtn.classList.add('opacity-50', 'pointer-events-none'); // Button freeze
     }
 
     try {
         // ==========================================
-        // PURANA LOGIC: Chat History Save & Clean
+        // 2. CHAT HISTORY LOGIC (Purana Wala)
         // ==========================================
         const chatElements = document.querySelectorAll('#chatArea .bubble');
         let rawHistory = [];
@@ -704,12 +701,22 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             userMessage = lastUserMsg.content + " | " + userMessage;
         }
 
+        // ==========================================
+        // 3. AI SYSTEM INSTRUCTION (Drafting Mode)
+        // ==========================================
+        // Yeh line AI ko order final karne se rokti hai jab tak customer button na dabaye. 
+        // Agar customer naya item likhta hai, AI sirf summary update karega.
+        const systemInstruction = `You are a professional order taker. 
+        Current stage: Drafting/Updating Order.
+        - ALWAYS update the order summary if the user adds new items (e.g., "Shimla add karein").
+        - NEVER say "Order process ho raha hai" or "Live status check karein" unless the user explicitly confirms. Keep the customer in the order flow.`;
+
         const { data, error } = await _supabase.functions.invoke('chat-brain', {
-            body: { message: userMessage, history: safeHistory, fileData: fileData, mimeType: mimeType }
+            body: { message: userMessage, history: safeHistory, fileData: fileData, mimeType: mimeType, systemInstruction: systemInstruction }
         });
 
         // ==========================================
-        // DYNAMIC ERROR & LIMIT LOGIC
+        // 4. ERROR & LIMIT CHECKING
         // ==========================================
         let hasError = false;
         let errorMsg = "";
@@ -726,7 +733,7 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
                     "alert"
                 );
             } else {
-                addAiBubble(`⚠️ System Error: ${errorMsg}\n\n*Apne order ki mukammal tafseelat bhejne ke baad, baraye meharbani neeche maujood 'Confirm Order' button ko dabayen.*`);
+                addAiBubble(`⚠️ System Error: ${errorMsg}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
             }
             return; 
         }
@@ -735,13 +742,20 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             addAiBubble(data.reply);
 
             // ==========================================
-            // SMART AUTO-POPUP (Agar Customer direct OK bol de)
+            // 5. SMART AUTO-POPUP (Saare Spelling Variations)
             // ==========================================
-            let aiTextLow = data.reply.toLowerCase();
-            if (aiTextLow.includes("process ho rha hai") || aiTextLow.includes("process ho raha") || aiTextLow.includes("live status")) {
+            // Is Regex mein aapke diye gaye saare lafz aur unke milte-julte spellings shamil hain
+            const confirmRegex = /\b(ok|oky|okay|okie|okei|ok\s*g|oky\s*g|okay\s*g|okie\s*g|okei\s*g|done|confirm|theek|theek\s*hai|theek\s*hai\s*g|thk|proceed|process)\b/i;
+            
+            // Latest message nikal kar check karenge
+            let userLatestText = userMessage.split("|").pop().trim().toLowerCase();
+
+            // Agar customer ne aapki list wala koi lafz bola hai
+            if (confirmRegex.test(userLatestText)) {
+                // 1 second ka delay taake customer apni aakhri summary dekh lay, phir popup aaye
                 setTimeout(() => {
                     handleConfirmPrompt(); 
-                }, 800); 
+                }, 1000);
             }
         }
 
@@ -754,27 +768,19 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
                 "alert"
             );
         } else {
-            addAiBubble(`⚠️ System Error: ${err.message}\n\n*Apne order ki mukammal tafseelat bhejne ke baad, baraye meharbani neeche maujood 'Confirm Order' button ko dabayen.*`);
+            addAiBubble(`⚠️ System Error: ${err.message}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
         }
     } finally {
         // ==========================================
-        // LOADING KHATAM AUR BUTTON WAPAS ZINDA
+        // 6. UI RESET (Buttons ko wapas theek karna)
         // ==========================================
         if (btn) {
-            btn.innerHTML = originalContent; // Send button wapas original haalat mein
+            btn.innerHTML = originalContent;
             btn.disabled = false;
         }
-        if (confirmBtnRow) {
-            confirmBtnRow.classList.remove('hidden'); // Confirm Button ki row show hogi
-        }
         if (confirmBtn) {
-            // Confirm button wapas apne original text aur design mein aa jayega
-            if (originalConfirmContent) {
-                confirmBtn.innerHTML = originalConfirmContent; 
-            } else {
-                confirmBtn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`;
-            }
-            confirmBtn.classList.remove('opacity-50', 'pointer-events-none', 'bg-gray-400');
+            confirmBtn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`;
+            confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
             confirmBtn.disabled = false; 
         }
     }
