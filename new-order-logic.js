@@ -915,19 +915,29 @@ async function confirmOrderFromOverview() {
     const addr = document.getElementById('overviewAddress').value.trim(); 
     const scheduleTime = document.getElementById('overviewSchedule').value; 
     
-    if(!name || !addr) return Dialog.show("Missing Information", "Please enter your Name and Address to proceed.");
+    if(!name || !addr) {
+        alert("Missing Information: Please enter your Name and Address to proceed.");
+        return;
+    }
 
     btn.disabled = true; 
     btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
     btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
     try {
-        document.getElementById('editName').value = name;
-        document.getElementById('editAddress').value = addr;
+        // Safety checks (Agar element delete ho gaye hon toh error na aaye)
+        const editNameEl = document.getElementById('editName');
+        if (editNameEl) editNameEl.value = name;
+        
+        const editAddressEl = document.getElementById('editAddress');
+        if (editAddressEl) editAddressEl.value = addr;
+        
         fullSavedAddress = addr;
+        
         await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
         const uploadAll = async (items, prefix, defaultExt) => {
+            if (!items || items.length === 0) return "";
             const promises = items.map(async (item) => {
                 const file = item.data.file || item.data; 
                 let ext = defaultExt;
@@ -973,11 +983,20 @@ async function confirmOrderFromOverview() {
         }]);
         
         if(error) throw error;
+        
+        // Success hone par Full Screen Popup band kar do
+        closeOrderOverview();
+        
+        // Success message show karo aur home page par jao
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
         window.location.href = "home.html";
         
     } catch (err) { 
-        await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
+        console.error("System Error: ", err);
+        // Error ko native alert mein dikhana taake wo kabhi peeche na chupe
+        alert("System Error: " + (err.message || "Order place nahi ho saka.")); 
+        
+        // Button ko wapas theek kar do
         btn.disabled = false; 
         btn.innerHTML = `Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>`; 
         btn.classList.replace('bg-gray-400', 'bg-orange-600');
