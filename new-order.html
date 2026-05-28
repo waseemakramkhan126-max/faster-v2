@@ -121,65 +121,52 @@
         <i class="fas fa-times absolute top-6 right-6 text-white text-2xl cursor-pointer"></i>
     </div>
 
-    <!-- ========================================== -->
+    
     <!-- YAHAN NAYA FULL SCREEN ORDER OVERVIEW POPUP PASTE KARNA HAI -->
-    <!-- ========================================== -->
-    <div id="orderOverviewModal" class="fixed inset-0 bg-[#f3f4f6] z-[100000] hidden flex-col pb-safe">
+    
+    <div id="orderOverviewModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100000] hidden items-center justify-center p-4 transition-opacity">
         
-        <!-- Header (Req 2) -->
-        <div class="bg-[#0077b9] text-white flex items-center p-4 shrink-0 shadow-md">
-            <i class="fas fa-arrow-left text-xl mr-5 cursor-pointer active:scale-90 transition-transform" onclick="closeOrderOverview()"></i>
-            <span class="font-bold text-lg tracking-wide">Order Overview</span>
-        </div>
-
-        <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div class="bg-[#f3f4f6] w-full max-w-md max-h-[90vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-pop">
             
-            <!-- Customer Details (Req 3: Editable Name & Address) -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="text-xs font-bold text-gray-400 uppercase mb-3"><i class="fas fa-user-circle mr-1"></i> Customer Details</h3>
-                <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-2 mb-3 outline-none text-sm font-semibold text-gray-800 focus:border-[#0077b9]">
-                <textarea id="overviewAddress" placeholder="Delivery Address" rows="2" class="w-full border-b border-gray-200 py-2 outline-none text-sm text-gray-800 resize-none focus:border-[#0077b9]"></textarea>
+            <div class="bg-[#0077b9] text-white flex items-center p-3 shrink-0 shadow-sm relative">
+                <i class="fas fa-arrow-left text-lg cursor-pointer active:scale-90 transition-transform absolute left-4" onclick="closeOrderOverview()"></i>
+                <span class="font-bold text-base tracking-wide w-full text-center">Order Overview</span>
             </div>
 
-            <!-- Order Summary & Media (Req 4: AI Text, Voices, Pics) -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                <h3 class="text-xs font-bold text-gray-400 uppercase mb-3"><i class="fas fa-shopping-bag mr-1"></i> Order Items</h3>
+            <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
                 
-                <!-- AI Extracted Text -->
-                <div id="overviewSummaryText" class="text-sm text-gray-800 font-medium whitespace-pre-wrap mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100"></div>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-2"><i class="fas fa-user-circle mr-1"></i> Customer Info</h3>
+                    <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-1.5 mb-2 outline-none text-sm font-semibold text-gray-800 focus:border-[#0077b9]">
+                    <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-1.5 outline-none text-sm text-gray-800 resize-none focus:border-[#0077b9]"></textarea>
+                </div>
 
-                <!-- Images Grid (Small pictures) -->
-                <div id="overviewImages" class="flex flex-wrap gap-2 mb-3 empty:hidden"></div>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-2"><i class="fas fa-shopping-bag mr-1"></i> Order Items</h3>
+                    <div id="overviewSummaryText" class="text-[13px] text-gray-800 font-medium whitespace-pre-wrap mb-2 bg-blue-50/50 p-2 rounded-lg border border-blue-50 leading-tight"></div>
+                    
+                    <div id="overviewImages" class="flex flex-wrap gap-2 mb-2 empty:hidden"></div>
+                    <div id="overviewVoices" class="flex flex-col gap-2 empty:hidden"></div>
+                </div>
 
-                <!-- Voices List -->
-                <div id="overviewVoices" class="flex flex-col gap-2 empty:hidden"></div>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-1"><i class="fas fa-clock mr-1"></i> Schedule Delivery (Optional)</h3>
+                    <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9]">
+                </div>
             </div>
 
-            <!-- Schedule Order (Req 5) -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-                <h3 class="text-xs font-bold text-gray-400 uppercase mb-1"><i class="fas fa-clock mr-1"></i> Schedule Delivery (Optional)</h3>
-                <p class="text-[10px] text-gray-500 mb-3 leading-tight">If you want this order delivered later, select a time. Rider will be assigned 30 mins before this time.</p>
-                <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-2.5 text-sm outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9]">
+            <div class="p-3 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <div class="flex justify-between items-center px-1">
+                    <span class="text-[13px] font-bold text-gray-500">Delivery Charges:</span>
+                    <span class="text-base font-black text-orange-600" id="overviewDcAmount">Rs. 0</span>
+                </div>
+                <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-md uppercase tracking-wide flex items-center justify-center gap-2 transition-colors text-sm">
+                    Confirm Order <i class="fas fa-check-circle ml-1"></i>
+                </button>
             </div>
-        </div>
-
-        <!-- Footer Buttons -->
-        <div class="p-4 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <div class="flex justify-between items-center px-1 mb-1">
-                <span class="text-sm font-bold text-gray-600">Delivery Charges:</span>
-                <span class="text-lg font-black text-orange-600" id="overviewDcAmount">Rs. 0</span>
-            </div>
-            <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3.5 rounded-xl shadow-md uppercase tracking-wide flex items-center justify-center gap-2 transition-colors">
-                Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>
-            </button>
         </div>
     </div>
-
-    <!-- WhatsApp Style Caption Container in existing fullView -->
     <div id="fullCaption" class="fixed bottom-10 left-0 w-full text-center text-white px-4 text-sm font-medium drop-shadow-md whitespace-pre-wrap hidden z-[10001] pointer-events-none"></div>
-    <!-- ========================================== -->
-
-    <!-- Ye pehle se majood script tag hai -->
     <script src="new-order-logic.js"></script>
 </body>
 </html>
