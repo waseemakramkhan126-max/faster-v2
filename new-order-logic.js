@@ -796,23 +796,140 @@ async function handleConfirmPrompt() {
     if (userConfirmed) finalSubmitOrder(session.user.email);
 }
 
-async function finalSubmitOrder(userEmail) {
-    const btn = document.getElementById('finalSubmitBtn');
-    const name = document.getElementById('editName').value.trim();
-    const addr = fullSavedAddress || document.getElementById('editAddress').value.trim(); 
-    
-    if(!name || !addr) return Dialog.show("Missing Information", "Please setup your Name and Address in profile.");
+// Global variable taake baar baar extract na karna paray
+let currentExtractedSummary = ""; 
 
-    btn.disabled = true; btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; btn.classList.replace('bg-orange-600', 'bg-gray-400');
+async function handleConfirmPrompt() {
+    if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
+    const { data: { session } } = await _supabase.auth.getSession();
+    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
+    
+    // 1. Extract Summary
+    const aiBubbles = document.querySelectorAll('.ai-bubble');
+    currentExtractedSummary = "";
+
+    for (let i = aiBubbles.length - 1; i >= 0; i--) {
+        let aiText = aiBubbles[i].innerText;
+        let startMatch = aiText.match(/order\s*summary/i) || aiText.match(/summary/i);
+        if (startMatch) {
+            let startIndex = startMatch.index;
+            let endMatch = aiText.match(/aapka order bilkul ready hai/i) || aiText.match(/baraye meharbani/i);
+            let endIndex = endMatch ? endMatch.index : -1;
+
+            if (endIndex !== -1 && endIndex > startIndex) {
+                currentExtractedSummary = aiText.substring(startIndex, endIndex).trim();
+            } else {
+                currentExtractedSummary = aiText.substring(startIndex).trim();
+            }
+            break; 
+        }
+    }
+    
+    if (!currentExtractedSummary && aiBubbles.length > 0) {
+         let veryLastText = aiBubbles[aiBubbles.length - 1].innerText;
+         if (!veryLastText.match(/process ho raha hai/i)) {
+             currentExtractedSummary = veryLastText.replace(/Faster AI:/i, "").trim();
+         }
+    }
+    
+    if (currentExtractedSummary) {
+        currentExtractedSummary = currentExtractedSummary.replace(/\*\*/g, '').trim();
+        currentExtractedSummary = currentExtractedSummary.split(/Aapka order bilkul ready hai/i)[0].trim(); 
+        currentExtractedSummary = currentExtractedSummary.split(/Baraye meharbani/i)[0].trim();
+    }
+
+    if (!currentExtractedSummary) {
+        const textData = draftData.texts.map(t => t.data);
+        const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
+        currentExtractedSummary = [...textData, ...captionData].join(" | ");
+    }
+
+    // 2. Populate Popup Data
+    document.getElementById('overviewName').value = document.getElementById('editName').value || "";
+    document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
+    document.getElementById('overviewDcAmount').innerText = `Rs. ${deliveryCharges}`;
+    document.getElementById('overviewSummaryText').innerText = currentExtractedSummary || "No textual details. Proceeding with media attachments.";
+    document.getElementById('overviewSchedule').value = ""; 
+
+    // 3. Populate Images 
+    const imgContainer = document.getElementById('overviewImages');
+    imgContainer.innerHTML = '';
+    draftData.images.forEach(imgObj => {
+        const objUrl = URL.createObjectURL(imgObj.data.file || imgObj.data);
+        const cap = (imgObj.data.caption || "").replace(/'/g, "\\'").replace(/"/g, "&quot;"); 
+        imgContainer.innerHTML += `
+            <div class="relative w-[70px] h-[70px] rounded-lg overflow-hidden border border-gray-200 shadow-sm cursor-pointer active:scale-95 transition-transform" 
+                 onclick="openFullWithCaption('${objUrl}', '${cap}')">
+                <img src="${objUrl}" class="w-full h-full object-cover">
+                ${cap ? `<div class="absolute bottom-0 w-full bg-black/60 text-white text-[8px] p-0.5 text-center truncate">Caption</div>` : ''}
+            </div>
+        `;
+    });
+
+    // 4. Populate Voices
+    const voiceContainer = document.getElementById('overviewVoices');
+    voiceContainer.innerHTML = '';
+    draftData.voices.forEach((vceObj, index) => {
+        voiceContainer.innerHTML += `
+            <div class="flex items-center gap-2 bg-blue-100 text-[#0077b9] px-3 py-2 rounded-lg text-xs font-bold border border-blue-200">
+                <i class="fas fa-microphone"></i> Voice Note attached (${index + 1})
+            </div>
+        `;
+    });
+
+    // 5. Show Full Screen Popup
+    document.getElementById('orderOverviewModal').classList.remove('hidden');
+    document.getElementById('orderOverviewModal').classList.add('flex');
+}
+
+function closeOrderOverview() {
+    document.getElementById('orderOverviewModal').classList.add('hidden');
+    document.getElementById('orderOverviewModal').classList.remove('flex');
+}
+
+function openFullWithCaption(srcUrl, captionText) {
+    const fv = document.getElementById('fullView'); 
+    const fc = document.getElementById('fullCaption');
+    fv.style.display = 'flex';
+    document.getElementById('fullContent').innerHTML = `<img src="${srcUrl}" class="max-w-full max-h-[85vh] rounded object-contain transition-transform duration-300">`;
+    
+    if (captionText) {
+        fc.innerText = captionText;
+        fc.classList.remove('hidden');
+    } else {
+        fc.classList.add('hidden');
+    }
+
+    fv.onclick = function() {
+        this.style.display = 'none';
+        fc.classList.add('hidden');
+    };
+}
+
+async function confirmOrderFromOverview() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if(!session) return;
+
+    const btn = document.getElementById('overviewSubmitBtn');
+    const name = document.getElementById('overviewName').value.trim();
+    const addr = document.getElementById('overviewAddress').value.trim(); 
+    const scheduleTime = document.getElementById('overviewSchedule').value; 
+    
+    if(!name || !addr) return Dialog.show("Missing Information", "Please enter your Name and Address to proceed.");
+
+    btn.disabled = true; 
+    btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
+    btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
     try {
-        if (userEmail) await _supabase.from('customers').update({ name: name, address: addr }).eq('email', userEmail);
+        document.getElementById('editName').value = name;
+        document.getElementById('editAddress').value = addr;
+        fullSavedAddress = addr;
+        await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
         const uploadAll = async (items, prefix, defaultExt) => {
             const promises = items.map(async (item) => {
                 const file = item.data.file || item.data; 
-                
-                // Mime/Ext bug fix: File ki original extension extract karna 
                 let ext = defaultExt;
                 if (file.name) {
                     ext = file.name.split('.').pop();
@@ -820,7 +937,6 @@ async function finalSubmitOrder(userEmail) {
                     const mimeExt = file.type.split('/')[1]?.split(';')[0];
                     if (mimeExt) ext = mimeExt;
                 }
-
                 const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
                 const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
                 if(error) throw error;
@@ -834,63 +950,26 @@ async function finalSubmitOrder(userEmail) {
             uploadAll(draftData.images, 'img', 'jpg'), uploadAll(draftData.videos, 'vid', 'mp4'),
             uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
         ]);
-        
-        // =====================================================
-        // ROBUST REVERSE SUMMARY EXTRACTION LOGIC
-        // =====================================================
-        const aiBubbles = document.querySelectorAll('.ai-bubble');
-        let finalOrderSummary = "";
 
-        // Loop backward: Sab se naye message se purane ki taraf check karega
-        for (let i = aiBubbles.length - 1; i >= 0; i--) {
-            let aiText = aiBubbles[i].innerText;
-            
-            // Check karega ke kya is message mein "Order Summary" ka lafz hai?
-            let startMatch = aiText.match(/order\s*summary/i) || aiText.match(/summary/i);
-            
-            if (startMatch) {
-                let startIndex = startMatch.index;
-                let endMatch = aiText.match(/aapka order bilkul ready hai/i) || aiText.match(/baraye meharbani/i);
-                let endIndex = endMatch ? endMatch.index : -1;
-
-                if (endIndex !== -1 && endIndex > startIndex) {
-                    finalOrderSummary = aiText.substring(startIndex, endIndex).trim();
-                } else {
-                    finalOrderSummary = aiText.substring(startIndex).trim();
-                }
-                
-                // Jese hi asal summary mil jaye, loop ko rok do!
-                break; 
-            }
+        let finalStatus = 'pending';
+        let scheduledAtValue = null;
+        if (scheduleTime) {
+            finalStatus = 'scheduled'; 
+            scheduledAtValue = new Date(scheduleTime).toISOString();
         }
-        
-        // Agar AI bubbles mein "Summary" lafz mila hi nahi (strict fallback)
-        if (!finalOrderSummary && aiBubbles.length > 0) {
-             let veryLastText = aiBubbles[aiBubbles.length - 1].innerText;
-             // Make sure ke fallback mein wo "process ho raha hai" wala message na uthaye
-             if (!veryLastText.match(/process ho raha hai/i)) {
-                 finalOrderSummary = veryLastText.replace(/Faster AI:/i, "").trim();
-             }
-        }
-        
-        if (finalOrderSummary) {
-            finalOrderSummary = finalOrderSummary.replace(/\*\*/g, '').trim();
-            finalOrderSummary = finalOrderSummary.split(/Aapka order bilkul ready hai/i)[0].trim(); 
-            finalOrderSummary = finalOrderSummary.split(/Baraye meharbani/i)[0].trim();
-        }
-
-        // Aakhri Rasta: Agar AI ki kisi bhi baat se summary na mil sakay
-        if (!finalOrderSummary) {
-            const textData = draftData.texts.map(t => t.data);
-            const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-            finalOrderSummary = [...textData, ...captionData].join(" | ");
-        }
-        // =====================================================
 
         const { error } = await _supabase.from('orders').insert([{
-            customer_phone: userPhone, customer_name: name, delivery_address: addr, 
-            order_details: finalOrderSummary, image_url: imgURLs, video_url: vidURLs, 
-            voice_url: vceURLs, doc_url: docURLs, status: 'pending', dc_amount: deliveryCharges 
+            customer_phone: userPhone, 
+            customer_name: name, 
+            delivery_address: addr, 
+            order_details: currentExtractedSummary, 
+            image_url: imgURLs, 
+            video_url: vidURLs, 
+            voice_url: vceURLs, 
+            doc_url: docURLs, 
+            status: finalStatus, 
+            scheduled_at: scheduledAtValue, 
+            dc_amount: deliveryCharges 
         }]);
         
         if(error) throw error;
@@ -899,7 +978,9 @@ async function finalSubmitOrder(userEmail) {
         
     } catch (err) { 
         await Dialog.show("Error", "Error placing order: " + err.message, "alert"); 
-        btn.disabled = false; btn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`; btn.classList.replace('bg-gray-400', 'bg-orange-600');
+        btn.disabled = false; 
+        btn.innerHTML = `Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>`; 
+        btn.classList.replace('bg-gray-400', 'bg-orange-600');
     }
 }
 
