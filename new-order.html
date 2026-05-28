@@ -153,11 +153,13 @@
             </div>
         </div>
 
-        <div class="p-3 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <div class="flex justify-between items-center px-1">
-                <span class="text-xs font-bold text-gray-500">Delivery Charges:</span>
-                <span class="text-base font-black text-orange-600" id="overviewDcAmount">Rs. 0</span>
-            </div>
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-1"><i class="fas fa-clock mr-1"></i> Schedule Delivery</h3>
+    
+            <p class="text-[10.5px] text-gray-500 mb-2.5 leading-snug">Agar aap apna order baad mein mangwana chahte hain, toh yahan time select karein. Aapke diye gaye waqt se theek <b class="text-gray-700">30 minute pehle</b> rider order accept karega aur process shuru ho jayega.</p>
+    
+            <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-1.5 text-[13px] outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9]">
+        </div>
             <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-2.5 rounded-xl shadow-md uppercase tracking-wide flex items-center justify-center gap-2 transition-colors text-[13px]">
                 Confirm Order <i class="fas fa-check-circle ml-1"></i>
             </button>
