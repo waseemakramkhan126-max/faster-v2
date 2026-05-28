@@ -343,7 +343,7 @@ function addToDraft(type, content) {
             document.getElementById('orderInput').value = "";
             handleInput(document.getElementById('orderInput'));
         }
-        getAiReply(val); 
+      //  //getAiReply(val); // //
     }
     else if (type === 'image') {
         const objUrl = URL.createObjectURL(content.file);
@@ -352,7 +352,7 @@ function addToDraft(type, content) {
             ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
         `;
         let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
-        sendMediaToAI(content.file, promptText);
+        //sendMediaToAI(content.file, promptText);
     } 
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
@@ -451,16 +451,16 @@ function addToDraft(type, content) {
 
         }, 150);
 
-        sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
+        //sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     }
     else if (type === 'doc') {
         b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
-        sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
+        //sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
     }
     else if (type === 'video') {
         const objUrl = URL.createObjectURL(content);
         b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
-        sendMediaToAI(content, "Is video ko check karein.");
+        //sendMediaToAI(content, "Is video ko check karein.");
     }
 
     let pressTimer;
@@ -790,65 +790,46 @@ async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
-    
-    const confirmMsg = `The Delivery Charges will be Rs. ${deliveryCharges}. Do you want to proceed?`;
-    const userConfirmed = await Dialog.show("Confirm Order", confirmMsg, "confirm");
-    if (userConfirmed) finalSubmitOrder(session.user.email);
-}
 
-// Global variable taake baar baar extract na karna paray
-let currentExtractedSummary = ""; 
+    // ==========================================
+    // MANUAL SUMMARY EXTRACTION (Bina AI ke)
+    // ==========================================
+    const customerBubbles = document.querySelectorAll('.customer-bubble');
+    let manualSummaryList = [];
 
-async function handleConfirmPrompt() {
-    if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
-    const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
-    
-    // 1. Extract Summary
-    const aiBubbles = document.querySelectorAll('.ai-bubble');
-    currentExtractedSummary = "";
+    // 1. Customer ke chat mein bheje gaye saare messages ko line-by-line ikhatta karo
+    customerBubbles.forEach(bubble => {
+        let text = bubble.innerText.trim();
+        if (text) manualSummaryList.push("👉 " + text);
+    });
 
-    for (let i = aiBubbles.length - 1; i >= 0; i--) {
-        let aiText = aiBubbles[i].innerText;
-        let startMatch = aiText.match(/order\s*summary/i) || aiText.match(/summary/i);
-        if (startMatch) {
-            let startIndex = startMatch.index;
-            let endMatch = aiText.match(/aapka order bilkul ready hai/i) || aiText.match(/baraye meharbani/i);
-            let endIndex = endMatch ? endMatch.index : -1;
+    // 2. Agar text na ho, toh attachments (images) ke captions bhi add kar lo
+    const captionData = draftData.images.filter(i => i.data.caption).map(i => "🖼️ Photo: " + i.data.caption);
+    manualSummaryList = [...manualSummaryList, ...captionData];
 
-            if (endIndex !== -1 && endIndex > startIndex) {
-                currentExtractedSummary = aiText.substring(startIndex, endIndex).trim();
-            } else {
-                currentExtractedSummary = aiText.substring(startIndex).trim();
-            }
-            break; 
-        }
-    }
-    
-    if (!currentExtractedSummary && aiBubbles.length > 0) {
-         let veryLastText = aiBubbles[aiBubbles.length - 1].innerText;
-         if (!veryLastText.match(/process ho raha hai/i)) {
-             currentExtractedSummary = veryLastText.replace(/Faster AI:/i, "").trim();
-         }
-    }
-    
-    if (currentExtractedSummary) {
-        currentExtractedSummary = currentExtractedSummary.replace(/\*\*/g, '').trim();
-        currentExtractedSummary = currentExtractedSummary.split(/Aapka order bilkul ready hai/i)[0].trim(); 
-        currentExtractedSummary = currentExtractedSummary.split(/Baraye meharbani/i)[0].trim();
+    // 3. Sab ko mila kar ek Final Summary bana lo
+    currentExtractedSummary = manualSummaryList.join("\n");
+
+    // Agar chat bilkul khali hai aur koi voice/image bhi nahi hai, toh rok do
+    if (!currentExtractedSummary && draftData.voices.length === 0 && draftData.images.length === 0 && draftData.videos.length === 0) {
+        alert("Please enter order details or attach a file first.");
+        return;
     }
 
+    // Agar sirf voice note hai aur likha kuch nahi
     if (!currentExtractedSummary) {
-        const textData = draftData.texts.map(t => t.data);
-        const captionData = draftData.images.filter(i => i.data.caption).map(i => "Photo Caption: " + i.data.caption);
-        currentExtractedSummary = [...textData, ...captionData].join(" | ");
+        currentExtractedSummary = "Order details are in attached voice notes/images.";
     }
 
-    // 2. Populate Popup Data
+    // ==========================================
+    // POPULATE POPUP DATA (Baqi sab purana logic)
+    // ==========================================
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
     document.getElementById('overviewDcAmount').innerText = `Rs. ${deliveryCharges}`;
-    document.getElementById('overviewSummaryText').innerText = currentExtractedSummary || "No textual details. Proceeding with media attachments.";
+    
+    // AI ki jagah Customer ki banayi hui summary Modal mein daal do
+    document.getElementById('overviewSummaryText').innerText = currentExtractedSummary;
     document.getElementById('overviewSchedule').value = ""; 
 
     // 3. Populate Images 
