@@ -1059,6 +1059,7 @@ async function confirmOrderFromOverview() {
             customer_phone: userPhone, 
             customer_name: name, 
             delivery_address: addr, 
+            area: customerArea, // <--- YE LINE ADD KI GAYI HAI[cite: 13]
             order_details: currentExtractedSummary, 
             image_url: imgURLs, 
             video_url: vidURLs, 
