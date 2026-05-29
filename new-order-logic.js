@@ -969,7 +969,7 @@ async function confirmOrderFromOverview() {
             setTimeout(async () => {
                 await Dialog.show("⚠️ Service Unavailable", `Maaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`, "alert");
                 window.location.href = "home.html"; 
-            }, 300);
+            }, 200);
             
             return; // Function yahin ruk jayega
         }
