@@ -248,7 +248,7 @@ async function initPage() {
 
     try {
         if(navigator.onLine) {
-            const { data: settings } = await _supabase.from('app_settings').select('customer_delivery_fee').limit(1);
+            const { data: settings } = await _supabase.from('delivery_areas').select('customer_delivery_fee').limit(1);
             if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
 
             const { data: { session } } = await _supabase.auth.getSession();
