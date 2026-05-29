@@ -6,14 +6,16 @@
     <title>Faster - Join Us</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="index-style.css">
 </head>
 <body class="flex flex-col justify-center items-center p-4 min-h-screen">
 
     <div class="w-full max-w-md modern-card p-6 md:p-8 relative">
-        
         <div class="flex flex-col items-center mb-6">
             <div class="w-20 h-20 mb-3">
                 <img id="appLogo" src="" class="w-full h-full brand-logo-gol hidden">
@@ -37,9 +39,6 @@
                 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" class="w-5 h-5">
                 Continue with Google
             </button>
-            <div id="loadingText" class="hidden text-center text-xs font-bold text-gray-400 mt-4 animate-pulse">
-                <i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing...
-            </div>
         </div>
 
         <div id="profileFormSection" class="space-y-4 hidden">
@@ -64,17 +63,26 @@
                 <span class="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest">Delivery Address</span>
             </div>
 
-            <button onclick="autoDetectLocation()" id="gpsBtn" class="w-full gps-btn font-bold h-14 flex items-center justify-center gap-2 mb-2">
-                <i class="fa-solid fa-location-crosshairs text-lg"></i>
-                <span id="gpsBtnText">Use My Current Location</span>
-            </button>
+            <div class="flex items-center gap-2 mb-2">
+                <button onclick="openMapModal()" class="flex-1 gps-btn font-bold h-14 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-lg"></i>
+                    <span id="mapBtnText">Pin Location on Map</span>
+                </button>
+                
+                <div id="locationBadge" class="hidden h-14 px-4 bg-green-50 border border-green-200 text-green-700 rounded-2xl flex items-center justify-center text-xs font-bold gap-1 shadow-sm">
+                    <i class="fas fa-check-circle text-lg"></i> Pinned
+                </div>
+            </div>
+
+            <input type="hidden" id="latInput">
+            <input type="hidden" id="lngInput">
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">City</label>
                     <div class="relative">
                         <i class="fas fa-city absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <select id="citySelect" onchange="loadAreas(this.value)" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm">
+                        <select id="citySelect" onchange="loadAreas(this.value)" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm text-ellipsis">
                             <option value="">Select City</option>
                         </select>
                     </div>
@@ -84,7 +92,7 @@
                     <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Area</label>
                     <div class="relative">
                         <i class="fas fa-map-pin absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <select id="areaSelect" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm">
+                        <select id="areaSelect" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm text-ellipsis">
                             <option value="">Select Area</option>
                         </select>
                     </div>
@@ -104,7 +112,37 @@
                 <i id="btnIcon" class="fas fa-arrow-right"></i>
             </button>
         </div>
+    </div>
 
+    <div id="mapModal" class="hidden fixed inset-0 z-50 bg-black/60 flex flex-col justify-end backdrop-blur-sm transition-all">
+        <div class="bg-white rounded-t-[32px] h-[75vh] w-full flex flex-col relative overflow-hidden shadow-2xl">
+            
+            <div class="p-5 flex justify-between items-center border-b border-gray-100 bg-white z-10">
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg">Set Delivery Location</h3>
+                    <p class="text-xs text-gray-500 mt-1">Move the map to set exact pin</p>
+                </div>
+                <button onclick="closeMapModal()" class="w-10 h-10 bg-gray-100 rounded-full text-gray-600 flex items-center justify-center active:scale-95"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 relative w-full h-full">
+                <div id="map" class="w-full h-full z-0"></div>
+                
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none drop-shadow-xl">
+                    <i class="fas fa-map-marker-alt text-[45px] text-blue-600 pb-10"></i>
+                </div>
+
+                <button onclick="getCurrentGPS()" class="absolute bottom-6 right-4 z-[400] bg-white w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex items-center justify-center text-blue-600 border border-gray-100 active:scale-90 transition-transform">
+                    <i class="fa-solid fa-location-crosshairs text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="p-5 border-t border-gray-100 bg-white z-10">
+                <button onclick="confirmLocation()" class="w-full modern-btn font-bold h-14 text-sm flex items-center justify-center gap-2">
+                    Confirm This Location
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="index-logic.js"></script>
