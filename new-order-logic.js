@@ -965,7 +965,7 @@ async function confirmOrderFromOverview() {
         setTimeout(() => {
             let errorToRemove = document.getElementById('inlineOrderError');
             if(errorToRemove) errorToRemove.remove();
-        }, 6000); 
+        }, 8000); 
     }
     // ==========================================
 
