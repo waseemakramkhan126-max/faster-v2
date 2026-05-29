@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+/* Pull-to-refresh & Zooming Fix for WebView APK */
+html, body { 
+    font-family: 'Plus Jakarta Sans', sans-serif; 
+    overscroll-behavior-y: none; 
+    -webkit-tap-highlight-color: transparent; 
+}
+
+/* 3D Claymorphism Design Elements */
+.brand-logo-gol { 
+    object-fit: cover; 
+    border-radius: 9999px; 
+    border: 3px solid #2916f9;
+    background: white;
+    box-shadow: 6px 6px 12px #e5e7eb, -6px -6px 12px #ffffff;
+}
+
+.clay-card {
+    background: #ffffff;
+    border-radius: 2.5rem;
+    box-shadow: 10px 10px 20px #e5e7eb, -10px -10px 20px #ffffff;
+}
+
+.clay-input {
+    background: #f9fafb;
+    box-shadow: inset 4px 4px 8px #e5e7eb, inset -4px -4px 8px #ffffff;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.clay-input:focus {
+    box-shadow: inset 6px 6px 10px #e5e7eb, inset -6px -6px 10px #ffffff;
+    border-color: #f97316; 
+    background: #ffffff;
+}
+
+.clay-btn {
+    background: #3b82f6;
+    box-shadow: 6px 6px 12px #93c5fd, -6px -6px 12px #ffffff;
+    transition: all 0.2s ease;
+}
+
+.clay-btn:active {
+    box-shadow: inset 4px 4px 8px #2563eb, inset -4px -4px 8px #60a5fa;
+    transform: scale(0.97);
+}
+
+.clay-btn:disabled {
+    background: #9ca3af;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
