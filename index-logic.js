@@ -18,6 +18,79 @@ async function fetchBranding() {
     }
 }
 
+// Dropdowns me Cities Load karein
+async function loadCities() {
+    const { data, error } = await _supabase.from('delivery_areas').select('city').order('city');
+    if (data && data.length > 0) {
+        const uniqueCities = [...new Set(data.map(item => item.city))];
+        const citySelect = document.getElementById('citySelect');
+        uniqueCities.forEach(city => {
+            citySelect.innerHTML += `<option value="${city}">${city}</option>`;
+        });
+    }
+}
+
+// City select hone par uske Areas load karein
+async function loadAreas(selectedCity) {
+    const areaSelect = document.getElementById('areaSelect');
+    areaSelect.innerHTML = '<option value="">Select Area</option>'; 
+    
+    if(!selectedCity) return;
+
+    const { data, error } = await _supabase.from('delivery_areas').select('area_name').eq('city', selectedCity).order('area_name');
+    if (data && data.length > 0) {
+        data.forEach(item => {
+            areaSelect.innerHTML += `<option value="${item.area_name}">${item.area_name}</option>`;
+        });
+        areaSelect.innerHTML += `<option value="Other Area">Other Area</option>`;
+    }
+}
+
+// GPS Location Autofill (OpenStreetMap)
+async function autoDetectLocation() {
+    const gpsBtnText = document.getElementById('gpsBtnText');
+    const originalText = gpsBtnText.innerText;
+    gpsBtnText.innerText = "Detecting...";
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                const data = await response.json();
+                
+                const detectedCity = data.address.city || data.address.town || data.address.county;
+                
+                if(detectedCity) {
+                    const citySelect = document.getElementById('citySelect');
+                    const cityOptions = Array.from(citySelect.options);
+                    const matchCity = cityOptions.find(opt => opt.value.toLowerCase().includes(detectedCity.toLowerCase()));
+                    
+                    if(matchCity) {
+                        citySelect.value = matchCity.value;
+                        await loadAreas(matchCity.value);
+                    }
+                }
+                
+                document.getElementById('addressInput').value = data.display_name;
+                gpsBtnText.innerText = "Location Detected!";
+                setTimeout(() => gpsBtnText.innerText = originalText, 3000);
+
+            } catch (err) {
+                alert("Location fail ho gayi. Please manual type karein.");
+                gpsBtnText.innerText = originalText;
+            }
+        }, (error) => {
+            alert("Aapne location access deny kar diya hai.");
+            gpsBtnText.innerText = originalText;
+        });
+    } else {
+        alert("Aapka browser GPS support nahi karta.");
+    }
+}
+
 // Google OAuth configuration
 async function loginWithGoogle() {
     if (!navigator.onLine) {
@@ -37,14 +110,12 @@ async function loginWithGoogle() {
 
 // Production-Grade Fail-Safe Auth Router
 async function checkAuthState() {
-    // Fast UI check: Agar local state valid hai to bina delay redirect karein
     if (localStorage.getItem('faster_phone')) {
         window.location.replace('home.html');
         return;
     }
 
     try {
-        // Network check fallback
         if (!navigator.onLine) {
             document.getElementById('mainLoader').classList.add('hidden');
             document.getElementById('googleLoginSection').classList.remove('hidden');
@@ -63,16 +134,17 @@ async function checkAuthState() {
 
         const { data: customerRecord, error: dbError } = await _supabase
             .from('customers')
-            .select('phone, name')
+            .select('phone, name, city, area')
             .eq('email', userEmail)
             .maybeSingle();
 
         if (customerRecord && customerRecord.phone) {
             localStorage.setItem('faster_phone', customerRecord.phone);
             localStorage.setItem('faster_name', customerRecord.name);
+            localStorage.setItem('faster_city', customerRecord.city || "");
+            localStorage.setItem('faster_area', customerRecord.area || "");
             window.location.replace('home.html');
         } else {
-            // Pre-fill profile creation form
             document.getElementById('nameInput').value = googleName || "";
             document.getElementById('subTitle').innerText = "Complete Your Profile";
             document.getElementById('profileFormSection').classList.remove('hidden');
@@ -80,31 +152,26 @@ async function checkAuthState() {
 
     } catch (err) {
         console.error("Auth Exception handled:", err);
-        // Fallback option in case of connection drop
         document.getElementById('googleLoginSection').classList.remove('hidden');
     } finally {
-        // Yeh block hamesha chalega aur loader ko crash state me bhi khatam kar dega
         document.getElementById('mainLoader').classList.add('hidden');
     }
 }
 
-// Save Profile Pipeline
+// Update Profile Save Logic
 async function saveProfile() {
     const name = document.getElementById('nameInput').value.trim();
     const phone = document.getElementById('phoneInput').value.trim();
+    const city = document.getElementById('citySelect').value;
+    const area = document.getElementById('areaSelect').value;
     const address = document.getElementById('addressInput').value.trim();
     
     const btn = document.getElementById('saveBtn');
     const btnText = document.getElementById('btnText');
     const btnIcon = document.getElementById('btnIcon');
 
-    if (!name || !phone || !address) {
-        alert("Please fill all fields properly!");
-        return;
-    }
-
-    if (!navigator.onLine) {
-        alert("No internet connection! Please check your network and try again.");
+    if (!name || !phone || !city || !area || !address) {
+        alert("Please fill all fields, including City and Area!");
         return;
     }
 
@@ -126,13 +193,17 @@ async function saveProfile() {
             phone: phone, 
             name: name, 
             email: userEmail, 
-            address: address 
+            address: address,
+            city: city,
+            area: area
         }]);
 
         if (error) throw error;
 
         localStorage.setItem('faster_phone', phone);
         localStorage.setItem('faster_name', name);
+        localStorage.setItem('faster_city', city);
+        localStorage.setItem('faster_area', area);
         window.location.replace('home.html');
         
     } catch (err) {
@@ -143,7 +214,9 @@ async function saveProfile() {
     }
 }
 
+// Initialize on load
 window.onload = async () => {
     fetchBranding();
+    loadCities(); // Yeh line dropdowns load karegi
     await checkAuthState();
 };
