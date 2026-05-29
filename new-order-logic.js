@@ -936,22 +936,46 @@ async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) return;
 
+    const btn = document.getElementById('overviewSubmitBtn');
+
     // ==========================================
-    // 🛑 1. AREA BLOCK CHECK (With Animation Delay Fix)
+    // 🎨 NAYA FUNCTION: Screen ke andar hi khoobsurat Error dikhane ke liye
     // ==========================================
+    function showInlineError(title, message) {
+        // Agar pehle se koi error dabba hai toh usay hata do
+        let existingError = document.getElementById('inlineOrderError');
+        if(existingError) existingError.remove();
+
+        // Naya laal rang ka warning dabba banayen
+        const errDiv = document.createElement('div');
+        errDiv.id = 'inlineOrderError';
+        errDiv.className = 'bg-red-50 border border-red-200 p-3 mb-4 rounded-xl w-full flex gap-3 items-start shadow-sm transition-all';
+        errDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle text-red-500 text-xl mt-0.5"></i>
+            <div>
+                <h3 class="text-sm font-extrabold text-red-800">${title}</h3>
+                <p class="text-xs font-semibold text-red-600 mt-0.5">${message}</p>
+            </div>
+        `;
+        
+        // Is dabbe ko "Confirm Order" button ke bilkul oopar fit kar do
+        btn.parentNode.insertBefore(errDiv, btn); 
+
+        // 6 second baad error khud gayab ho jayega
+        setTimeout(() => {
+            let errorToRemove = document.getElementById('inlineOrderError');
+            if(errorToRemove) errorToRemove.remove();
+        }, 6000); 
+    }
+    // ==========================================
+
+    // 🛑 1. AREA BLOCK CHECK (Inline Error ke sath)
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
     if (customerCity === "Other City" || customerArea === "Other Area") {
-        closeOrderOverview(); // Pehle screen band karne ka order diya
-        
-        // 300ms ka delay taake pichli screen mukammal band ho jaye
-        setTimeout(async () => {
-            await Dialog.show("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!", "alert");
-            window.location.href = "home.html"; 
-        }, 300);
-        
-        return; // Function yahin ruk jayega
+        showInlineError("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!");
+        return; // Order yahin block ho jayega
     }
 
     try {
@@ -963,15 +987,8 @@ async function confirmOrderFromOverview() {
             .single();
 
         if (areaData && areaData.is_active === false) {
-            closeOrderOverview(); // Pehle screen band karne ka order diya
-            
-            // 300ms ka delay
-            setTimeout(async () => {
-                await Dialog.show("⚠️ Service Unavailable", `Maaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`, "alert");
-                window.location.href = "home.html"; 
-            }, 100);
-            
-            return; // Function yahin ruk jayega
+            showInlineError("⚠️ Service Unavailable", `Abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`);
+            return; // Order yahin block ho jayega
         }
     } catch (err) {
         console.error("Area check error: ", err);
@@ -980,13 +997,14 @@ async function confirmOrderFromOverview() {
     // 🛑 BLOCK CHECK KHATAM
     // ==========================================
 
-    const btn = document.getElementById('overviewSubmitBtn');
+
     const name = document.getElementById('overviewName').value.trim();
     const addr = document.getElementById('overviewAddress').value.trim(); 
     const scheduleTime = document.getElementById('overviewSchedule').value; 
     
     if(!name || !addr) {
-        alert("Missing Information: Please enter your Name and Address to proceed.");
+        // Name/Address missing ho toh uske liye bhi yahi same screen wala error show hoga!
+        showInlineError("Missing Information", "Please enter your Name and Address to proceed.");
         return;
     }
 
@@ -995,7 +1013,6 @@ async function confirmOrderFromOverview() {
     btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
     try {
-        // Safety checks (Agar element delete ho gaye hon toh error na aaye)
         const editNameEl = document.getElementById('editName');
         if (editNameEl) editNameEl.value = name;
         
@@ -1054,25 +1071,21 @@ async function confirmOrderFromOverview() {
         
         if(error) throw error;
         
-        // Success hone par Full Screen Popup band kar do
         closeOrderOverview();
         
-        // Success message show karo aur home page par jao
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
         window.location.href = "home.html";
         
     } catch (err) { 
         console.error("System Error: ", err);
-        // Error ko native alert mein dikhana taake wo kabhi peeche na chupe
-        alert("System Error: " + (err.message || "Order place nahi ho saka.")); 
+        // Catch error bhi isi khoobsurat andaz mein screen ke andar show hoga
+        showInlineError("System Error", err.message || "Order place nahi ho saka.");
         
-        // Button ko wapas theek kar do
         btn.disabled = false; 
         btn.innerHTML = `Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>`; 
         btn.classList.replace('bg-gray-400', 'bg-orange-600');
     }
 }
-
 function openFull(el, type) {
     const fv = document.getElementById('fullView'); fv.style.display = 'flex';
     if (type === 'img') document.getElementById('fullContent').innerHTML = `<img src="${el.src}" class="max-w-full max-h-full rounded object-contain">`;
