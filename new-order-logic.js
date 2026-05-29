@@ -937,17 +937,21 @@ async function confirmOrderFromOverview() {
     if(!session) return;
 
     // ==========================================
-    // 🛑 1. AREA BLOCK CHECK (Fixed Dialog Overlap)
+    // 🛑 1. AREA BLOCK CHECK (With Animation Delay Fix)
     // ==========================================
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
     if (customerCity === "Other City" || customerArea === "Other Area") {
-        closeOrderOverview(); // <-- NAYA IZAFA: Pehle background popup band karein
+        closeOrderOverview(); // Pehle screen band karne ka order diya
         
-        await Dialog.show("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!", "alert");
-        window.location.href = "home.html"; 
-        return; 
+        // 300ms ka delay taake pichli screen mukammal band ho jaye
+        setTimeout(async () => {
+            await Dialog.show("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!", "alert");
+            window.location.href = "home.html"; 
+        }, 300);
+        
+        return; // Function yahin ruk jayega
     }
 
     try {
@@ -959,11 +963,15 @@ async function confirmOrderFromOverview() {
             .single();
 
         if (areaData && areaData.is_active === false) {
-            closeOrderOverview(); // <-- NAYA IZAFA: Pehle background popup band karein
+            closeOrderOverview(); // Pehle screen band karne ka order diya
             
-            await Dialog.show("⚠️ Service Unavailable", `Maaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`, "alert");
-            window.location.href = "home.html"; 
-            return; 
+            // 300ms ka delay
+            setTimeout(async () => {
+                await Dialog.show("⚠️ Service Unavailable", `Maaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`, "alert");
+                window.location.href = "home.html"; 
+            }, 300);
+            
+            return; // Function yahin ruk jayega
         }
     } catch (err) {
         console.error("Area check error: ", err);
@@ -971,7 +979,6 @@ async function confirmOrderFromOverview() {
     // ==========================================
     // 🛑 BLOCK CHECK KHATAM
     // ==========================================
-
 
     const btn = document.getElementById('overviewSubmitBtn');
     const name = document.getElementById('overviewName').value.trim();
