@@ -5,101 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Faster - Join Us</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <link rel="stylesheet" href="index-style.css">
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col justify-center items-center p-6">
+<body class="flex flex-col justify-center items-center p-4 min-h-screen">
 
-    <div class="w-full max-w-md clay-card p-8 border border-gray-100 relative">
-        <div class="flex flex-col items-center mb-8">
-            <div class="w-24 h-24 mb-4">
+    <div class="w-full max-w-md modern-card p-6 md:p-8 relative">
+        
+        <div class="flex flex-col items-center mb-6">
+            <div class="w-20 h-20 mb-3">
                 <img id="appLogo" src="" class="w-full h-full brand-logo-gol hidden">
-                <div id="logoFallback" class="w-24 h-24 bg-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                    <i class="fas fa-rocket text-white text-3xl"></i>
+                <div id="logoFallback" class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
+                    <i class="fas fa-rocket text-white text-2xl"></i>
                 </div>
             </div>
-            
-            <h1 id="brandName" class="text-2xl font-black text-gray-800 uppercase tracking-tighter">
-                Faster <span class="text-orange-500">Delivery</span>
+            <h1 id="brandName" class="text-2xl font-extrabold text-gray-800 tracking-tight">
+                Faster <span class="text-blue-600">Delivery</span>
             </h1>
-            <p id="subTitle" class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Create Your Account</p>
+            <p id="subTitle" class="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Create Your Account</p>
         </div>
 
         <div id="mainLoader" class="flex flex-col items-center justify-center py-4">
-            <i class="fas fa-circle-notch fa-spin text-orange-500 text-3xl mb-2"></i>
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Verifying Connection...</span>
+            <i class="fas fa-circle-notch fa-spin text-blue-600 text-2xl mb-2"></i>
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading...</span>
         </div>
 
-        <div id="googleLoginSection" class="w-full hidden">
-            <button onclick="loginWithGoogle()" class="w-full bg-white text-gray-700 font-black h-16 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-widest text-sm border-2 border-gray-100 shadow-sm active:scale-95 transition-transform">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" class="w-6 h-6">
+        <div id="googleLoginSection" class="w-full hidden mb-4">
+            <button onclick="loginWithGoogle()" class="w-full bg-white text-gray-700 font-bold h-14 rounded-2xl flex items-center justify-center gap-3 border border-gray-200 shadow-sm active:scale-95 transition-transform">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" class="w-5 h-5">
                 Continue with Google
             </button>
-            <div id="loadingText" class="hidden text-center text-[10px] font-bold text-gray-400 mt-4 uppercase animate-pulse">
-                <i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing Credentials...
+            <div id="loadingText" class="hidden text-center text-xs font-bold text-gray-400 mt-4 animate-pulse">
+                <i class="fas fa-circle-notch fa-spin mr-1"></i> Syncing...
             </div>
         </div>
 
         <div id="profileFormSection" class="space-y-4 hidden">
-            <button onclick="autoDetectLocation()" id="gpsBtn" class="w-full bg-blue-50 text-blue-600 font-bold h-12 rounded-2xl flex items-center justify-center gap-2 border border-blue-200 active:scale-95 transition-transform mt-2">
-                <i class="fas fa-map-marker-alt"></i>
+            
+            <div>
+                <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Full Name</label>
+                <div class="relative">
+                    <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="nameInput" placeholder="e.g. Ali Ahmed" class="w-full modern-input h-14 pl-11 pr-4 font-semibold outline-none">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Phone Number</label>
+                <div class="relative">
+                    <i class="fas fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="tel" id="phoneInput" placeholder="03XXXXXXXXX" class="w-full modern-input h-14 pl-11 pr-4 font-semibold outline-none">
+                </div>
+            </div>
+
+            <div class="my-6 border-t border-gray-100 relative">
+                <span class="absolute left-1/2 -translate-x-1/2 -top-3 bg-white px-3 text-[10px] font-bold text-gray-300 uppercase tracking-widest">Delivery Address</span>
+            </div>
+
+            <button onclick="autoDetectLocation()" id="gpsBtn" class="w-full gps-btn font-bold h-14 flex items-center justify-center gap-2 mb-2">
+                <i class="fa-solid fa-location-crosshairs text-lg"></i>
                 <span id="gpsBtnText">Use My Current Location</span>
             </button>
 
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Full Name</label>
-                <div class="relative mt-1">
-                    <i class="fas fa-user absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="text" id="nameInput" placeholder="Enter your name" class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">City</label>
+                    <div class="relative">
+                        <i class="fas fa-city absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <select id="citySelect" onchange="loadAreas(this.value)" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm">
+                            <option value="">Select City</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">Area</label>
+                    <div class="relative">
+                        <i class="fas fa-map-pin absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <select id="areaSelect" class="w-full modern-input h-14 pl-9 pr-8 font-semibold outline-none appearance-none text-sm">
+                            <option value="">Select Area</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Phone Number (Required)</label>
-                <div class="relative mt-1">
-                    <i class="fas fa-phone absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input type="tel" id="phoneInput" placeholder="03XXXXXXXXX" class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                <label class="text-xs font-bold text-gray-500 ml-1 mb-1 block">House / Street Details</label>
+                <div class="relative">
+                    <i class="fas fa-home absolute left-4 top-4 text-gray-400"></i>
+                    <textarea id="addressInput" placeholder="House no, Street, Landmark..." rows="2" class="w-full modern-input py-3 pl-11 pr-4 font-semibold outline-none resize-none"></textarea>
                 </div>
             </div>
 
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">City</label>
-                <div class="relative mt-1">
-                    <i class="fas fa-building absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <select id="citySelect" onchange="loadAreas(this.value)" class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none appearance-none">
-                        <option value="">Select City</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Area</label>
-                <div class="relative mt-1">
-                    <i class="fas fa-map absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <select id="areaSelect" class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none appearance-none">
-                        <option value="">Select Area</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Complete Address</label>
-                <div class="relative mt-1">
-                    <i class="fas fa-home absolute left-5 top-5 text-gray-400"></i>
-                    <textarea id="addressInput" placeholder="House/Street no, Landmark" rows="2" class="w-full clay-input rounded-2xl pl-12 pr-4 py-4 font-bold text-gray-700 outline-none"></textarea>
-                </div>
-            </div>
-
-            <button onclick="saveProfile()" id="saveBtn" class="w-full clay-btn text-white font-black h-16 rounded-2xl flex items-center justify-center gap-3 mt-6 uppercase tracking-widest text-sm">
+            <button onclick="saveProfile()" id="saveBtn" class="w-full modern-btn font-bold h-14 flex items-center justify-center gap-3 mt-4 text-sm tracking-wide">
                 <span id="btnText">Save & Continue</span>
                 <i id="btnIcon" class="fas fa-arrow-right"></i>
             </button>
         </div>
-        <p class="text-center text-[9px] text-gray-400 mt-8 uppercase tracking-widest font-black">
-            Fastest Delivery Service In Your City
-        </p>
+
     </div>
 
     <script src="index-logic.js"></script>
