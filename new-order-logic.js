@@ -237,7 +237,7 @@ const Dialog = {
     }
 };
 
-// Page Initialization (100% Dynamic City & Area Matching from Supabase)
+// Page Initialization (100% Dynamic Exact Area Matching)
 async function initPage() {
     if(!userPhone) return window.location.replace('index.html');
     
@@ -248,43 +248,55 @@ async function initPage() {
 
     try {
         if(navigator.onLine) {
-            // 1. Customer ka saved address nikalen aur lowercase karein
-            let customerAddress = (localStorage.getItem('faster_address') || "").toLowerCase();
+            // 1. Customer ka exact Area aur City localStorage se nikalen (Dropdown wala)
+            let customerArea = localStorage.getItem('faster_area');
+            let customerCity = localStorage.getItem('faster_city');
             
-            // 2. Supabase se SAARE Areas aur unki Delivery Fees live uthaein
-            const { data: allAreas, error: dbError } = await _supabase
-                .from('delivery_areas')
-                .select('area_name, customer_delivery_fee'); // Agar 'city' ka column bhi hai toh wo bhi select kar sakte hain
-
-            if (dbError) console.error("Supabase Fetch Error:", dbError);
-
             let areaMatched = false;
+            deliveryCharges = 0; // By default 0 rakhain
 
-            if (allAreas && allAreas.length > 0) {
-                // 3. Dynamic Loop: Jo areas Supabase mein hain, unhe customer address ke sath match karein
-                for (let area of allAreas) {
-                    let dbAreaName = (area.area_name || "").toLowerCase().trim();
+            if (customerArea && customerArea !== "Other Area") {
+                // 2. Supabase se sirf is specific Area ki details uthaein
+                const { data: areaData, error: dbError } = await _supabase
+                    .from('delivery_areas')
+                    .select('customer_delivery_fee, is_active') // Aapka exact column name
+                    .eq('city', customerCity)
+                    .eq('area_name', customerArea)
+                    .single();
+
+                if (dbError) {
+                    console.error("Area Fetch Error:", dbError);
+                } else if (areaData) {
+                    // Database se amount uthayen
+                    deliveryCharges = Number(areaData.customer_delivery_fee) || 0;
+                    areaMatched = true;
+                    console.log(`✅ Exact Area Matched: ${customerArea} | Charges: Rs. ${deliveryCharges}`);
                     
-                    // Agar customer ke address mein database wale kisi area ka naam maujood hai
-                    if (customerAddress.includes(dbAreaName) && dbAreaName !== "") {
-                        deliveryCharges = area.customer_delivery_fee;
-                        areaMatched = true;
-                        console.log(`✅ Live Match Found! Area: ${area.area_name} | Charges: Rs. ${deliveryCharges}`);
-                        break; // Sahi area milte hi loop ko rok dein
+                    if(areaData.is_active === false) {
+                        console.warn(`⚠️ Warning: ${customerArea} mein abhi delivery OFF hai.`);
                     }
                 }
             }
 
-            // 4. Agar address mein koi bhi area match na ho
-            if (!areaMatched) {
-                deliveryCharges = 0; // Kuch match na hone par fees 0 rahegi (sirf Supabase dependent)
-                console.warn("⚠️ Address mein database ka koi bhi area match nahi hua.");
+            // 3. Smart Fallback: Agar kisi area ki fee 0 set hai, ya "Other Area" hai
+            // Toh system app_settings se Global Fee utha lega
+            if (deliveryCharges === 0) {
+                const { data: settings } = await _supabase
+                    .from('app_settings')
+                    .select('customer_delivery_fee')
+                    .eq('id', 1)
+                    .single();
+                    
+                if(settings && settings.customer_delivery_fee) {
+                    deliveryCharges = Number(settings.customer_delivery_fee);
+                    console.log(`🌐 Global Fee Applied: Rs. ${deliveryCharges}`);
+                }
             }
 
-            // 5. Session & Customer Profile Data Fetching (Baqi ka purana code)
+            // 4. Session & Customer Profile Data Fetching
             const { data: { session } } = await _supabase.auth.getSession();
             if(session) {
-                const { data: customerData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
+                const { data: customerData } = await _supabase.from('customers').select('name, address, city, area').eq('email', session.user.email).single();
                 if (customerData) {
                     if (customerData.name) { 
                         document.getElementById('editName').value = customerData.name; 
@@ -297,6 +309,8 @@ async function initPage() {
                         document.getElementById('editAddress').value = displayAddr; 
                         localStorage.setItem('faster_address', customerData.address); 
                     }
+                    if (customerData.city) localStorage.setItem('faster_city', customerData.city);
+                    if (customerData.area) localStorage.setItem('faster_area', customerData.area);
                 }
             }
         }
