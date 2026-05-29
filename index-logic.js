@@ -66,16 +66,19 @@ async function autoDetectLocation() {
                 if(detectedCity) {
                     const citySelect = document.getElementById('citySelect');
                     const cityOptions = Array.from(citySelect.options);
+                    // Dropdown mein match check karega
                     const matchCity = cityOptions.find(opt => opt.value.toLowerCase().includes(detectedCity.toLowerCase()));
                     
                     if(matchCity) {
                         citySelect.value = matchCity.value;
-                        await loadAreas(matchCity.value);
+                        await loadAreas(matchCity.value); // Us city ke areas load karega
                     }
                 }
                 
-                document.getElementById('addressInput').value = data.display_name;
-                gpsBtnText.innerText = "Location Detected!";
+                // Address input wali line yahan se HATA di gayi hai
+                // Ab Address dabba khali rahega taake customer khud apna makaan number likh sake
+                
+                gpsBtnText.innerText = "City & Area Detected!";
                 setTimeout(() => gpsBtnText.innerText = originalText, 3000);
 
             } catch (err) {
