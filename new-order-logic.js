@@ -237,7 +237,7 @@ const Dialog = {
     }
 };
 
-// Page Initialization
+// Page Initialization (100% Dynamic City & Area Matching from Supabase)
 async function initPage() {
     if(!userPhone) return window.location.replace('index.html');
     
@@ -248,9 +248,40 @@ async function initPage() {
 
     try {
         if(navigator.onLine) {
-            const { data: settings } = await _supabase.from('delivery_areas').select('customer_delivery_fee').limit(1);
-            if (settings && settings.length > 0) deliveryCharges = settings[0].customer_delivery_fee;
+            // 1. Customer ka saved address nikalen aur lowercase karein
+            let customerAddress = (localStorage.getItem('faster_address') || "").toLowerCase();
+            
+            // 2. Supabase se SAARE Areas aur unki Delivery Fees live uthaein
+            const { data: allAreas, error: dbError } = await _supabase
+                .from('delivery_areas')
+                .select('area_name, customer_delivery_fee'); // Agar 'city' ka column bhi hai toh wo bhi select kar sakte hain
 
+            if (dbError) console.error("Supabase Fetch Error:", dbError);
+
+            let areaMatched = false;
+
+            if (allAreas && allAreas.length > 0) {
+                // 3. Dynamic Loop: Jo areas Supabase mein hain, unhe customer address ke sath match karein
+                for (let area of allAreas) {
+                    let dbAreaName = (area.area_name || "").toLowerCase().trim();
+                    
+                    // Agar customer ke address mein database wale kisi area ka naam maujood hai
+                    if (customerAddress.includes(dbAreaName) && dbAreaName !== "") {
+                        deliveryCharges = area.customer_delivery_fee;
+                        areaMatched = true;
+                        console.log(`✅ Live Match Found! Area: ${area.area_name} | Charges: Rs. ${deliveryCharges}`);
+                        break; // Sahi area milte hi loop ko rok dein
+                    }
+                }
+            }
+
+            // 4. Agar address mein koi bhi area match na ho
+            if (!areaMatched) {
+                deliveryCharges = 0; // Kuch match na hone par fees 0 rahegi (sirf Supabase dependent)
+                console.warn("⚠️ Address mein database ka koi bhi area match nahi hua.");
+            }
+
+            // 5. Session & Customer Profile Data Fetching (Baqi ka purana code)
             const { data: { session } } = await _supabase.auth.getSession();
             if(session) {
                 const { data: customerData } = await _supabase.from('customers').select('name, address').eq('email', session.user.email).single();
