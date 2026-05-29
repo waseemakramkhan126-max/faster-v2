@@ -937,16 +937,17 @@ async function confirmOrderFromOverview() {
     if(!session) return;
 
     // ==========================================
-    // 🛑 1. AREA BLOCK CHECK (Professional Popup) 
+    // 🛑 1. AREA BLOCK CHECK (Fixed Dialog Overlap)
     // ==========================================
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
     if (customerCity === "Other City" || customerArea === "Other Area") {
-        // Native alert ki jagah custom Dialog.show use kiya hai
+        closeOrderOverview(); // <-- NAYA IZAFA: Pehle background popup band karein
+        
         await Dialog.show("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!", "alert");
-        window.location.href = "home.html"; // OK click hone par home.html par bheje ga
-        return; // Order yahin block ho jayega
+        window.location.href = "home.html"; 
+        return; 
     }
 
     try {
@@ -958,16 +959,18 @@ async function confirmOrderFromOverview() {
             .single();
 
         if (areaData && areaData.is_active === false) {
-            // Native alert ki jagah custom Dialog.show use kiya hai
+            closeOrderOverview(); // <-- NAYA IZAFA: Pehle background popup band karein
+            
             await Dialog.show("⚠️ Service Unavailable", `Maaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`, "alert");
-            window.location.href = "home.html"; // OK click hone par home.html par bheje ga
-            return; // Order yahin block ho jayega
+            window.location.href = "home.html"; 
+            return; 
         }
     } catch (err) {
         console.error("Area check error: ", err);
     }
-// Area check wala system yaha pe khatam ho rha hai 
-// ✅ Agar upar wale dono checks pass ho gaye (yani area theek hai aur ON hai), 
+    // ==========================================
+    // 🛑 BLOCK CHECK KHATAM
+    // ==========================================
 
 
     const btn = document.getElementById('overviewSubmitBtn');
