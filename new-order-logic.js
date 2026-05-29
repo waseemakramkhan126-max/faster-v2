@@ -935,6 +935,43 @@ function openFullWithCaption(srcUrl, captionText) {
 async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) return;
+    // 🛑 1. SAB SE PEHLE AREA BLOCK CHECK KAREIN
+let customerCity = localStorage.getItem('faster_city');
+let customerArea = localStorage.getItem('faster_area');
+
+// Check A: Agar customer ne 'Other City' ya 'Other Area' select kiya hai
+if (customerCity === "Other City" || customerArea === "Other Area") {
+    alert("🚀 Coming Soon!\n\nMaaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!");
+    
+    // Yeh 'return' code ko yahin rok dega, order database mein nahi jayega
+    return; 
+}
+
+// Check B: Agar area database mein hai, toh check karein ke wo ON (true) hai ya OFF (false)
+try {
+    const { data: areaData } = await _supabase
+        .from('delivery_areas')
+        .select('is_active')
+        .eq('city', customerCity)
+        .eq('area_name', customerArea)
+        .single();
+
+    // Agar database mein is_active 'false' hai (Jaise Johar Town aapne false kiya tha)
+    if (areaData && areaData.is_active === false) {
+        alert(`⚠️ Service Unavailable!\n\nMaaf kijiye, abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`);
+        
+        // Yeh 'return' code ko yahin rok dega
+        return; 
+    }
+} catch (err) {
+    console.error("Area check error: ", err);
+}
+
+// ✅ Agar upar wale dono checks pass ho gaye (yani area theek hai aur ON hai), 
+// toh iske neeche se aapka order place karne wala purana code chalna shuru ho jayega.
+
+// Misal ke taur par:
+// const { error } = await _supabase.from('orders').insert([...]);
 
     const btn = document.getElementById('overviewSubmitBtn');
     const name = document.getElementById('overviewName').value.trim();
