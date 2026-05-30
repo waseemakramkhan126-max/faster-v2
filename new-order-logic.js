@@ -938,15 +938,19 @@ async function confirmOrderFromOverview() {
 
     const btn = document.getElementById('overviewSubmitBtn');
 
+async function confirmOrderFromOverview() {
+    const { data: { session } } = await _supabase.auth.getSession();
+    if(!session) return;
+
+    const btn = document.getElementById('overviewSubmitBtn');
+
     // ==========================================
-    // 🎨 NAYA FUNCTION: Screen ke andar hi khoobsurat Error dikhane ke liye
+    // 🎨 INLINE ERROR FUNCTION (Aapki purani logic)
     // ==========================================
     function showInlineError(title, message) {
-        // Agar pehle se koi error dabba hai toh usay hata do
         let existingError = document.getElementById('inlineOrderError');
         if(existingError) existingError.remove();
 
-        // Naya laal rang ka warning dabba banayen
         const errDiv = document.createElement('div');
         errDiv.id = 'inlineOrderError';
         errDiv.className = 'bg-red-50 border border-red-200 p-3 mb-4 rounded-xl w-full flex gap-3 items-start shadow-sm transition-all';
@@ -957,11 +961,7 @@ async function confirmOrderFromOverview() {
                 <p class="text-xs font-semibold text-red-600 mt-0.5">${message}</p>
             </div>
         `;
-        
-        // Is dabbe ko "Confirm Order" button ke bilkul oopar fit kar do
         btn.parentNode.insertBefore(errDiv, btn); 
-
-        // 6 second baad error khud gayab ho jayega
         setTimeout(() => {
             let errorToRemove = document.getElementById('inlineOrderError');
             if(errorToRemove) errorToRemove.remove();
@@ -969,13 +969,41 @@ async function confirmOrderFromOverview() {
     }
     // ==========================================
 
-    // 🛑 1. AREA BLOCK CHECK (Inline Error ke sath)
+    // --- FIX 1: LOCALSTORAGE FALLBACK & PROFILE REDIRECT ---
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
+    if (!customerArea || customerArea === "null" || !customerCity) {
+        try {
+            const { data: custData } = await _supabase.from('customers').select('city, area').eq('phone', userPhone).single();
+            if (custData && custData.area) {
+                customerCity = custData.city;
+                customerArea = custData.area;
+                localStorage.setItem('faster_city', customerCity);
+                localStorage.setItem('faster_area', customerArea);
+            } else {
+                // Agar area nahi hai, toh Dialog show karein aur profile.html par bhejein
+                if (typeof Dialog !== 'undefined') {
+                    await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
+                } else {
+                    alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
+                }
+                window.location.href = "profile.html"; 
+                return; // Code ko yahin rok do
+            }
+        } catch(e) {
+            showInlineError("Network Error", "Area fetch nahi ho saka, internet check karein.");
+            return;
+        }
+    }
+
+    // --- FIX 2: STANDARDIZE AREA (Crash-Proof) ---
+    const safeAreaToSave = (customerArea || "").trim().toLowerCase();
+
+    // 🛑 BLOCK CHECK (Aapki purani logic)
     if (customerCity === "Other City" || customerArea === "Other Area") {
         showInlineError("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!");
-        return; // Order yahin block ho jayega
+        return; 
     }
 
     try {
@@ -988,22 +1016,17 @@ async function confirmOrderFromOverview() {
 
         if (areaData && areaData.is_active === false) {
             showInlineError("⚠️ Service Unavailable", `Abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`);
-            return; // Order yahin block ho jayega
+            return; 
         }
     } catch (err) {
         console.error("Area check error: ", err);
     }
-    // ==========================================
-    // 🛑 BLOCK CHECK KHATAM
-    // ==========================================
-
 
     const name = document.getElementById('overviewName').value.trim();
     const addr = document.getElementById('overviewAddress').value.trim(); 
     const scheduleTime = document.getElementById('overviewSchedule').value; 
     
     if(!name || !addr) {
-        // Name/Address missing ho toh uske liye bhi yahi same screen wala error show hoga!
         showInlineError("Missing Information", "Please enter your Name and Address to proceed.");
         return;
     }
@@ -1023,24 +1046,30 @@ async function confirmOrderFromOverview() {
         
         await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
+        // --- FIX 3: SAFE MEDIA UPLOADS ---
         const uploadAll = async (items, prefix, defaultExt) => {
             if (!items || items.length === 0) return "";
             const promises = items.map(async (item) => {
-                const file = item.data.file || item.data; 
-                let ext = defaultExt;
-                if (file.name) {
-                    ext = file.name.split('.').pop();
-                } else if (file.type) {
-                    const mimeExt = file.type.split('/')[1]?.split(';')[0];
-                    if (mimeExt) ext = mimeExt;
+                try {
+                    const file = item.data.file || item.data; 
+                    let ext = defaultExt;
+                    if (file.name) {
+                        ext = file.name.split('.').pop();
+                    } else if (file.type) {
+                        const mimeExt = file.type.split('/')[1]?.split(';')[0];
+                        if (mimeExt) ext = mimeExt;
+                    }
+                    const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
+                    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+                    if(error) throw error;
+                    return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
+                } catch (err) {
+                    console.error("Single file skipped due to network:", err);
+                    return null; // Return null instead of crashing
                 }
-                const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
-                const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
-                if(error) throw error;
-                return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
             });
             const urls = await Promise.all(promises);
-            return urls.join(",");
+            return urls.filter(url => url !== null).join(","); // Only join successful uploads
         };
         
         const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
@@ -1059,7 +1088,7 @@ async function confirmOrderFromOverview() {
             customer_phone: userPhone, 
             customer_name: name, 
             delivery_address: addr, 
-            area: customerArea, // <--- YE LINE ADD KI GAYI HAI[cite: 13]
+            area: safeAreaToSave, // <--- YAHAN FIX 2 WALA SAFE AREA USE KIYA HAI
             order_details: currentExtractedSummary, 
             image_url: imgURLs, 
             video_url: vidURLs, 
@@ -1079,7 +1108,6 @@ async function confirmOrderFromOverview() {
         
     } catch (err) { 
         console.error("System Error: ", err);
-        // Catch error bhi isi khoobsurat andaz mein screen ke andar show hoga
         showInlineError("System Error", err.message || "Order place nahi ho saka.");
         
         btn.disabled = false; 
