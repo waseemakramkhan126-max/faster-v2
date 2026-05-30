@@ -938,12 +938,6 @@ async function confirmOrderFromOverview() {
 
     const btn = document.getElementById('overviewSubmitBtn');
 
-async function confirmOrderFromOverview() {
-    const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) return;
-
-    const btn = document.getElementById('overviewSubmitBtn');
-
     // ==========================================
     // 🎨 INLINE ERROR FUNCTION (Aapki purani logic)
     // ==========================================
@@ -1000,26 +994,39 @@ async function confirmOrderFromOverview() {
     // --- FIX 2: STANDARDIZE AREA (Crash-Proof) ---
     const safeAreaToSave = (customerArea || "").trim().toLowerCase();
 
-    // 🛑 BLOCK CHECK (Aapki purani logic)
     if (customerCity === "Other City" || customerArea === "Other Area") {
-        showInlineError("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai. Hum jald hi yahan shuru karenge!");
+        showInlineError("🚀 Coming Soon!", "Maaf kijiye, abhi hamari service aapke ilaqay mein dastiyab nahi hai.");
         return; 
     }
 
+    // ==========================================
+    // 🌍 SUPABASE SE AREA STATUS AUR DYNAMIC TIMING NIKALNA
+    // ==========================================
+    let openHour = 8; // Default 8 AM
+    let closeHour = 1; // Default 1 AM
+
     try {
+        // Query mein is_active ke sath open_hour aur close_hour bhi mangwa rahe hain
         const { data: areaData } = await _supabase
             .from('delivery_areas')
-            .select('is_active')
+            .select('is_active, open_hour, close_hour') 
             .eq('city', customerCity)
             .eq('area_name', customerArea)
             .single();
 
-        if (areaData && areaData.is_active === false) {
-            showInlineError("⚠️ Service Unavailable", `Abhi ${customerArea} mein hamari delivery service aarzi taur par band hai. Kuch der baad dobara try karein.`);
-            return; 
+        if (areaData) {
+            // Agar Admin ne is area ki service band ki hui hai
+            if (areaData.is_active === false) {
+                showInlineError("⚠️ Service Unavailable", `Abhi ${customerArea} mein hamari delivery service aarzi taur par band hai.`);
+                return; 
+            }
+            
+            // Agar Admin ne time set kiya hai, toh code usay utha lega
+            if (areaData.open_hour !== null) openHour = areaData.open_hour;
+            if (areaData.close_hour !== null) closeHour = areaData.close_hour;
         }
     } catch (err) {
-        console.error("Area check error: ", err);
+        console.error("Area & Time check error: ", err);
     }
 
     const name = document.getElementById('overviewName').value.trim();
@@ -1031,9 +1038,43 @@ async function confirmOrderFromOverview() {
         return;
     }
 
+    // ==========================================
+    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled)
+    // ==========================================
+    const now = new Date();
+    const currentHour = now.getHours(); // 0 se 23 format mein waqt
+
+    // Logic: Agar raat ke 1 baje (close) se le kar subah 8 baje (open) ke darmiyan hai
+    const isShopClosed = currentHour >= closeHour && currentHour < openHour;
+
+    // Condition 1: Normal Order - Service Band hai
+    if (isShopClosed && !scheduleTime) {
+        const msg = `Is area mein hamari service raat ${closeHour} baje se subah ${openHour} baje tak band hoti hai. Kripya oopar 'Schedule' ka option istemal karein.`;
+        if (typeof Dialog !== 'undefined') {
+            Dialog.show("🕒 Service Closed", msg, "alert");
+        } else {
+            showInlineError("🕒 Service Closed", msg);
+        }
+        return; // Order yahin rok diya jayega
+    }
+
+    // Condition 2: Scheduled Order - Galat time par schedule kar raha hai
+    if (scheduleTime) {
+        const schedDate = new Date(scheduleTime);
+        const schedHour = schedDate.getHours();
+        
+        if (schedHour >= closeHour && schedHour < openHour) {
+            showInlineError("🕒 Invalid Schedule Time", `Aap raat ${closeHour} baje se subah ${openHour} baje ke darmiyan order schedule nahi kar sakte. Kripya koi aur time chunein.`);
+            return; // Order yahin rok diya jayega
+        }
+    }
+    // ==========================================
+
     btn.disabled = true; 
     btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
     btn.classList.replace('bg-orange-600', 'bg-gray-400');
+    
+    // ... ISKE NEECHAY WALA UPLOADING AUR INSERT CODE WAISA HI RAHEGA ...
 
     try {
         const editNameEl = document.getElementById('editName');
