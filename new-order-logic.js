@@ -1039,10 +1039,11 @@ async function confirmOrderFromOverview() {
     }
 
     // ==========================================
-    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled) - FIXED
+    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled) - UPDATED
     // ==========================================
+    // Time ko minutes mein convert karne wala function taake 9:20 pm jaisi timings bhi cover hon
     function timeToMinutes(val, fallback) {
-        if (val === null || val === undefined) return fallback * 60;
+        if (val === null || val === undefined || val === '') return fallback * 60;
         if (typeof val === 'string' && val.includes(':')) {
             const parts = val.split(':');
             return parseInt(parts[0]) * 60 + parseInt(parts[1]);
@@ -1050,11 +1051,11 @@ async function confirmOrderFromOverview() {
         return parseInt(val) * 60;
     }
 
-    // Ek helper function time ko am/pm mein dikhane ke liye
+    // Customer ko time PM/AM format mein dikhane ka function
     function formatTimeMsg(val, fallback) {
         let h = fallback;
         let m = 0;
-        if (val != null) {
+        if (val != null && val !== '') {
             if (typeof val === 'string' && val.includes(':')) {
                 const parts = val.split(':');
                 h = parseInt(parts[0]);
@@ -1070,33 +1071,33 @@ async function confirmOrderFromOverview() {
         return `${h12}:${mStr} ${ampm}`;
     }
 
-    const openMins = timeToMinutes(openHour, 8);
-    const closeMins = timeToMinutes(closeHour, 1);
+    const openMins = timeToMinutes(openHour, 8); // Default 8 AM
+    const closeMins = timeToMinutes(closeHour, 17); // Default 5 PM (17:00)
     
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
     let isShopClosed = false;
     
-    // Normal & Night Shift Logic
+    // Normal Shift (e.g. 8 AM to 5 PM) aur Night Shift (e.g. 8 PM to 1 AM) logic
     if (openMins <= closeMins) {
         isShopClosed = (currentMins < openMins) || (currentMins >= closeMins);
     } else {
         isShopClosed = (currentMins >= closeMins) && (currentMins < openMins);
     }
 
-    // Condition 1: Normal Order - Service Band hai
+    const openStr = formatTimeMsg(openHour, 8);
+    const closeStr = formatTimeMsg(closeHour, 17);
+
+    // Condition 1: Normal Order - Service Band hai lekin schedule kar sakta hai
     if (isShopClosed && !scheduleTime) {
-        const openStr = formatTimeMsg(openHour, 8);
-        const closeStr = formatTimeMsg(closeHour, 1);
-        const msg = `Hamari service abhi band hai. Timings: ${openStr} se ${closeStr} tak. Kripya 'Schedule' ka option chunein.`;
-        
-        // Popup ki bajaye button ke oopar red inline error show hoga
+        // Aapka required message
+        const msg = `Is waqt service time khatm hogya hai, aap apna order schedule kar sakte hain. (Timings: ${openStr} se ${closeStr})`;
         showInlineError("🕒 Service Closed", msg);
-        return; 
+        return; // Process ruk jayega
     }
 
-    // Condition 2: Scheduled Order - Galat time par schedule kar raha hai
+    // Condition 2: Scheduled Order - Close hours mein schedule karne ki koshish
     if (scheduleTime) {
         const schedDate = new Date(scheduleTime);
         const schedMins = schedDate.getHours() * 60 + schedDate.getMinutes();
@@ -1109,10 +1110,9 @@ async function confirmOrderFromOverview() {
         }
 
         if (isSchedClosed) {
-            const openStr = formatTimeMsg(openHour, 8);
-            const closeStr = formatTimeMsg(closeHour, 1);
-            showInlineError("🕒 Invalid Schedule Time", `Aap band waqt mein order schedule nahi kar sakte. Open timings: ${openStr} se ${closeStr}.`);
-            return; 
+            // Error aur Supabase wala Dynamic Guide message
+            showInlineError("🕒 Invalid Schedule Time", `Aap band waqt mein order schedule nahi kar sakte. Hamari service ${openStr} se ${closeStr} tak open rehti hai, kripya open hour ke mutabiq time chunein.`);
+            return; // Process ruk jayega
         }
     }
     // ==========================================
