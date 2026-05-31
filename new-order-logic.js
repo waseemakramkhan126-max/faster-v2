@@ -1039,17 +1039,38 @@ async function confirmOrderFromOverview() {
     }
 
     // ==========================================
-    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled)
+    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled) - FIXED
     // ==========================================
-    const now = new Date();
-    const currentHour = now.getHours(); // 0 se 23 format mein waqt
+    // Helper function taake minutes mein calculation ho (for exact timing like 9:20)
+    function timeToMinutes(val, fallback) {
+        if (val === null || val === undefined) return fallback * 60;
+        if (typeof val === 'string' && val.includes(':')) {
+            const parts = val.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        }
+        return parseInt(val) * 60;
+    }
 
-    // Logic: Agar raat ke 1 baje (close) se le kar subah 8 baje (open) ke darmiyan hai
-    const isShopClosed = currentHour >= closeHour && currentHour < openHour;
+    const openMins = timeToMinutes(openHour, 8);
+    const closeMins = timeToMinutes(closeHour, 1);
+    
+    const now = new Date();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    let isShopClosed = false;
+    
+    // Normal Shift (e.g. Open 9 AM, Close 9:20 PM)
+    if (openMins <= closeMins) {
+        isShopClosed = (currentMins < openMins) || (currentMins >= closeMins);
+    } 
+    // Night Shift (e.g. Open 8 PM, Close 2 AM)
+    else {
+        isShopClosed = (currentMins >= closeMins) && (currentMins < openMins);
+    }
 
     // Condition 1: Normal Order - Service Band hai
     if (isShopClosed && !scheduleTime) {
-        const msg = `Is area mein hamari service raat ${closeHour} baje se subah ${openHour} baje tak band hoti hai. Kripya oopar 'Schedule' ka option istemal karein.`;
+        const msg = `Hamari service abhi band hai (Closed). Kripya oopar 'Schedule' ka option istemal karein.`;
         if (typeof Dialog !== 'undefined') {
             Dialog.show("🕒 Service Closed", msg, "alert");
         } else {
@@ -1061,10 +1082,17 @@ async function confirmOrderFromOverview() {
     // Condition 2: Scheduled Order - Galat time par schedule kar raha hai
     if (scheduleTime) {
         const schedDate = new Date(scheduleTime);
-        const schedHour = schedDate.getHours();
+        const schedMins = schedDate.getHours() * 60 + schedDate.getMinutes();
         
-        if (schedHour >= closeHour && schedHour < openHour) {
-            showInlineError("🕒 Invalid Schedule Time", `Aap raat ${closeHour} baje se subah ${openHour} baje ke darmiyan order schedule nahi kar sakte. Kripya koi aur time chunein.`);
+        let isSchedClosed = false;
+        if (openMins <= closeMins) {
+            isSchedClosed = (schedMins < openMins) || (schedMins >= closeMins);
+        } else {
+            isSchedClosed = (schedMins >= closeMins) && (schedMins < openMins);
+        }
+
+        if (isSchedClosed) {
+            showInlineError("🕒 Invalid Schedule Time", `Aap is time par order schedule nahi kar sakte (Service Closed). Kripya koi aur time chunein.`);
             return; // Order yahin rok diya jayega
         }
     }
