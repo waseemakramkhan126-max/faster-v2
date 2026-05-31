@@ -1041,7 +1041,6 @@ async function confirmOrderFromOverview() {
     // ==========================================
     // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled) - FIXED
     // ==========================================
-    // Helper function taake minutes mein calculation ho (for exact timing like 9:20)
     function timeToMinutes(val, fallback) {
         if (val === null || val === undefined) return fallback * 60;
         if (typeof val === 'string' && val.includes(':')) {
@@ -1049,6 +1048,26 @@ async function confirmOrderFromOverview() {
             return parseInt(parts[0]) * 60 + parseInt(parts[1]);
         }
         return parseInt(val) * 60;
+    }
+
+    // Ek helper function time ko am/pm mein dikhane ke liye
+    function formatTimeMsg(val, fallback) {
+        let h = fallback;
+        let m = 0;
+        if (val != null) {
+            if (typeof val === 'string' && val.includes(':')) {
+                const parts = val.split(':');
+                h = parseInt(parts[0]);
+                m = parseInt(parts[1]);
+            } else {
+                h = parseInt(val);
+            }
+        }
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        let h12 = h % 12;
+        h12 = h12 ? h12 : 12;
+        let mStr = m < 10 ? '0' + m : m;
+        return `${h12}:${mStr} ${ampm}`;
     }
 
     const openMins = timeToMinutes(openHour, 8);
@@ -1059,24 +1078,22 @@ async function confirmOrderFromOverview() {
 
     let isShopClosed = false;
     
-    // Normal Shift (e.g. Open 9 AM, Close 9:20 PM)
+    // Normal & Night Shift Logic
     if (openMins <= closeMins) {
         isShopClosed = (currentMins < openMins) || (currentMins >= closeMins);
-    } 
-    // Night Shift (e.g. Open 8 PM, Close 2 AM)
-    else {
+    } else {
         isShopClosed = (currentMins >= closeMins) && (currentMins < openMins);
     }
 
     // Condition 1: Normal Order - Service Band hai
     if (isShopClosed && !scheduleTime) {
-        const msg = `Hamari service abhi band hai (Closed). Kripya oopar 'Schedule' ka option istemal karein.`;
-        if (typeof Dialog !== 'undefined') {
-            Dialog.show("🕒 Service Closed", msg, "alert");
-        } else {
-            showInlineError("🕒 Service Closed", msg);
-        }
-        return; // Order yahin rok diya jayega
+        const openStr = formatTimeMsg(openHour, 8);
+        const closeStr = formatTimeMsg(closeHour, 1);
+        const msg = `Hamari service abhi band hai. Timings: ${openStr} se ${closeStr} tak. Kripya 'Schedule' ka option chunein.`;
+        
+        // Popup ki bajaye button ke oopar red inline error show hoga
+        showInlineError("🕒 Service Closed", msg);
+        return; 
     }
 
     // Condition 2: Scheduled Order - Galat time par schedule kar raha hai
@@ -1092,8 +1109,10 @@ async function confirmOrderFromOverview() {
         }
 
         if (isSchedClosed) {
-            showInlineError("🕒 Invalid Schedule Time", `Aap is time par order schedule nahi kar sakte (Service Closed). Kripya koi aur time chunein.`);
-            return; // Order yahin rok diya jayega
+            const openStr = formatTimeMsg(openHour, 8);
+            const closeStr = formatTimeMsg(closeHour, 1);
+            showInlineError("🕒 Invalid Schedule Time", `Aap band waqt mein order schedule nahi kar sakte. Open timings: ${openStr} se ${closeStr}.`);
+            return; 
         }
     }
     // ==========================================
