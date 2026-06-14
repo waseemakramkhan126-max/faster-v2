@@ -224,7 +224,7 @@
         }
 
         function renderBubble(m) {
-            const isMe = m.sender === userPhone;
+            const isMe = m.sender_id === userPhone; // sender ki jagah sender_id
             const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now';
             
             let tickHtml = '';
@@ -239,14 +239,15 @@
             }
 
             let mediaHtml = '';
-            if (m.type === 'image' && m.file_url) {
-                mediaHtml = `<img src="${m.file_url}" class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm cursor-pointer" onclick="window.open(this.src)">`;
-            } else if (m.type === 'video' && m.file_url) {
-                mediaHtml = `<video src="${m.file_url}" controls playsinline class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm"></video>`;
-            } else if (m.type === 'voice' && m.file_url) {
-                mediaHtml = `<div class="bg-black/5 p-1 rounded-md mb-1"><audio controls src="${m.file_url}" class="h-8 w-44"></audio></div>`;
-            } else if (m.type === 'doc' && m.file_url) {
-                mediaHtml = `<a href="${m.file_url}" target="_blank" class="flex items-center gap-2 p-2 bg-black/5 rounded-lg mb-1 text-[#075e54] font-bold text-xs"><i class="fas fa-file-alt text-lg"></i> Open Document</a>`;
+            // file_url ki jagah media_url
+            if (m.type === 'image' && m.media_url) {
+                mediaHtml = `<img src="${m.media_url}" class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm cursor-pointer" onclick="window.open(this.src)">`;
+            } else if (m.type === 'video' && m.media_url) {
+                mediaHtml = `<video src="${m.media_url}" controls playsinline class="rounded-lg mb-1 max-h-60 w-full object-cover shadow-sm"></video>`;
+            } else if (m.type === 'voice' && m.media_url) {
+                mediaHtml = `<div class="bg-black/5 p-1 rounded-md mb-1"><audio controls src="${m.media_url}" class="h-8 w-44"></audio></div>`;
+            } else if (m.type === 'doc' && m.media_url) {
+                mediaHtml = `<a href="${m.media_url}" target="_blank" class="flex items-center gap-2 p-2 bg-black/5 rounded-lg mb-1 text-[#075e54] font-bold text-xs"><i class="fas fa-file-alt text-lg"></i> Open Document</a>`;
             }
 
             return `
@@ -300,7 +301,13 @@
         async function loadMessages() {
             if(!navigator.onLine) return;
 
-            const { data } = await _supabase.from('csr_chats').select('*').eq('room_id', chatRoomId).order('created_at', { ascending: true });
+            // csr_chats ki jagah chats
+            const { data, error } = await _supabase.from('chats').select('*').eq('room_id', chatRoomId).order('created_at', { ascending: true });
+            
+            if(error) {
+                console.error("Load Messages Error:", error);
+            }
+            
             if(data) {
                 document.getElementById('chatBox').innerHTML = ''; 
                 data.forEach(m => appendToUI(m));
@@ -316,18 +323,27 @@
             if(!msgText && !fUrl) return;
 
             const tempId = Date.now();
-            const tempMsg = { id: tempId, sender: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sending', created_at: new Date() };
+            // sender aur file_url ko sender_id aur media_url kia
+            const tempMsg = { id: tempId, sender_id: userPhone, message: msgText, type: type, media_url: fUrl, status: 'sending', created_at: new Date() };
             appendToUI(tempMsg);
 
             msgInp.value = '';
             msgInp.style.height = '42px';
             toggleButtons();
 
-            const { error, data } = await _supabase.from('csr_chats').insert([{
-                room_id: chatRoomId, sender: userPhone, message: msgText, type: type, file_url: fUrl, status: 'sent'
+            // csr_chats ki jagah chats, aur column names update kiye
+            const { error, data } = await _supabase.from('chats').insert([{
+                room_id: chatRoomId, 
+                sender_id: userPhone, 
+                message: msgText, 
+                type: type, 
+                media_url: fUrl, 
+                status: 'sent'
             }]).select();
 
             if(error) {
+                console.error("Supabase Insert Error:", error);
+                alert("Message send nahi hua: " + error.message);
                 document.getElementById(`msg-${tempId}`).style.opacity = '0.5';
             } else {
                 document.getElementById(`msg-${tempId}`).parentElement.remove();
@@ -353,20 +369,24 @@
             const name = `csr/${type}_${Date.now()}.${ext}`;
 
             const tempId = Date.now();
-            const tempMsg = { id: tempId, sender: userPhone, message: 'Uploading...', type: 'text', status: 'sending', created_at: new Date() };
+            // sender_id update kia
+            const tempMsg = { id: tempId, sender_id: userPhone, message: 'Uploading...', type: 'text', status: 'sending', created_at: new Date() };
             appendToUI(tempMsg);
 
             try {
-                const { data, error } = await _supabase.storage.from('order-files').upload(name, fileOrBlob);
+                // order-files ki jagah chat_files
+                const { data, error } = await _supabase.storage.from('chat_files').upload(name, fileOrBlob);
                 if(error) throw error;
 
                 if(data) {
-                    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(name);
+                    // order-files ki jagah chat_files
+                    const { data: urlData } = _supabase.storage.from('chat_files').getPublicUrl(name);
                     document.getElementById(`msg-${tempId}`).parentElement.remove();
                     sendMsg(type, '', urlData.publicUrl);
                 }
             } catch(e) {
-                alert("Upload failed.");
+                console.error("Upload Error:", e);
+                alert("Upload failed: " + e.message);
                 document.getElementById(`msg-${tempId}`).parentElement.remove();
             }
         }
@@ -525,9 +545,11 @@
         // --- REALTIME SUBSCRIPTION ---
         function setupRealtime() {
             _supabase.channel('csr-room')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'csr_chats' }, (payload) => {
+                // csr_chats ki jagah chats
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, (payload) => {
                     if(payload.new && payload.new.room_id === chatRoomId) { 
-                        if(payload.eventType === 'INSERT' && payload.new.sender !== userPhone) {
+                        // sender ki jagah sender_id
+                        if(payload.eventType === 'INSERT' && payload.new.sender_id !== userPhone) {
                             appendToUI(payload.new);
                             ring();
                         } else if (payload.eventType === 'UPDATE') {
