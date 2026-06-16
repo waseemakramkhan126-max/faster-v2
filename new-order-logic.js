@@ -1239,59 +1239,74 @@ function normalizeString(str) {
 }
 
 // 2. Hybrid Delivery Fee Calculator
-async function getFinalDeliveryFee(areaName, userInputBlock) {
-    // 1. Inputs ko sanitize (clean) karein taake extra spaces ka masla na ho
-    const cleanArea = (areaName || "").trim();
-    const cleanBlock = (userInputBlock || "").trim();
-    
-    console.log("🔍 Checking Fee for:", { cleanArea, cleanBlock });
+async function getFinalDeliveryFee(customerCity, customerArea, customerBlock) {
+    let finalFee = 0; // Default fallback fee
 
-    try {
-        // 2. Fetch Area Data
-        const { data: areaData, error: areaError } = await _supabase
-            .from('delivery_areas')
-            .select('customer_delivery_fee, has_blocks')
-            .ilike('area_name', cleanArea)
-            .maybeSingle();
+    // Clean inputs to avoid whitespace issues
+    const city = (customerCity || "").trim();
+    const area = (customerArea || "").trim();
+    const block = (customerBlock || "").trim();
 
-        if (areaError) {
-            console.error("Supabase Error:", areaError);
-            return 0;
-        }
-
-        if (!areaData) {
-            console.warn("⚠️ No area found in DB for:", cleanArea);
-            return 0;
-        }
-
-        console.log("✅ Area Data found:", areaData);
-        let finalFee = Number(areaData.customer_delivery_fee) || 0;
-
-        // 3. Block Check
-        if (areaData.has_blocks && cleanBlock) {
-            console.log("📦 Searching for block:", cleanBlock);
-            const { data: blocks, error: blockError } = await _supabase
-                .from('delivery_blocks')
-                .select('block_name, delivery_fee')
-                .ilike('area_name', cleanArea);
-
-            if (blockError) console.error("Block Error:", blockError);
-            
-            if (blocks && blocks.length > 0) {
-                const normalizedInput = normalizeString(cleanBlock);
-                const match = blocks.find(b => normalizeString(b.block_name) === normalizedInput);
-                
-                if (match) {
-                    finalFee = Number(match.delivery_fee);
-                    console.log("🎯 Block Match found! Fee is:", finalFee);
-                } else {
-                    console.warn("❌ Block match not found for input:", cleanBlock);
-                }
-            }
-        }
-        return finalFee;
-    } catch (err) {
-        console.error("Critical Fee calculation error:", err);
+    if (!city || !area) {
+        console.warn("⚠️ City ya Area missing hai, Fee 0 return ho rahi hai.");
         return 0;
     }
+
+    try {
+        // 1️⃣ STEP 1: delivery_areas se Base Fee aur has_blocks check karein
+        // NOTE: Column name 'customer_delivery_fee' use kiya hai aapke schema ke mutabiq
+        const { data: areaData, error: areaError } = await _supabase
+            .from('delivery_areas')
+            .select('customer_delivery_fee, has_blocks, is_active')
+            .eq('city', city)
+            .ilike('area_name', area) // Case-insensitive matching
+            .maybeSingle();
+
+        if (areaError) throw areaError;
+
+        if (areaData) {
+            // Agar Admin ne area hi band kiya hua hai
+            if (areaData.is_active === false) {
+                console.warn("❌ Yeh area active nahi hai.");
+                return 0;
+            }
+
+            // Base area fee lagayein
+            finalFee = areaData.customer_delivery_fee || 0;
+            console.log(`📍 Base Area Fee mili: ${finalFee}`);
+
+            // 2️⃣ STEP 2: HYBRID CHECK (Agar blocks hain aur customer ne block select kiya hai)
+            // Localstorage se "null" ya "undefined" string check handle karne ke liye filter:
+            const isValidBlock = block && block.toLowerCase() !== "null" && block.toLowerCase() !== "undefined";
+
+            if (areaData.has_blocks && isValidBlock) {
+                console.log(`🔍 Hybrid Mode Active: Block '${block}' dhoonda ja rha hai...`);
+
+                // NOTE: Column name yahan 'delivery_fee' hai aapke schema ke mutabiq
+                const { data: blockData, error: blockError } = await _supabase
+                    .from('delivery_blocks')
+                    .select('delivery_fee, is_active')
+                    .ilike('area_name', area)
+                    .ilike('block_name', block)
+                    .maybeSingle();
+
+                if (blockError) throw blockError;
+
+                // Agar specific block mil jaye aur woh active ho
+                if (blockData && blockData.is_active !== false) {
+                    finalFee = blockData.delivery_fee || 0;
+                    console.log(`✅ Hybrid Match Found! Block Fee applied: ${finalFee}`);
+                } else {
+                    console.log("ℹ️ Block matching nahi mili ya inactive hai, Base Area Fee hi chalay gi.");
+                }
+            }
+        } else {
+            console.warn("⚠️ Database mein is City aur Area ka koi record nahi mila.");
+        }
+
+    } catch (error) {
+        console.error("🔴 Error in getFinalDeliveryFee:", error.message);
+    }
+
+    return finalFee;
 }
