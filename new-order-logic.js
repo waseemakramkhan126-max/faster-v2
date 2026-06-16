@@ -1217,30 +1217,34 @@ function normalizeString(str) {
     return str.toLowerCase().replace(/\s+/g, ''); 
 }
 
-// 2. Hybrid Delivery Fee Calculator
-async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
+// 2. Hybrid Delivery Fee Calculatorasync function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
     const cleanBlock = (userInputBlock || "").trim();
 
+    console.log("🔍 Fee lookup:", { cleanCity, cleanArea, cleanBlock });
+
     try {
-        // 1. Agar block input diya hai to pehle delivery_blocks check karo
+        // 1. BLOCK CHECK (agar diya ho)
         if (cleanBlock) {
+            // Exact match ke liye ilike with exact string (no wildcards)
             const { data: blockData, error: blockError } = await _supabase
                 .from('delivery_blocks')
                 .select('delivery_fee')
-                .ilike('area_name', cleanArea)
-                .ilike('block_name', cleanBlock)
+                .ilike('area_name', cleanArea)    // exact case-insensitive match
+                .ilike('block_name', cleanBlock)  // exact case-insensitive match
                 .maybeSingle();
+
+            console.log("📦 Block query result:", blockData, blockError);
 
             if (!blockError && blockData && blockData.delivery_fee !== null && Number(blockData.delivery_fee) > 0) {
                 console.log("✅ Block fee found:", blockData.delivery_fee);
-                return Number(blockData.delivery_fee);  // delivery_blocks ka valid fee return kiya
+                return Number(blockData.delivery_fee);
             }
             console.warn("⚠️ Block fee 0/null or not found. Falling back to area fee.");
         }
 
-        // 2. Fallback: delivery_areas se customer_delivery_fee uthao
+        // 2. FALLBACK: DELIVERY_AREAS
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
@@ -1248,16 +1252,16 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
             .ilike('area_name', cleanArea)
             .maybeSingle();
 
+        console.log("🏠 Area query result:", areaData, areaError);
+
         if (!areaError && areaData) {
-            const areaFee = Number(areaData.customer_delivery_fee) || 0;
-            console.log("🏠 Area fee fallback:", areaFee);
-            return areaFee;
+            const fee = Number(areaData.customer_delivery_fee) || 0;
+            console.log("🏠 Area fee fallback:", fee);
+            return fee;
         }
 
-        // 3. Kuch bhi nahi mila to 0 return karo
-        console.warn("⚠️ No fee data found for area or block. Returning 0.");
+        console.warn("⚠️ No fee found. Returning 0.");
         return 0;
-
     } catch (err) {
         console.error("Fee calculation error:", err);
         return 0;
