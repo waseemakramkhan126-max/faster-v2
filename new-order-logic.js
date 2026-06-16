@@ -1292,4 +1292,3 @@ async function getFinalDeliveryFee(areaName, userInputBlock) {
         return 0;
     }
 }
-}
