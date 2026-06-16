@@ -259,10 +259,10 @@ async function initPage() {
                 // 2. Supabase se sirf is specific Area ki details uthaein
                 const { data: areaData, error: dbError } = await _supabase
                     .from('delivery_areas')
-                    .select('customer_delivery_fee, is_active') // Aapka exact column name
-                    .eq('city', customerCity)
+                    .select('customer_delivery_fee, is_active') 
+                    .ilike('city', customerCity) // ✨ Case-Insensitive kar diya
                     .ilike('area_name', customerArea)
-                    .single();
+                    .maybeSingle(); // ✨ Error 406 crash se bachane ke liye maybeSingle kiya
 
                 if (dbError) {
                     console.error("Area Fetch Error:", dbError);
@@ -1282,12 +1282,12 @@ async function getFinalDeliveryFee(customerCity, customerArea, customerBlock) {
                 console.log(`🔍 Hybrid Mode Active: Block '${block}' dhoonda ja rha hai...`);
 
                 // NOTE: Column name yahan 'delivery_fee' hai aapke schema ke mutabiq
-                const { data: blockData, error: blockError } = await _supabase
-                    .from('delivery_blocks')
-                    .select('delivery_fee, is_active')
-                    .ilike('area_name', area)
-                    .ilike('block_name', block)
-                    .maybeSingle();
+                const { data: areaData, error: areaError } = await _supabase
+    .from('delivery_areas')
+    .select('customer_delivery_fee, has_blocks, is_active')
+    .ilike('city', city) // ✨ Yahan bhi ilike kar diya taake 'lahore' match ho jaye
+    .ilike('area_name', area)
+    .maybeSingle();
 
                 if (blockError) throw blockError;
 
