@@ -2,21 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Faster · My Profile</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body {
+        html, body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            overscroll-behavior-y: none;
+            -webkit-tap-highlight-color: transparent;
             background: linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%);
+            padding-top: env(safe-area-inset-top);
         }
         .glass-card {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255,255,255,0.9);
             backdrop-filter: blur(12px);
-            border-radius: 2rem;
+            border-radius: 2.5rem;
             box-shadow: 0 20px 40px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.02);
         }
         .input-group {
@@ -56,20 +60,45 @@
         .list-item:active {
             background: #eef2ff;
         }
+        .map-enter { transform: translateY(0); opacity: 1; pointer-events: auto; }
+        .map-leave { transform: translateY(100%); opacity: 0; pointer-events: none; }
+        .center-pin {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -100%);
+            z-index: 1000;
+            pointer-events: none;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+        }
+        #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
     </style>
 </head>
-<body class="min-h-screen py-6 px-4">
+<body class="text-gray-800 flex flex-col min-h-screen">
 
-    <!-- Header -->
-    <div class="max-w-md mx-auto mb-6 flex items-center gap-3">
-        <button onclick="window.history.back()" class="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center text-gray-600 hover:bg-gray-50 transition">
-            <i class="fas fa-arrow-left"></i>
-        </button>
-        <h1 class="text-2xl font-black text-gray-800">My <span class="text-blue-600">Profile</span></h1>
+<div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
+    <i class="fas fa-wifi-slash"></i> No Internet Connection
+</div>
+
+<header class="p-5 flex items-center gap-4 bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe">
+    <i class="fas fa-arrow-left text-xl text-gray-700 cursor-pointer active:scale-90 transition p-2 bg-gray-50 rounded-full shadow-sm border border-gray-100" onclick="window.history.back()"></i>
+    <h1 class="text-xl font-black text-gray-800 tracking-tighter uppercase">My <span class="text-blue-500">Profile</span></h1>
+</header>
+
+<main class="p-6 flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
+    <div id="mainLoader" class="flex flex-col items-center justify-center py-10">
+        <i class="fas fa-circle-notch fa-spin text-blue-500 text-4xl mb-3"></i>
+        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fetching Details...</span>
     </div>
 
-    <!-- Main Card -->
-    <div class="max-w-md mx-auto glass-card p-6 space-y-5">
+    <div id="profileFormSection" class="w-full glass-card p-6 border border-gray-100 hidden space-y-5">
 
         <!-- Name -->
         <div>
@@ -89,7 +118,7 @@
             </div>
         </div>
 
-        <!-- City (Dynamic Dropdown) -->
+        <!-- City Dropdown -->
         <div>
             <label class="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-2">City</label>
             <div id="citySelector" class="dropdown-trigger mt-1" onclick="openCityModal()">
@@ -98,7 +127,7 @@
             </div>
         </div>
 
-        <!-- Area (Dynamic Dropdown) -->
+        <!-- Area Dropdown -->
         <div>
             <label class="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-2">Area</label>
             <div id="areaSelector" class="dropdown-trigger mt-1" onclick="openAreaModal()">
@@ -116,278 +145,334 @@
             </div>
         </div>
 
-        <!-- Address -->
+        <!-- Address & Map -->
         <div>
-            <label class="text-[11px] font-black text-gray-400 uppercase tracking-wider ml-2">Address</label>
-            <div class="input-group mt-1">
-                <textarea id="addressInput" rows="3" class="w-full bg-transparent outline-none font-semibold text-gray-700 placeholder-gray-300" placeholder="House No, Street, Nearby..."></textarea>
+            <div class="flex justify-between items-end mb-1 px-2">
+                <label class="text-[11px] font-black text-gray-400 uppercase tracking-wider">Delivery Address</label>
+                <button onclick="openMapModal()" id="locBtn" type="button" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-1.5 rounded-xl active:scale-90 transition-transform flex items-center gap-1.5 shadow-sm border border-blue-200">
+                    <i class="fas fa-map-marked-alt"></i> Pick on Map
+                </button>
             </div>
+            <div class="input-group">
+                <textarea id="addressInput" rows="3" class="w-full bg-transparent outline-none font-semibold text-gray-700 placeholder-gray-300" placeholder="House/Flat #, Street, Nearby..."></textarea>
+            </div>
+            <p class="text-[9px] text-gray-400 font-bold ml-2 mt-1"><i class="fas fa-info-circle text-blue-400"></i> Set pin on map to help rider find you exactly.</p>
         </div>
 
         <!-- Save Button -->
-        <button onclick="updateProfile()" id="saveBtn" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-600 transition-all active:scale-[0.98]">
-            <i class="fas fa-check-circle mr-2"></i> SAVE CHANGES
+        <button onclick="updateProfile()" id="saveBtn" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+            <i id="btnIcon" class="fas fa-check-circle"></i>
+            <span id="btnText">SAVE CHANGES</span>
         </button>
     </div>
+</main>
 
-    <!-- City / Area Selection Modal -->
-    <div id="selectionModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center modal-overlay">
-        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[70vh] flex flex-col animate-slide-up">
-            <div class="flex items-center justify-between mb-4">
-                <button onclick="closeModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-times text-gray-500 text-sm"></i>
-                </button>
-                <h2 id="modalTitle" class="text-lg font-black text-gray-800">Select City</h2>
-                <div class="w-8"></div> <!-- spacer -->
-            </div>
-            <div id="modalList" class="overflow-y-auto flex-1 space-y-1">
-                <!-- list items will be injected -->
-            </div>
+<!-- City / Area Selection Modal -->
+<div id="selectionModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center modal-overlay">
+    <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[70vh] flex flex-col animate-slide-up">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="closeSelectionModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-times text-gray-500 text-sm"></i>
+            </button>
+            <h2 id="modalTitle" class="text-lg font-black text-gray-800">Select City</h2>
+            <div class="w-8"></div>
         </div>
+        <div id="modalList" class="overflow-y-auto flex-1 space-y-1"></div>
     </div>
+</div>
 
-    <script>
-        const _supabase = supabase.createClient(
-            "https://hkabhikizdlbavfkualt.supabase.co",
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U"
-        );
+<!-- Map Modal -->
+<div id="mapModal" class="map-leave fixed inset-0 z-50 bg-white flex flex-col transition-all duration-300">
+    <div class="bg-white p-4 shadow-md flex justify-between items-center z-10 shrink-0 pt-safe">
+        <h2 class="font-black text-gray-800"><i class="fas fa-map-marker-alt text-red-500 mr-2"></i> Set Exact Location</h2>
+        <button onclick="closeMapModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center active:bg-gray-200 transition">
+            <i class="fas fa-times text-gray-600"></i>
+        </button>
+    </div>
+    <div class="relative flex-1 bg-gray-200">
+        <div id="map" class="w-full h-full"></div>
+        <div class="center-pin text-red-500 text-[40px]">
+            <i class="fas fa-map-pin drop-shadow-xl"></i>
+        </div>
+        <button onclick="locateMe()" class="absolute bottom-6 right-4 z-[1000] w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-blue-600 border border-gray-100 active:scale-90 transition">
+            <i class="fas fa-crosshairs text-xl"></i>
+        </button>
+    </div>
+    <div class="p-6 bg-white shrink-0 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] rounded-t-3xl z-10 relative">
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mb-3">Drag map to adjust pin perfectly</p>
+        <button onclick="confirmLocation()" id="confirmLocBtn" class="w-full bg-blue-600 text-white font-black h-14 rounded-2xl shadow-lg active:scale-95 transition-transform flex justify-center items-center gap-2">
+            <i class="fas fa-check-circle"></i> Confirm Pin
+        </button>
+    </div>
+</div>
 
-        // State
-        let citiesList = [];         // array of distinct city names (active only)
-        let currentAreas = [];       // areas for selected city
-        let selectedCity = null;
-        let selectedArea = null;
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const _supabase = supabase.createClient(
+        "https://hkabhikizdlbavfkualt.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U"
+    );
 
-        // DOM refs
-        const cityDisplay = document.getElementById('cityDisplay');
-        const areaDisplay = document.getElementById('areaDisplay');
-        const modal = document.getElementById('selectionModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalList = document.getElementById('modalList');
-        const citySelector = document.getElementById('citySelector');
-        const areaSelector = document.getElementById('areaSelector');
+    let userEmail = "";
+    let originalPhone = "";
+    let map;
+    let exactLatLng = "";
 
-        // Fetch active cities & areas on load
-        async function loadDeliveryData() {
-            const { data, error } = await _supabase
-                .from('delivery_areas')
-                .select('city, area_name')
-                .eq('is_active', true);
+    // City/Area state
+    let citiesList = [];
+    let currentAreas = [];
+    let selectedCity = null;
+    let selectedArea = null;
 
-            if (error) {
-                console.error("Failed to load delivery areas:", error);
-                return;
-            }
-
-            // Build distinct city list
-            const citySet = new Set();
-            const cityAreaMap = new Map(); // city -> areas
-            data.forEach(row => {
-                const c = row.city.trim();
-                const a = row.area_name.trim();
-                citySet.add(c);
-                if (!cityAreaMap.has(c)) cityAreaMap.set(c, []);
-                cityAreaMap.get(c).push(a);
-            });
-
-            citiesList = Array.from(citySet).sort();
-            // Store mapping for later
-            window.cityAreaMap = cityAreaMap;
-        }
-
-        // Pre‑fill form from customers table
-        async function loadProfile() {
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (!session) return window.location.replace('index.html');
-
-            const { data: cust } = await _supabase.from('customers')
-                .select('name, phone, address, city, area, block')
-                .eq('email', session.user.email)
-                .maybeSingle();
-
-            if (cust) {
-                document.getElementById('nameInput').value = cust.name || '';
-                document.getElementById('phoneInput').value = cust.phone || '';
-                document.getElementById('addressInput').value = cust.address || '';
-                if (cust.city) {
-                    selectedCity = cust.city;
-                    cityDisplay.textContent = cust.city;
-                    cityDisplay.classList.remove('text-gray-500');
-                    cityDisplay.classList.add('text-gray-800');
-                    // Load areas for this city
-                    await refreshAreasForCity(cust.city);
-                }
-                if (cust.area) {
-                    selectedArea = cust.area;
-                    areaDisplay.textContent = cust.area;
-                    areaDisplay.classList.remove('text-gray-500');
-                    areaDisplay.classList.add('text-gray-800');
-                }
-                document.getElementById('blockInput').value = cust.block || '';
-            }
-        }
-
-        // Refresh area list after city selection
-        async function refreshAreasForCity(city) {
-            if (!window.cityAreaMap || !window.cityAreaMap.has(city)) {
-                currentAreas = [];
-                return;
-            }
-            // Fetch active areas for this city (to be safe, but we already filtered earlier)
-            const { data } = await _supabase
-                .from('delivery_areas')
-                .select('area_name')
-                .eq('city', city)
-                .eq('is_active', true);
-            currentAreas = data ? data.map(r => r.area_name.trim()).sort() : [];
-        }
-
-        // --- Modal Logic ---
-        function openCityModal() {
-            modalTitle.textContent = 'Select City';
-            modalList.innerHTML = '';
-            citiesList.forEach(city => {
-                const div = document.createElement('div');
-                div.className = 'list-item p-3 rounded-xl font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between items-center';
-                div.textContent = city;
-                if (selectedCity === city) div.classList.add('bg-blue-50', 'text-blue-600');
-                div.onclick = () => selectCity(city);
-                modalList.appendChild(div);
-            });
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        async function selectCity(city) {
-            selectedCity = city;
-            cityDisplay.textContent = city;
-            cityDisplay.classList.remove('text-gray-500');
-            cityDisplay.classList.add('text-gray-800');
-
-            // Reset area
-            selectedArea = null;
-            areaDisplay.textContent = 'Select area';
-            areaDisplay.classList.add('text-gray-500');
-            areaDisplay.classList.remove('text-gray-800');
-
-            // Load areas for this city
-            await refreshAreasForCity(city);
-            // If only one area, auto-select it? Optional, but let's keep manual.
-            closeModal();
-        }
-
-        function openAreaModal() {
-            if (!selectedCity) {
-                alert('Please select a city first.');
-                return;
-            }
-            if (currentAreas.length === 0) {
-                alert('No active areas found for this city.');
-                return;
-            }
-            modalTitle.textContent = 'Select Area';
-            modalList.innerHTML = '';
-            currentAreas.forEach(area => {
-                const div = document.createElement('div');
-                div.className = 'list-item p-3 rounded-xl font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between items-center';
-                div.textContent = area;
-                if (selectedArea === area) div.classList.add('bg-blue-50', 'text-blue-600');
-                div.onclick = () => selectArea(area);
-                modalList.appendChild(div);
-            });
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function selectArea(area) {
-            selectedArea = area;
-            areaDisplay.textContent = area;
-            areaDisplay.classList.remove('text-gray-500');
-            areaDisplay.classList.add('text-gray-800');
-            closeModal();
-        }
-
-        function closeModal() {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        // Close modal on background click
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
+    // Fetch active cities & areas
+    async function loadDeliveryData() {
+        const { data, error } = await _supabase
+            .from('delivery_areas')
+            .select('city, area_name')
+            .eq('is_active', true);
+        if (error) { console.error(error); return; }
+        const citySet = new Set();
+        const cityAreaMap = new Map();
+        data.forEach(row => {
+            const c = row.city.trim();
+            const a = row.area_name.trim();
+            citySet.add(c);
+            if (!cityAreaMap.has(c)) cityAreaMap.set(c, []);
+            cityAreaMap.get(c).push(a);
         });
+        citiesList = Array.from(citySet).sort();
+        window.cityAreaMap = cityAreaMap;
+    }
 
-        // --- Save Profile ---
-        async function updateProfile() {
-            const name = document.getElementById('nameInput').value.trim();
-            const phone = document.getElementById('phoneInput').value.trim();
-            const address = document.getElementById('addressInput').value.trim();
-            const block = document.getElementById('blockInput').value.trim();
-
-            if (!name || !phone || !address) {
-                alert('Please fill all required fields.');
-                return;
+    // Pre-fill profile
+    async function loadProfile() {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (!session) { window.location.replace('index.html'); return; }
+        userEmail = session.user.email;
+        const { data: cust } = await _supabase
+            .from('customers')
+            .select('name, phone, address, city, area, block')
+            .eq('email', userEmail)
+            .maybeSingle();
+        if (cust) {
+            document.getElementById('nameInput').value = cust.name || '';
+            document.getElementById('phoneInput').value = cust.phone || '';
+            originalPhone = cust.phone || '';
+            // Address parsing for GPS part
+            let addrText = cust.address || '';
+            if (addrText.includes(" | GPS: ")) {
+                const parts = addrText.split(" | GPS: ");
+                document.getElementById('addressInput').value = parts[0].trim();
+                exactLatLng = parts[1].trim();
+                updatePinButton(true);
+            } else {
+                document.getElementById('addressInput').value = addrText;
             }
-            if (!selectedCity || !selectedArea) {
-                alert('Please select your city and area.');
-                return;
+            // City & area prefill
+            if (cust.city) {
+                selectedCity = cust.city;
+                document.getElementById('cityDisplay').textContent = cust.city;
+                document.getElementById('cityDisplay').classList.remove('text-gray-500');
+                document.getElementById('cityDisplay').classList.add('text-gray-800');
+                await refreshAreasForCity(cust.city);
             }
-
-            const btn = document.getElementById('saveBtn');
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Updating...';
-            btn.disabled = true;
-
-            try {
-                const { data: { session } } = await _supabase.auth.getSession();
-                const updateData = {
-                    name,
-                    phone,
-                    address,
-                    city: selectedCity,
-                    area: selectedArea,
-                    block
-                };
-
-                const { error } = await _supabase
-                    .from('customers')
-                    .update(updateData)
-                    .eq('email', session.user.email);
-
-                if (error) throw error;
-
-                // Update local storage
-                localStorage.setItem('faster_name', name);
-                localStorage.setItem('faster_phone', phone);
-                localStorage.setItem('faster_address', address);
-                localStorage.setItem('faster_city', selectedCity);
-                localStorage.setItem('faster_area', selectedArea);
-                localStorage.setItem('faster_block', block);
-
-                alert('Profile updated successfully!');
-                window.location.replace('home.html');
-            } catch (err) {
-                alert('Update failed: ' + err.message);
-                btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> SAVE CHANGES';
-                btn.disabled = false;
+            if (cust.area) {
+                selectedArea = cust.area;
+                document.getElementById('areaDisplay').textContent = cust.area;
+                document.getElementById('areaDisplay').classList.remove('text-gray-500');
+                document.getElementById('areaDisplay').classList.add('text-gray-800');
             }
+            document.getElementById('blockInput').value = cust.block || '';
         }
+        document.getElementById('mainLoader').classList.add('hidden');
+        document.getElementById('profileFormSection').classList.remove('hidden');
+    }
 
-        // Initialization
-        window.onload = async () => {
-            await loadDeliveryData();
-            await loadProfile();
-        };
-    </script>
+    async function refreshAreasForCity(city) {
+        if (!window.cityAreaMap || !window.cityAreaMap.has(city)) {
+            currentAreas = [];
+            return;
+        }
+        const { data } = await _supabase
+            .from('delivery_areas')
+            .select('area_name')
+            .eq('city', city)
+            .eq('is_active', true);
+        currentAreas = data ? data.map(r => r.area_name.trim()).sort() : [];
+    }
 
-    <!-- Animation for modal slide-up -->
-    <style>
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+    // Selection Modal
+    const selectionModal = document.getElementById('selectionModal');
+    function openCityModal() {
+        document.getElementById('modalTitle').textContent = 'Select City';
+        document.getElementById('modalList').innerHTML = '';
+        citiesList.forEach(city => {
+            const div = document.createElement('div');
+            div.className = 'list-item p-3 rounded-xl font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
+            div.textContent = city;
+            if (selectedCity === city) div.classList.add('bg-blue-50', 'text-blue-600');
+            div.onclick = () => selectCity(city);
+            document.getElementById('modalList').appendChild(div);
+        });
+        selectionModal.classList.remove('hidden');
+        selectionModal.classList.add('flex');
+    }
+    async function selectCity(city) {
+        selectedCity = city;
+        document.getElementById('cityDisplay').textContent = city;
+        document.getElementById('cityDisplay').classList.remove('text-gray-500');
+        document.getElementById('cityDisplay').classList.add('text-gray-800');
+        selectedArea = null;
+        document.getElementById('areaDisplay').textContent = 'Select area';
+        document.getElementById('areaDisplay').classList.add('text-gray-500');
+        document.getElementById('areaDisplay').classList.remove('text-gray-800');
+        await refreshAreasForCity(city);
+        closeSelectionModal();
+    }
+    function openAreaModal() {
+        if (!selectedCity) { alert('Please select city first.'); return; }
+        if (currentAreas.length === 0) { alert('No active areas found.'); return; }
+        document.getElementById('modalTitle').textContent = 'Select Area';
+        document.getElementById('modalList').innerHTML = '';
+        currentAreas.forEach(area => {
+            const div = document.createElement('div');
+            div.className = 'list-item p-3 rounded-xl font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
+            div.textContent = area;
+            if (selectedArea === area) div.classList.add('bg-blue-50', 'text-blue-600');
+            div.onclick = () => selectArea(area);
+            document.getElementById('modalList').appendChild(div);
+        });
+        selectionModal.classList.remove('hidden');
+        selectionModal.classList.add('flex');
+    }
+    function selectArea(area) {
+        selectedArea = area;
+        document.getElementById('areaDisplay').textContent = area;
+        document.getElementById('areaDisplay').classList.remove('text-gray-500');
+        document.getElementById('areaDisplay').classList.add('text-gray-800');
+        closeSelectionModal();
+    }
+    function closeSelectionModal() {
+        selectionModal.classList.add('hidden');
+        selectionModal.classList.remove('flex');
+    }
+    selectionModal.addEventListener('click', e => { if (e.target === selectionModal) closeSelectionModal(); });
+
+    // Map
+    function openMapModal() {
+        document.getElementById('mapModal').classList.replace('map-leave', 'map-enter');
+        if (!map) {
+            map = L.map('map', { zoomControl: false }).setView([31.5204, 74.3587], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
         }
-        .animate-slide-up {
-            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        setTimeout(() => { map.invalidateSize(); locateMe(); }, 300);
+    }
+    function closeMapModal() {
+        document.getElementById('mapModal').classList.replace('map-enter', 'map-leave');
+    }
+    function locateMe() {
+        if (!navigator.geolocation) { alert('GPS not supported'); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => map.flyTo([pos.coords.latitude, pos.coords.longitude], 18, { animate: true, duration: 1.5 }),
+            err => alert('Enable location permission.'),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+    function confirmLocation() {
+        const btn = document.getElementById('confirmLocBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Pin...';
+        const center = map.getCenter();
+        exactLatLng = `${center.lat},${center.lng}`;
+        localStorage.setItem('faster_exact_location', exactLatLng);
+        setTimeout(() => {
+            closeMapModal();
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Pin';
+            updatePinButton(true);
+            document.getElementById('addressInput').focus();
+        }, 500);
+    }
+    function updatePinButton(saved) {
+        const locBtn = document.getElementById('locBtn');
+        if (saved) {
+            locBtn.innerHTML = '<i class="fas fa-check-circle"></i> Pin Saved';
+            locBtn.classList.replace('text-blue-600', 'text-emerald-600');
+            locBtn.classList.replace('bg-blue-100', 'bg-emerald-100');
+            locBtn.classList.replace('border-blue-200', 'border-emerald-200');
+        } else {
+            locBtn.innerHTML = '<i class="fas fa-map-marked-alt"></i> Pick on Map';
+            locBtn.classList.replace('text-emerald-600', 'text-blue-600');
+            locBtn.classList.replace('bg-emerald-100', 'bg-blue-100');
+            locBtn.classList.replace('border-emerald-200', 'border-blue-200');
         }
-    </style>
+    }
+
+    // Save Profile
+    async function updateProfile() {
+        const name = document.getElementById('nameInput').value.trim();
+        const phone = document.getElementById('phoneInput').value.trim();
+        const address = document.getElementById('addressInput').value.trim();
+        const block = document.getElementById('blockInput').value.trim();
+        if (!name || !phone || !address) { alert('Fill required fields.'); return; }
+        if (!selectedCity || !selectedArea) { alert('Select city and area.'); return; }
+        const btn = document.getElementById('saveBtn');
+        const btnIcon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
+        btn.disabled = true;
+        btnIcon.className = 'fas fa-spinner fa-spin';
+        btnText.textContent = 'Updating...';
+        try {
+            if (phone !== originalPhone) {
+                const { data: dup } = await _supabase.from('customers').select('email').eq('phone', phone).maybeSingle();
+                if (dup && dup.email !== userEmail) {
+                    alert('Phone already registered.');
+                    resetBtn();
+                    return;
+                }
+            }
+            let finalAddress = address;
+            if (exactLatLng) finalAddress += " | GPS: " + exactLatLng;
+            const { error } = await _supabase
+                .from('customers')
+                .update({ name, phone, address: finalAddress, city: selectedCity, area: selectedArea, block })
+                .eq('email', userEmail);
+            if (error) throw error;
+            localStorage.setItem('faster_name', name);
+            localStorage.setItem('faster_phone', phone);
+            localStorage.setItem('faster_address', address);
+            localStorage.setItem('faster_city', selectedCity);
+            localStorage.setItem('faster_area', selectedArea);
+            localStorage.setItem('faster_block', block);
+            btnIcon.className = 'fas fa-check-circle';
+            btnText.textContent = 'Saved!';
+            btn.classList.add('bg-green-500');
+            setTimeout(() => window.location.replace('home.html'), 800);
+        } catch (err) {
+            alert('Error: ' + err.message);
+            resetBtn();
+        }
+    }
+    function resetBtn() {
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = false;
+        document.getElementById('btnIcon').className = 'fas fa-check-circle';
+        document.getElementById('btnText').textContent = 'SAVE CHANGES';
+        btn.classList.remove('bg-green-500');
+    }
+
+    // Offline banner
+    window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.top = '0'; });
+    window.addEventListener('online', () => {
+        document.getElementById('offlineBanner').style.top = '-50px';
+        if (document.getElementById('profileFormSection').classList.contains('hidden')) loadProfile();
+    });
+
+    window.onload = async () => {
+        await loadDeliveryData();
+        await loadProfile();
+    };
+</script>
 </body>
 </html>
