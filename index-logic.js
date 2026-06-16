@@ -16,7 +16,9 @@ async function fetchBranding() {
             img.classList.remove('hidden');
             document.getElementById('logoFallback').classList.add('hidden');
         }
-    } catch (err) { }
+    } catch (err) { 
+        console.warn("Branding fetch error:", err);
+    }
 }
 
 // ==== MAP LOGIC ====
@@ -24,7 +26,6 @@ async function fetchBranding() {
 function openMapModal() {
     document.getElementById('mapModal').classList.remove('hidden');
     
-    // Agar map pehle se load nahi hai toh banayein
     if (!map) {
         setTimeout(() => {
             map = L.map('map', { zoomControl: false }).setView([defaultLat, defaultLng], 15);
@@ -33,9 +34,8 @@ function openMapModal() {
                 attribution: 'Faster Delivery'
             }).addTo(map);
 
-            // Open hote hi current location dhoondne ki koshish kare
             getCurrentGPS();
-        }, 300); // UI load hone ka chota sa delay
+        }, 300);
     }
 }
 
@@ -43,13 +43,12 @@ function closeMapModal() {
     document.getElementById('mapModal').classList.add('hidden');
 }
 
-// High Accuracy GPS function (5/6 foot area)
 function getCurrentGPS() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((position) => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            map.flyTo([lat, lng], 18); // 18 is very high zoom level
+            map.flyTo([lat, lng], 18);
         }, (err) => {
             alert("Please allow location access to get exact pin.");
         }, {
@@ -65,13 +64,11 @@ async function confirmLocation() {
     document.getElementById('latInput').value = center.lat;
     document.getElementById('lngInput').value = center.lng;
 
-    // Chota dabba show karein aur button ka text change karein
     document.getElementById('locationBadge').classList.remove('hidden');
     document.getElementById('mapBtnText').innerText = "Edit Pin";
 
     closeMapModal();
 
-    // Map confirm hone par City/Area Dropdown auto-select karne ki koshish
     try {
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${center.lat}&lon=${center.lng}`);
         const data = await response.json();
@@ -87,16 +84,17 @@ async function confirmLocation() {
                 await loadAreas(matchCity.value);
             }
         }
-    } catch (err) { }
+    } catch (err) {
+        console.warn("Auto-detect city failed:", err);
+    }
 }
 
-// ==== DROPDOWN LOGIC (With "is_active" Filter & "Other" Option) ====
+// ==== DROPDOWN & DYNAMIC BLOCK LOGIC ====
 
 async function loadCities() {
     const citySelect = document.getElementById('citySelect');
     citySelect.innerHTML = '<option value="">Select City</option>';
 
-    // Sirf woh cities uthao jinki service chal rahi hai (is_active = true)
     const { data, error } = await _supabase.from('delivery_areas').select('city').eq('is_active', true);
     
     if (data && data.length > 0) {
@@ -106,37 +104,59 @@ async function loadCities() {
         });
     }
     
-    // End par ek option jo service area mein nahi hain
     citySelect.innerHTML += `<option value="Other City">Other / Not in my City</option>`;
 }
 
 async function loadAreas(selectedCity) {
     const areaSelect = document.getElementById('areaSelect');
-    areaSelect.innerHTML = '<option value="">Select Area</option>'; 
+    // Default option mein data-has-blocks false set kiya hai
+    areaSelect.innerHTML = '<option value="" data-has-blocks="false">Select Area</option>'; 
     
-    // Agar "Other City" select kiya hai toh area mein bhi "Other" dikhao
     if(!selectedCity || selectedCity === "Other City") {
         if(selectedCity === "Other City"){
-            areaSelect.innerHTML += `<option value="Other Area">Other Area</option>`;
+            areaSelect.innerHTML += `<option value="Other Area" data-has-blocks="false">Other Area</option>`;
         }
+        checkBlockRequirement(); // Form reset hone par block hide karne ke liye
         return;
     }
 
-    // Sirf Active areas uthao
+    // Database se area_name ke sath 'has_blocks' bhi fetch kar rahe hain
     const { data, error } = await _supabase.from('delivery_areas')
-        .select('area_name')
+        .select('area_name, has_blocks')
         .eq('city', selectedCity)
         .eq('is_active', true)
         .order('area_name');
 
     if (data && data.length > 0) {
         data.forEach(item => {
-            areaSelect.innerHTML += `<option value="${item.area_name}">${item.area_name}</option>`;
+            // HTML attribute mein save kar diya taake bar bar database na check karna pare
+            areaSelect.innerHTML += `<option value="${item.area_name}" data-has-blocks="${item.has_blocks || false}">${item.area_name}</option>`;
         });
     }
     
-    // End par "Other Area"
-    areaSelect.innerHTML += `<option value="Other Area">Other / Not in my Area</option>`;
+    areaSelect.innerHTML += `<option value="Other Area" data-has-blocks="false">Other / Not in my Area</option>`;
+    checkBlockRequirement();
+}
+
+// Naya Function: Block hide/show karne aur lazmi qaraar dene ke liye
+function checkBlockRequirement() {
+    const areaSelect = document.getElementById('areaSelect');
+    const blockContainer = document.getElementById('blockContainer'); // HTML me is div ki ID zaroor dein
+    const blockInput = document.getElementById('blockInput');
+
+    if (areaSelect.selectedIndex === -1) return;
+
+    const selectedOption = areaSelect.options[areaSelect.selectedIndex];
+    const hasBlocks = selectedOption.getAttribute('data-has-blocks') === 'true';
+
+    if (hasBlocks) {
+        if(blockContainer) blockContainer.classList.remove('hidden');
+        blockInput.setAttribute('required', 'true');
+    } else {
+        if(blockContainer) blockContainer.classList.add('hidden');
+        blockInput.removeAttribute('required');
+        blockInput.value = ""; // Chote areas k liye field khali kar di
+    }
 }
 
 
@@ -154,18 +174,15 @@ async function loginWithGoogle() {
 }
 
 async function checkAuthState() {
-    if (localStorage.getItem('faster_phone')) {
-        window.location.replace('home.html');
-        return;
-    }
-
     try {
         if (!navigator.onLine) {
             document.getElementById('mainLoader').classList.add('hidden');
             document.getElementById('googleLoginSection').classList.remove('hidden');
             return;
         }
+        
         const { data: { session }, error } = await _supabase.auth.getSession();
+        
         if (error || !session) {
             document.getElementById('googleLoginSection').classList.remove('hidden');
             return;
@@ -174,13 +191,14 @@ async function checkAuthState() {
         const userEmail = session.user.email.toLowerCase();
         const googleName = session.user.user_metadata.full_name;
 
-        const { data: customerRecord } = await _supabase.from('customers').select('phone, name, city, area').eq('email', userEmail).maybeSingle();
+        const { data: customerRecord } = await _supabase.from('customers').select('phone, name, city, area, block').eq('email', userEmail).maybeSingle();
 
         if (customerRecord && customerRecord.phone) {
             localStorage.setItem('faster_phone', customerRecord.phone);
             localStorage.setItem('faster_name', customerRecord.name);
             localStorage.setItem('faster_city', customerRecord.city || "");
             localStorage.setItem('faster_area', customerRecord.area || "");
+            localStorage.setItem('faster_block', customerRecord.block || ""); 
             window.location.replace('home.html');
         } else {
             document.getElementById('nameInput').value = googleName || "";
@@ -200,14 +218,24 @@ async function saveProfile() {
     const area = document.getElementById('areaSelect').value;
     const address = document.getElementById('addressInput').value.trim();
     
-    // Map Lat/Lng
+    const blockInput = document.getElementById('blockInput');
+    const block = blockInput.value.trim();
+    const isBlockRequired = blockInput.hasAttribute('required');
+    
     const lat = document.getElementById('latInput').value;
     const lng = document.getElementById('lngInput').value;
     
     const btn = document.getElementById('saveBtn');
     
+    // Basic fields validation
     if (!name || !phone || !city || !area || !address) {
-        alert("Please fill all details!");
+        alert("Please fill all required details!");
+        return;
+    }
+
+    // Dynamic Block Validation
+    if (isBlockRequired && !block) {
+        alert("Is area ke exact delivery charges nikaalne ke liye Block laazmi hai!");
         return;
     }
 
@@ -223,12 +251,12 @@ async function saveProfile() {
         const { data: { session } } = await _supabase.auth.getSession();
         const userEmail = session.user.email.toLowerCase();
 
-        // Saving to database including Lat and Lng
-        const { error } = await _supabase.from('customers').insert([{ 
+        // Upsert use kiya taake purana user wapas aaye tou error na miley (Conflict email par)
+        const { error } = await _supabase.from('customers').upsert([{ 
             phone: phone, name: name, email: userEmail, 
-            address: address, city: city, area: area,
+            address: address, city: city, area: area, block: block || null,
             lat: String(lat), lng: String(lng)
-        }]);
+        }], { onConflict: 'email' });
 
         if (error) throw error;
 
@@ -236,6 +264,7 @@ async function saveProfile() {
         localStorage.setItem('faster_name', name);
         localStorage.setItem('faster_city', city);
         localStorage.setItem('faster_area', area);
+        localStorage.setItem('faster_block', block || ""); 
         window.location.replace('home.html');
         
     } catch (err) {
@@ -248,5 +277,10 @@ async function saveProfile() {
 window.onload = async () => {
     fetchBranding();
     loadCities();
+    
+    // Dropdowns ke events
+    document.getElementById('citySelect').addEventListener('change', (e) => loadAreas(e.target.value));
+    document.getElementById('areaSelect').addEventListener('change', checkBlockRequirement);
+    
     await checkAuthState();
 };
