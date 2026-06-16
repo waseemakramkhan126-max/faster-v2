@@ -837,11 +837,12 @@ async function handleConfirmPrompt() {
     if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
 
     // ==========================================
-    // 🚀 HYBRID FEE CALCULATION (NEW)
+    // 🚀 HYBRID FEE CALCULATION (FIXED)
     // ==========================================
-    const area = localStorage.getItem('faster_area');
-    const block = localStorage.getItem('faster_block') || ""; // Ensure aap ne profile mein block save kiya hai
-    const currentFee = await getFinalDeliveryFee(area, block); 
+    const city = localStorage.getItem('faster_city') || "Lahore";
+    const area = localStorage.getItem('faster_area') || "";
+    const block = localStorage.getItem('faster_block') || ""; 
+    const currentFee = await getFinalDeliveryFee(city, area, block);
 
     // ==========================================
     // MANUAL SUMMARY EXTRACTION
@@ -939,12 +940,6 @@ function openFullWithCaption(srcUrl, captionText) {
 async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) return;
-
-    // --- NEW: Hybrid Fee Calculation ---
-    const userArea = localStorage.getItem('faster_area');
-    const userBlock = localStorage.getItem('faster_block') || ""; 
-    const finalFee = await getFinalDeliveryFee(userArea, userBlock);
-    // -----------------------------------
 
     const btn = document.getElementById('overviewSubmitBtn');
     // ==========================================
@@ -1184,6 +1179,10 @@ async function confirmOrderFromOverview() {
             scheduledAtValue = new Date(scheduleTime).toISOString();
         }
 
+        // 📍 INSERT SE THEEK PEHLE DYNAMIC FEE CALCULATE KAREIN (Yahan paste karein)
+        const userBlock = localStorage.getItem('faster_block') || "";
+        const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock);
+
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
             customer_name: name, 
@@ -1196,7 +1195,7 @@ async function confirmOrderFromOverview() {
             doc_url: docURLs, 
             status: finalStatus, 
             scheduled_at: scheduledAtValue, 
-            dc_amount: finalFee 
+            dc_amount: finalFee // ✅ Sahi final fee save ho rahi hai
         }]);
         
         if(error) throw error;
