@@ -248,48 +248,28 @@ async function initPage() {
 
     try {
         if(navigator.onLine) {
-            // 1. Customer ka exact Area aur City localStorage se nikalen (Dropdown wala)
             let customerArea = localStorage.getItem('faster_area');
             let customerCity = localStorage.getItem('faster_city');
             
-            let areaMatched = false;
-            deliveryCharges = 0; // By default 0 rakhain
+            deliveryCharges = 0; 
 
             if (customerArea && customerArea !== "Other Area") {
-                // 2. Supabase se sirf is specific Area ki details uthaein
                 const { data: areaData, error: dbError } = await _supabase
                     .from('delivery_areas')
                     .select('customer_delivery_fee, is_active') 
-                    .ilike('city', customerCity) // ✨ Case-Insensitive kar diya
+                    .ilike('city', customerCity)
                     .ilike('area_name', customerArea)
-                    .maybeSingle(); // ✨ Error 406 crash se bachane ke liye maybeSingle kiya
+                    .maybeSingle();
 
                 if (dbError) {
                     console.error("Area Fetch Error:", dbError);
                 } else if (areaData) {
-                    // Database se amount uthayen
                     deliveryCharges = Number(areaData.customer_delivery_fee) || 0;
-                    areaMatched = true;
                     console.log(`✅ Exact Area Matched: ${customerArea} | Charges: Rs. ${deliveryCharges}`);
                     
                     if(areaData.is_active === false) {
                         console.warn(`⚠️ Warning: ${customerArea} mein abhi delivery OFF hai.`);
                     }
-                }
-            }
-
-            // 3. Smart Fallback: Agar kisi area ki fee 0 set hai, ya "Other Area" hai
-            // Toh system app_settings se Global Fee utha lega
-            if (deliveryCharges === 0) {
-                const { data: settings } = await _supabase
-                    .from('app_settings')
-                    .select('customer_delivery_fee')
-                    .eq('id', 1)
-                    .single();
-                    
-                if(settings && settings.customer_delivery_fee) {
-                    deliveryCharges = Number(settings.customer_delivery_fee);
-                    console.log(`🌐 Global Fee Applied: Rs. ${deliveryCharges}`);
                 }
             }
 
@@ -1238,74 +1218,49 @@ function normalizeString(str) {
 }
 
 // 2. Hybrid Delivery Fee Calculator
-async function getFinalDeliveryFee(customerCity, customerArea, customerBlock) {
-    let finalFee = 0; // Default fallback fee
-
-    // Clean inputs to avoid whitespace issues
-    const city = (customerCity || "").trim();
-    const area = (customerArea || "").trim();
-    const block = (customerBlock || "").trim();
-
-    if (!city || !area) {
-        console.warn("⚠️ City ya Area missing hai, Fee 0 return ho rahi hai.");
-        return 0;
-    }
+async function getFinalDeliveryFee(areaName, userInputBlock) {
+    const cleanArea = (areaName || "").trim();
+    const cleanBlock = (userInputBlock || "").trim();
+    
+    console.log("🔍 Querying Delivery Areas for:", cleanArea);
 
     try {
-        // 1️⃣ STEP 1: delivery_areas se Base Fee aur has_blocks check karein
-        // NOTE: Column name 'customer_delivery_fee' use kiya hai aapke schema ke mutabiq
+        // Query Area data
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
-            .select('customer_delivery_fee, has_blocks, is_active')
-            .eq('city', city)
-            .ilike('area_name', area) // Case-insensitive matching
+            .select('customer_delivery_fee, has_blocks')
+            .ilike('area_name', cleanArea) // .eq ki bajaye .ilike use karein
             .maybeSingle();
 
-        if (areaError) throw areaError;
-
-        if (areaData) {
-            // Agar Admin ne area hi band kiya hua hai
-            if (areaData.is_active === false) {
-                console.warn("❌ Yeh area active nahi hai.");
-                return 0;
-            }
-
-            // Base area fee lagayein
-            finalFee = areaData.customer_delivery_fee || 0;
-            console.log(`📍 Base Area Fee mili: ${finalFee}`);
-
-            // 2️⃣ STEP 2: HYBRID CHECK (Agar blocks hain aur customer ne block select kiya hai)
-            // Localstorage se "null" ya "undefined" string check handle karne ke liye filter:
-            const isValidBlock = block && block.toLowerCase() !== "null" && block.toLowerCase() !== "undefined";
-
-            if (areaData.has_blocks && isValidBlock) {
-                console.log(`🔍 Hybrid Mode Active: Block '${block}' dhoonda ja rha hai...`);
-
-                // NOTE: Column name yahan 'delivery_fee' hai aapke schema ke mutabiq
-                const { data: areaData, error: areaError } = await _supabase
-    .from('delivery_areas')
-    .select('customer_delivery_fee, has_blocks, is_active')
-    .ilike('city', city) // ✨ Yahan bhi ilike kar diya taake 'lahore' match ho jaye
-    .ilike('area_name', area)
-    .maybeSingle();
-
-                if (blockError) throw blockError;
-
-                // Agar specific block mil jaye aur woh active ho
-                if (blockData && blockData.is_active !== false) {
-                    finalFee = blockData.delivery_fee || 0;
-                    console.log(`✅ Hybrid Match Found! Block Fee applied: ${finalFee}`);
-                } else {
-                    console.log("ℹ️ Block matching nahi mili ya inactive hai, Base Area Fee hi chalay gi.");
-                }
-            }
-        } else {
-            console.warn("⚠️ Database mein is City aur Area ka koi record nahi mila.");
+        if (areaError) {
+            console.error("Supabase Query Error:", areaError);
+            return 0;
         }
 
-    } catch (error) {
-        console.error("🔴 Error in getFinalDeliveryFee:", error.message);
-    }
+        if (!areaData) {
+            console.warn("⚠️ Database mein is Area ka record nahi mila:", cleanArea);
+            return 0;
+        }
 
-    return finalFee;
+        let finalFee = Number(areaData.customer_delivery_fee) || 0;
+
+        // Agar Block check karna hai
+        if (areaData.has_blocks === true && cleanBlock) {
+            const { data: blocks } = await _supabase
+                .from('delivery_blocks')
+                .select('block_name, delivery_fee')
+                .ilike('area_name', cleanArea)
+                .ilike('block_name', cleanBlock);
+
+            if (blocks && blocks.length > 0) {
+                finalFee = Number(blocks[0].delivery_fee);
+                console.log("🎯 Block found, Fee updated to:", finalFee);
+            }
+        }
+        
+        return finalFee;
+    } catch (err) {
+        console.error("Critical Error:", err);
+        return 0;
+    }
 }
