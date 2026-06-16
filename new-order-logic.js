@@ -261,7 +261,7 @@ async function initPage() {
                     .from('delivery_areas')
                     .select('customer_delivery_fee, is_active') // Aapka exact column name
                     .eq('city', customerCity)
-                    .eq('area_name', customerArea)
+                    .ilike('area_name', customerArea)
                     .single();
 
                 if (dbError) {
@@ -1013,24 +1013,27 @@ async function confirmOrderFromOverview() {
     // ==========================================
     let openHour = 8; // Default 8 AM
     let closeHour = 1; // Default 1 AM
+    let realDBAreaName = customerArea; // Admin panel formatting fallback
 
     try {
-        // Query mein is_active ke sath open_hour aur close_hour bhi mangwa rahe hain
+        // CHANGED: `.eq` ki jagah `.ilike` use kiya hai taake case-sensitivity ka masla na ho
         const { data: areaData } = await _supabase
             .from('delivery_areas')
-            .select('is_active, open_hour, close_hour') 
+            .select('area_name, is_active, open_hour, close_hour') 
             .eq('city', customerCity)
-            .eq('area_name', customerArea)
-            .single();
+            .ilike('area_name', customerArea) 
+            .maybeSingle(); // Safe row fetching ke liye maybeSingle behtar hai
 
         if (areaData) {
+            // Admin panel par proper capitalize name dikhane ke liye real name uthayen
+            realDBAreaName = areaData.area_name;
+
             // Agar Admin ne is area ki service band ki hui hai
             if (areaData.is_active === false) {
-                showInlineError("⚠️ Service Unavailable", `Abhi ${customerArea} mein hamari delivery service aarzi taur par band hai.`);
+                showInlineError("⚠️ Service Unavailable", `Abhi ${realDBAreaName} mein hamari delivery service aarzi taur par band hai.`);
                 return; 
             }
             
-            // Agar Admin ne time set kiya hai, toh code usay utha lega
             if (areaData.open_hour !== null) openHour = areaData.open_hour;
             if (areaData.close_hour !== null) closeHour = areaData.close_hour;
         }
@@ -1185,7 +1188,7 @@ async function confirmOrderFromOverview() {
             customer_phone: userPhone, 
             customer_name: name, 
             delivery_address: addr, 
-            area: safeAreaToSave, // <--- YAHAN FIX 2 WALA SAFE AREA USE KIYA HAI
+            area: realDBAreaName, // ✅ Safely saved with correct DB database capitalization
             order_details: currentExtractedSummary, 
             image_url: imgURLs, 
             video_url: vidURLs, 
@@ -1193,7 +1196,7 @@ async function confirmOrderFromOverview() {
             doc_url: docURLs, 
             status: finalStatus, 
             scheduled_at: scheduledAtValue, 
-            dc_amount: finalFee // <--- deliveryCharges ki jagah finalFee kar diya
+            dc_amount: finalFee 
         }]);
         
         if(error) throw error;
