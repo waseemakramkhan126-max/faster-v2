@@ -1248,7 +1248,7 @@ async function getFinalDeliveryFee(areaName, userInputBlock) {
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee, has_blocks')
-            .eq('area_name', cleanArea)
+            .ilike('area_name', cleanArea)
             .maybeSingle();
 
         if (areaError) {
@@ -1270,7 +1270,7 @@ async function getFinalDeliveryFee(areaName, userInputBlock) {
             const { data: blocks, error: blockError } = await _supabase
                 .from('delivery_blocks')
                 .select('block_name, delivery_fee')
-                .eq('area_name', cleanArea);
+                .ilike('area_name', cleanArea);
 
             if (blockError) console.error("Block Error:", blockError);
             
