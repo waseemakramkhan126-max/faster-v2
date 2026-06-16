@@ -837,43 +837,46 @@ async function handleConfirmPrompt() {
     if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
 
     // ==========================================
-    // MANUAL SUMMARY EXTRACTION (Bina AI ke)
+    // 🚀 HYBRID FEE CALCULATION (NEW)
+    // ==========================================
+    const area = localStorage.getItem('faster_area');
+    const block = localStorage.getItem('faster_block') || ""; // Ensure aap ne profile mein block save kiya hai
+    const currentFee = await getFinalDeliveryFee(area, block); 
+
+    // ==========================================
+    // MANUAL SUMMARY EXTRACTION
     // ==========================================
     const customerBubbles = document.querySelectorAll('.customer-bubble');
     let manualSummaryList = [];
 
-    // 1. Customer ke chat mein bheje gaye saare messages ko line-by-line ikhatta karo
     customerBubbles.forEach(bubble => {
         let text = bubble.innerText.trim();
         if (text) manualSummaryList.push("👉 " + text);
     });
 
-    // 2. Agar text na ho, toh attachments (images) ke captions bhi add kar lo
     const captionData = draftData.images.filter(i => i.data.caption).map(i => "🖼️ Photo: " + i.data.caption);
     manualSummaryList = [...manualSummaryList, ...captionData];
 
-    // 3. Sab ko mila kar ek Final Summary bana lo
     currentExtractedSummary = manualSummaryList.join("\n");
 
-    // Agar chat bilkul khali hai aur koi voice/image bhi nahi hai, toh rok do
     if (!currentExtractedSummary && draftData.voices.length === 0 && draftData.images.length === 0 && draftData.videos.length === 0) {
         alert("Please enter order details or attach a file first.");
         return;
     }
 
-    // Agar sirf voice note hai aur likha kuch nahi
     if (!currentExtractedSummary) {
         currentExtractedSummary = "Order details are in attached voice notes/images.";
     }
 
     // ==========================================
-    // POPULATE POPUP DATA (Baqi sab purana logic)
+    // POPULATE POPUP DATA
     // ==========================================
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
-    document.getElementById('overviewDcAmount').innerText = `Rs. ${deliveryCharges}`;
     
-    // AI ki jagah Customer ki banayi hui summary Modal mein daal do
+    // --- UPDATED UI: Dynamic Fee Display ---
+    document.getElementById('overviewDcAmount').innerText = `Rs. ${currentFee}`;
+    
     document.getElementById('overviewSummaryText').innerText = currentExtractedSummary;
     document.getElementById('overviewSchedule').value = ""; 
 
@@ -932,12 +935,18 @@ function openFullWithCaption(srcUrl, captionText) {
     };
 }
 
+// 'sync' ko 'async' kar diya
 async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) return;
 
-    const btn = document.getElementById('overviewSubmitBtn');
+    // --- NEW: Hybrid Fee Calculation ---
+    const userArea = localStorage.getItem('faster_area');
+    const userBlock = localStorage.getItem('faster_block') || ""; 
+    const finalFee = await getFinalDeliveryFee(userArea, userBlock);
+    // -----------------------------------
 
+    const btn = document.getElementById('overviewSubmitBtn');
     // ==========================================
     // 🎨 INLINE ERROR FUNCTION (Aapki purani logic)
     // ==========================================
@@ -1184,7 +1193,7 @@ async function confirmOrderFromOverview() {
             doc_url: docURLs, 
             status: finalStatus, 
             scheduled_at: scheduledAtValue, 
-            dc_amount: deliveryCharges 
+            dc_amount: finalFee // <--- deliveryCharges ki jagah finalFee kar diya
         }]);
         
         if(error) throw error;
@@ -1219,3 +1228,45 @@ document.addEventListener('click', function(event) {
 
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
+
+// 1. String ko clean karne ke liye (AA Block -> aablock)
+function normalizeString(str) {
+    if (!str) return "";
+    return str.toLowerCase().replace(/\s+/g, ''); 
+}
+
+// 2. Hybrid Delivery Fee Calculator
+async function getFinalDeliveryFee(areaName, userInputBlock) {
+    try {
+        // Area ki default fee fetch karein
+        const { data: areaData } = await _supabase
+            .from('delivery_areas')
+            .select('customer_delivery_fee, has_blocks')
+            .eq('area_name', areaName)
+            .maybeSingle();
+
+        if (!areaData) return 0;
+        
+        let finalFee = areaData.customer_delivery_fee;
+
+        // Agar area mein blocks hain aur user ne input diya hai
+        if (areaData.has_blocks && userInputBlock) {
+            const { data: blocks } = await _supabase
+                .from('delivery_blocks')
+                .select('block_name, delivery_fee')
+                .eq('area_name', areaName);
+
+            if (blocks && blocks.length > 0) {
+                const normalizedInput = normalizeString(userInputBlock);
+                const match = blocks.find(b => normalizeString(b.block_name) === normalizedInput);
+                if (match) {
+                    finalFee = match.delivery_fee; // Exact block fee mil gayi
+                }
+            }
+        }
+        return finalFee;
+    } catch (err) {
+        console.error("Fee error:", err);
+        return 0;
+    }
+}
