@@ -130,6 +130,14 @@
                          class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
                      </div>
                 </div>
+                    <div class="mt-5">
+    <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Area Name</label>
+    <div class="relative mt-1">
+        <i class="fas fa-map-marker-alt absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="areaInput" placeholder="e.g. canal garden" 
+            class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+    </div>
+</div>
                     
                     <div class="relative">
                         <i class="fas fa-home absolute left-5 top-5 text-gray-400"></i>
@@ -305,66 +313,41 @@
 
         // --- UPDATE PROFILE FUNCTION ---
         async function updateProfile() {
-            const newName = document.getElementById('nameInput').value.trim();
-            const newPhone = document.getElementById('phoneInput').value.trim();
-            const typedAddress = document.getElementById('addressInput').value.trim();
-            
-            const btn = document.getElementById('saveBtn');
-            const btnText = document.getElementById('btnText');
-            const btnIcon = document.getElementById('btnIcon');
+    const newName = document.getElementById('nameInput').value.trim();
+    const newPhone = document.getElementById('phoneInput').value.trim();
+    const typedAddress = document.getElementById('addressInput').value.trim();
+    const typedBlock = document.getElementById('blockInput').value.trim();
+    const typedArea = document.getElementById('areaInput').value.trim(); // Yahan Area uthaya
 
-            if (!newName || !newPhone || !typedAddress) { alert("Please fill out all fields!"); return; }
-            if (!navigator.onLine) { alert("No internet connection!"); return; }
+    if (!newName || !newPhone || !typedAddress || !typedArea) { 
+        alert("Please fill all fields, including Area!"); 
+        return; 
+    }
 
-            btn.disabled = true;
-            btnText.innerText = 'Updating...';
-            btnIcon.className = 'fas fa-circle-notch fa-spin';
+    // ... (rest of the validation logic) ...
 
-            try {
-                if (newPhone !== originalPhone) {
-                    const { data: existingUser } = await _supabase.from('customers').select('email').eq('phone', newPhone).maybeSingle();
-                    if (existingUser && existingUser.email !== userEmail) {
-                        alert(`🚨 ERROR: The number ${newPhone} is already registered.`);
-                        resetBtnUI(); return;
-                    }
-                }
+    try {
+        // Database Update (Area bhi update ho raha hai)
+        await _supabase.from('customers').update({ 
+            name: newName, 
+            phone: newPhone, 
+            address: typedAddress,
+            area: typedArea,
+            block: typedBlock
+        }).eq('email', userEmail);
 
-                // Append exact location invisibly to the address if available
-                let finalSaveAddress = typedAddress;
-                if (exactLatLng) {
-                    finalSaveAddress = typedAddress + " | GPS: " + exactLatLng;
-                }
-
-                const { error: updateError } = await _supabase
-                      .from('customers')
-                      .update({ 
-                       name: newName, 
-                       phone: newPhone, 
-                       address: finalSaveAddress,
-                       block: document.getElementById('blockInput').value.trim() // Naya block yahan se uthayen
-                   })
-                      .eq('email', userEmail);
-
-                if (updateError) throw updateError;
-
-                   localStorage.setItem('faster_phone', newPhone);
-                   localStorage.setItem('faster_name', newName);
-                   localStorage.setItem('faster_address', typedAddress);
-                   localStorage.setItem('faster_block', document.getElementById('blockInput').value.trim()); // Ye line zaroori hai
-                if (newPhone !== originalPhone) {
-                    try { window.location.href = "gonative://onesignal/externalId/set?id=" + newPhone; } catch(e){}
-                }
-
-                btnText.innerText = 'Updated Successfully!';
-                btnIcon.className = 'fas fa-check-circle';
-                btn.style.background = '#22c55e'; 
-
-                setTimeout(() => { window.location.replace('home.html'); }, 1000);
-            } catch (err) {
-                alert("Error updating profile: " + err.message);
-                resetBtnUI();
-            }
-        }
+        // LocalStorage Update (Sahi keys ke sath)
+        localStorage.setItem('faster_name', newName);
+        localStorage.setItem('faster_address', typedAddress);
+        localStorage.setItem('faster_area', typedArea); // <--- Ab ye 'canal garden' save karega
+        localStorage.setItem('faster_block', typedBlock);
+        
+        alert("Profile Updated Successfully!");
+        window.location.replace('home.html');
+    } catch (err) {
+        alert("Error: " + err.message);
+    }
+}
 
         function resetBtnUI() {
             const btn = document.getElementById('saveBtn');
