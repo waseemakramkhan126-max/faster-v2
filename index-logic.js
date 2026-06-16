@@ -227,13 +227,13 @@ async function saveProfile() {
     
     const btn = document.getElementById('saveBtn');
     
-    // Basic fields validation
+    // 1. Basic fields validation
     if (!name || !phone || !city || !area || !address) {
         alert("Please fill all required details!");
         return;
     }
 
-    // Dynamic Block Validation
+    // 2. Dynamic Block Validation
     if (isBlockRequired && !block) {
         alert("Is area ke exact delivery charges nikaalne ke liye Block laazmi hai!");
         return;
@@ -251,24 +251,40 @@ async function saveProfile() {
         const { data: { session } } = await _supabase.auth.getSession();
         const userEmail = session.user.email.toLowerCase();
 
-        // Upsert use kiya taake purana user wapas aaye tou error na miley (Conflict email par)
+        // 3. STRONG UPSERT: Email ki base par check karega
         const { error } = await _supabase.from('customers').upsert([{ 
-            phone: phone, name: name, email: userEmail, 
-            address: address, city: city, area: area, block: block || null,
-            lat: String(lat), lng: String(lng)
-        }], { onConflict: 'email' });
+            email: userEmail, // Email ab identity check hai
+            phone: phone, 
+            name: name, 
+            address: address, 
+            city: city, 
+            area: area, 
+            block: block || null,
+            lat: String(lat), 
+            lng: String(lng)
+        }], { onConflict: 'email' }); // Conflict hamesha email par!
 
-        if (error) throw error;
+        // 4. SMART ERROR HANDLING: Agar number pehle se majood hai
+        if (error) {
+            // Postgres error code '23505' ka matlab hai "Unique Violation"
+            if (error.code === '23505' && error.message.includes('phone')) {
+                throw new Error("Yeh phone number pehle hi kisi aur account ke sath register hai! Kripya apna sahi number darj karein.");
+            }
+            throw error; // Agar koi aur error hai toh normally handle kare
+        }
 
+        // 5. Success hone par LocalStorage update aur redirect
         localStorage.setItem('faster_phone', phone);
         localStorage.setItem('faster_name', name);
         localStorage.setItem('faster_city', city);
         localStorage.setItem('faster_area', area);
         localStorage.setItem('faster_block', block || ""); 
+        
         window.location.replace('home.html');
         
     } catch (err) {
-        alert("Error saving profile: " + err.message);
+        // User ko clean error dikhayen
+        alert(err.message || "Error saving profile. Please try again.");
         btn.disabled = false;
         btn.innerHTML = `<span>Save & Continue</span><i class="fas fa-arrow-right"></i>`;
     }
