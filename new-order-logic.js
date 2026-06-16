@@ -1237,36 +1237,59 @@ function normalizeString(str) {
 
 // 2. Hybrid Delivery Fee Calculator
 async function getFinalDeliveryFee(areaName, userInputBlock) {
+    // 1. Inputs ko sanitize (clean) karein taake extra spaces ka masla na ho
+    const cleanArea = (areaName || "").trim();
+    const cleanBlock = (userInputBlock || "").trim();
+    
+    console.log("🔍 Checking Fee for:", { cleanArea, cleanBlock });
+
     try {
-        // Area ki default fee fetch karein
-        const { data: areaData } = await _supabase
+        // 2. Fetch Area Data
+        const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee, has_blocks')
-            .eq('area_name', areaName)
+            .eq('area_name', cleanArea)
             .maybeSingle();
 
-        if (!areaData) return 0;
-        
-        let finalFee = areaData.customer_delivery_fee;
+        if (areaError) {
+            console.error("Supabase Error:", areaError);
+            return 0;
+        }
 
-        // Agar area mein blocks hain aur user ne input diya hai
-        if (areaData.has_blocks && userInputBlock) {
-            const { data: blocks } = await _supabase
+        if (!areaData) {
+            console.warn("⚠️ No area found in DB for:", cleanArea);
+            return 0;
+        }
+
+        console.log("✅ Area Data found:", areaData);
+        let finalFee = Number(areaData.customer_delivery_fee) || 0;
+
+        // 3. Block Check
+        if (areaData.has_blocks && cleanBlock) {
+            console.log("📦 Searching for block:", cleanBlock);
+            const { data: blocks, error: blockError } = await _supabase
                 .from('delivery_blocks')
                 .select('block_name, delivery_fee')
-                .eq('area_name', areaName);
+                .eq('area_name', cleanArea);
 
+            if (blockError) console.error("Block Error:", blockError);
+            
             if (blocks && blocks.length > 0) {
-                const normalizedInput = normalizeString(userInputBlock);
+                const normalizedInput = normalizeString(cleanBlock);
                 const match = blocks.find(b => normalizeString(b.block_name) === normalizedInput);
+                
                 if (match) {
-                    finalFee = match.delivery_fee; // Exact block fee mil gayi
+                    finalFee = Number(match.delivery_fee);
+                    console.log("🎯 Block Match found! Fee is:", finalFee);
+                } else {
+                    console.warn("❌ Block match not found for input:", cleanBlock);
                 }
             }
         }
         return finalFee;
     } catch (err) {
-        console.error("Fee error:", err);
+        console.error("Critical Fee calculation error:", err);
         return 0;
     }
+}
 }
