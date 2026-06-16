@@ -1221,14 +1221,14 @@ function normalizeString(str) {
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
-    const cleanBlock = (userInputBlock || "").trim();
+    const cleanBlock = (userInputBlock || "").trim()
+        .replace(/\s*block\s*/i, '')  // 👈 yeh extra line
+        .trim();
 
     console.log("🔍 Fee lookup:", { cleanCity, cleanArea, cleanBlock });
 
     try {
-        // 1. BLOCK CHECK (agar diya ho)
         if (cleanBlock) {
-            // Saare blocks fetch karo jo is area ke hain
             const { data: blocks, error: blockError } = await _supabase
                 .from('delivery_blocks')
                 .select('block_name, delivery_fee')
@@ -1237,7 +1237,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
             console.log("📦 All blocks for area:", blocks, blockError);
 
             if (!blockError && blocks && blocks.length > 0) {
-                // JS mein trim + lowercase match karo
                 const matchedBlock = blocks.find(b => 
                     (b.block_name || "").trim().toLowerCase() === cleanBlock.toLowerCase()
                 );
@@ -1250,7 +1249,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
             console.warn("⚠️ Block fee not matched. Falling back to area fee.");
         }
 
-        // 2. FALLBACK: DELIVERY_AREAS
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
