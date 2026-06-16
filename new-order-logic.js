@@ -1224,35 +1224,40 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
     const cleanBlock = (userInputBlock || "").trim();
 
     try {
-        // Pehle delivery_areas se area fetch karo (city + area match)
+        // 1. Agar block input diya hai to pehle delivery_blocks check karo
+        if (cleanBlock) {
+            const { data: blockData, error: blockError } = await _supabase
+                .from('delivery_blocks')
+                .select('delivery_fee')
+                .ilike('area_name', cleanArea)
+                .ilike('block_name', cleanBlock)
+                .maybeSingle();
+
+            if (!blockError && blockData && blockData.delivery_fee !== null && Number(blockData.delivery_fee) > 0) {
+                console.log("✅ Block fee found:", blockData.delivery_fee);
+                return Number(blockData.delivery_fee);  // delivery_blocks ka valid fee return kiya
+            }
+            console.warn("⚠️ Block fee 0/null or not found. Falling back to area fee.");
+        }
+
+        // 2. Fallback: delivery_areas se customer_delivery_fee uthao
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
-            .select('customer_delivery_fee, has_blocks')
+            .select('customer_delivery_fee')
             .ilike('city', cleanCity)
             .ilike('area_name', cleanArea)
             .maybeSingle();
 
-        if (areaError || !areaData) {
-            console.warn("⚠️ Area not found in DB:", cleanArea, cleanCity);
-            return 0;
+        if (!areaError && areaData) {
+            const areaFee = Number(areaData.customer_delivery_fee) || 0;
+            console.log("🏠 Area fee fallback:", areaFee);
+            return areaFee;
         }
 
-        let finalFee = Number(areaData.customer_delivery_fee) || 0;
+        // 3. Kuch bhi nahi mila to 0 return karo
+        console.warn("⚠️ No fee data found for area or block. Returning 0.");
+        return 0;
 
-        // Agar is area ke blocks hain aur user ne block enter kiya hai
-        if (areaData.has_blocks === true && cleanBlock) {
-            const { data: blocks } = await _supabase
-                .from('delivery_blocks')
-                .select('block_name, delivery_fee')
-                .ilike('area_name', cleanArea)
-                .ilike('block_name', cleanBlock);
-            
-            if (blocks && blocks.length > 0) {
-                finalFee = Number(blocks[0].delivery_fee);
-            }
-        }
-
-        return finalFee;
     } catch (err) {
         console.error("Fee calculation error:", err);
         return 0;
