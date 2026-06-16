@@ -121,6 +121,16 @@
                             <i class="fas fa-map-marked-alt"></i> Pick on Map
                         </button>
                     </div>
+
+                 <div class="mt-5">
+                     <label class="text-[10px] font-black text-gray-400 uppercase ml-4 tracking-widest">Block Name (Optional)</label>
+                       <div class="relative mt-1">
+                       <i class="fas fa-th-large absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="blockInput" placeholder="e.g. A, B, or Phase 1" 
+                         class="w-full clay-input h-14 rounded-2xl pl-12 pr-4 font-bold text-gray-700 outline-none">
+                     </div>
+                </div>
+                    
                     <div class="relative">
                         <i class="fas fa-home absolute left-5 top-5 text-gray-400"></i>
                         <textarea id="addressInput" placeholder="House/Flat #, Street, Area..." rows="3" 
@@ -190,7 +200,7 @@
 
                 const { data: userData, error: fetchError } = await _supabase
                     .from('customers')
-                    .select('name, phone, address')
+                    .select('name, phone, address, block') // 'block' column add kiya
                     .eq('email', userEmail)
                     .single();
 
@@ -199,6 +209,7 @@
                 if (userData) {
                     document.getElementById('nameInput').value = userData.name || "";
                     document.getElementById('phoneInput').value = userData.phone || "";
+                    document.getElementById('blockInput').value = userData.block || "";
                     
                     originalPhone = userData.phone; 
                     
@@ -325,16 +336,21 @@
                 }
 
                 const { error: updateError } = await _supabase
-                    .from('customers')
-                    .update({ name: newName, phone: newPhone, address: finalSaveAddress })
-                    .eq('email', userEmail);
+                      .from('customers')
+                      .update({ 
+                       name: newName, 
+                       phone: newPhone, 
+                       address: finalSaveAddress,
+                       block: document.getElementById('blockInput').value.trim() // Naya block yahan se uthayen
+                   })
+                      .eq('email', userEmail);
 
                 if (updateError) throw updateError;
 
-                localStorage.setItem('faster_phone', newPhone);
-                localStorage.setItem('faster_name', newName);
-                localStorage.setItem('faster_address', typedAddress); // Storage mein saaf address save karo
-
+                   localStorage.setItem('faster_phone', newPhone);
+                   localStorage.setItem('faster_name', newName);
+                   localStorage.setItem('faster_address', typedAddress);
+                   localStorage.setItem('faster_block', document.getElementById('blockInput').value.trim()); // Ye line zaroori hai
                 if (newPhone !== originalPhone) {
                     try { window.location.href = "gonative://onesignal/externalId/set?id=" + newPhone; } catch(e){}
                 }
