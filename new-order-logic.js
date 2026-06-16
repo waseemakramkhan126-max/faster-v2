@@ -1228,21 +1228,26 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
     try {
         // 1. BLOCK CHECK (agar diya ho)
         if (cleanBlock) {
-            // Exact match ke liye ilike with exact string (no wildcards)
-            const { data: blockData, error: blockError } = await _supabase
+            // Saare blocks fetch karo jo is area ke hain
+            const { data: blocks, error: blockError } = await _supabase
                 .from('delivery_blocks')
-                .select('delivery_fee')
-                .ilike('area_name', cleanArea)    // exact case-insensitive match
-                .ilike('block_name', cleanBlock)  // exact case-insensitive match
-                .maybeSingle();
+                .select('block_name, delivery_fee')
+                .ilike('area_name', cleanArea);
 
-            console.log("📦 Block query result:", blockData, blockError);
+            console.log("📦 All blocks for area:", blocks, blockError);
 
-            if (!blockError && blockData && blockData.delivery_fee !== null && Number(blockData.delivery_fee) > 0) {
-                console.log("✅ Block fee found:", blockData.delivery_fee);
-                return Number(blockData.delivery_fee);
+            if (!blockError && blocks && blocks.length > 0) {
+                // JS mein trim + lowercase match karo
+                const matchedBlock = blocks.find(b => 
+                    (b.block_name || "").trim().toLowerCase() === cleanBlock.toLowerCase()
+                );
+
+                if (matchedBlock && matchedBlock.delivery_fee !== null && Number(matchedBlock.delivery_fee) > 0) {
+                    console.log("✅ Block fee found via JS match:", matchedBlock.delivery_fee);
+                    return Number(matchedBlock.delivery_fee);
+                }
             }
-            console.warn("⚠️ Block fee 0/null or not found. Falling back to area fee.");
+            console.warn("⚠️ Block fee not matched. Falling back to area fee.");
         }
 
         // 2. FALLBACK: DELIVERY_AREAS
