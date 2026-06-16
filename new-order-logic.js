@@ -1219,48 +1219,57 @@ function normalizeString(str) {
 
 // 2. Hybrid Delivery Fee Calculator
 async function getFinalDeliveryFee(areaName, userInputBlock) {
+    // 1. Clean inputs
     const cleanArea = (areaName || "").trim();
     const cleanBlock = (userInputBlock || "").trim();
     
-    console.log("🔍 Querying Delivery Areas for:", cleanArea);
+    console.log("🔍 [DEBUG] Searching for Area:", "'" + cleanArea + "'");
+    console.log("🔍 [DEBUG] Searching for Block:", "'" + cleanBlock + "'");
 
     try {
-        // Query Area data
+        // 2. Fetch Area Data
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee, has_blocks')
-            .ilike('area_name', cleanArea) // .eq ki bajaye .ilike use karein
+            // ilike case-insensitive search karta hai
+            .ilike('area_name', cleanArea) 
             .maybeSingle();
 
         if (areaError) {
-            console.error("Supabase Query Error:", areaError);
+            console.error("❌ Supabase Area Error:", areaError);
             return 0;
         }
 
         if (!areaData) {
-            console.warn("⚠️ Database mein is Area ka record nahi mila:", cleanArea);
+            console.warn("⚠️ Database mein is Area ka record nahi mila:", "'" + cleanArea + "'");
             return 0;
         }
 
+        console.log("✅ Area Found in DB:", areaData);
         let finalFee = Number(areaData.customer_delivery_fee) || 0;
 
-        // Agar Block check karna hai
+        // 3. Block Check
         if (areaData.has_blocks === true && cleanBlock) {
-            const { data: blocks } = await _supabase
+            console.log("📦 Checking Block logic...");
+            const { data: blocks, error: blockError } = await _supabase
                 .from('delivery_blocks')
                 .select('block_name, delivery_fee')
                 .ilike('area_name', cleanArea)
                 .ilike('block_name', cleanBlock);
 
+            if (blockError) console.error("❌ Block Query Error:", blockError);
+            
             if (blocks && blocks.length > 0) {
                 finalFee = Number(blocks[0].delivery_fee);
-                console.log("🎯 Block found, Fee updated to:", finalFee);
+                console.log("🎯 Block Match found! Fee is:", finalFee);
+            } else {
+                console.warn("❌ Block match nahi mila. Default Area fee apply hogi.");
             }
         }
         
         return finalFee;
     } catch (err) {
-        console.error("Critical Error:", err);
+        console.error("Critical Fee calculation error:", err);
         return 0;
     }
 }
