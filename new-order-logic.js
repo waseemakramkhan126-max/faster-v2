@@ -822,7 +822,7 @@ async function handleConfirmPrompt() {
     const city = localStorage.getItem('faster_city') || "Lahore";
     const area = localStorage.getItem('faster_area') || "";
     const block = localStorage.getItem('faster_block') || ""; 
-    const currentFee = await getFinalDeliveryFee(city, area, block);
+    const currentFee = await getFinalDeliveryFee(city, area, block); 
 
     // ==========================================
     // MANUAL SUMMARY EXTRACTION
@@ -1218,58 +1218,43 @@ function normalizeString(str) {
 }
 
 // 2. Hybrid Delivery Fee Calculator
-async function getFinalDeliveryFee(areaName, userInputBlock) {
-    // 1. Clean inputs
+async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
+    const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
     const cleanBlock = (userInputBlock || "").trim();
-    
-    console.log("🔍 [DEBUG] Searching for Area:", "'" + cleanArea + "'");
-    console.log("🔍 [DEBUG] Searching for Block:", "'" + cleanBlock + "'");
 
     try {
-        // 2. Fetch Area Data
+        // Pehle delivery_areas se area fetch karo (city + area match)
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee, has_blocks')
-            // ilike case-insensitive search karta hai
-            .ilike('area_name', cleanArea) 
+            .ilike('city', cleanCity)
+            .ilike('area_name', cleanArea)
             .maybeSingle();
 
-        if (areaError) {
-            console.error("❌ Supabase Area Error:", areaError);
+        if (areaError || !areaData) {
+            console.warn("⚠️ Area not found in DB:", cleanArea, cleanCity);
             return 0;
         }
 
-        if (!areaData) {
-            console.warn("⚠️ Database mein is Area ka record nahi mila:", "'" + cleanArea + "'");
-            return 0;
-        }
-
-        console.log("✅ Area Found in DB:", areaData);
         let finalFee = Number(areaData.customer_delivery_fee) || 0;
 
-        // 3. Block Check
+        // Agar is area ke blocks hain aur user ne block enter kiya hai
         if (areaData.has_blocks === true && cleanBlock) {
-            console.log("📦 Checking Block logic...");
-            const { data: blocks, error: blockError } = await _supabase
+            const { data: blocks } = await _supabase
                 .from('delivery_blocks')
                 .select('block_name, delivery_fee')
                 .ilike('area_name', cleanArea)
                 .ilike('block_name', cleanBlock);
-
-            if (blockError) console.error("❌ Block Query Error:", blockError);
             
             if (blocks && blocks.length > 0) {
                 finalFee = Number(blocks[0].delivery_fee);
-                console.log("🎯 Block Match found! Fee is:", finalFee);
-            } else {
-                console.warn("❌ Block match nahi mila. Default Area fee apply hogi.");
             }
         }
-        
+
         return finalFee;
     } catch (err) {
-        console.error("Critical Fee calculation error:", err);
+        console.error("Fee calculation error:", err);
         return 0;
     }
 }
