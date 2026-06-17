@@ -822,7 +822,9 @@ async function handleConfirmPrompt() {
     const city = localStorage.getItem('faster_city') || "Lahore";
     const area = localStorage.getItem('faster_area') || "";
     const block = localStorage.getItem('faster_block') || ""; 
-    const currentFee = await getFinalDeliveryFee(city, area, block); 
+    const currentFee = await getFinalDeliveryFee(city, area, block, 
+    document.getElementById('overviewAddress').value.trim()
+);
 
     // ==========================================
     // MANUAL SUMMARY EXTRACTION
@@ -1161,7 +1163,7 @@ async function confirmOrderFromOverview() {
 
         // 📍 INSERT SE THEEK PEHLE DYNAMIC FEE CALCULATE KAREIN (Yahan paste karein)
         const userBlock = localStorage.getItem('faster_block') || "";
-        const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock);
+        const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
@@ -1218,37 +1220,63 @@ function normalizeString(str) {
 }
 
 // 2. Hybrid Delivery Fee Calculator
-async function getFinalDeliveryFee(cityName, areaName, userInputBlock) {
+async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
     const cleanBlock = (userInputBlock || "").trim()
-        .replace(/\s*block\s*/i, '')  // 👈 yeh extra line
-        .trim();
+        .replace(/\s*block\s*/i, '')
+        .trim()
+        .toLowerCase();
 
-    console.log("🔍 Fee lookup:", { cleanCity, cleanArea, cleanBlock });
+    console.log("🔍 Fee lookup:", { cleanCity, cleanArea, cleanBlock, addressText });
 
     try {
-        if (cleanBlock) {
-            const { data: blocks, error: blockError } = await _supabase
-                .from('delivery_blocks')
-                .select('block_name, delivery_fee')
-                .ilike('area_name', cleanArea);
+        // Pehle area ke saare blocks fetch karo (ek hi baar)
+        const { data: blocks, error: blockError } = await _supabase
+            .from('delivery_blocks')
+            .select('block_name, delivery_fee')
+            .ilike('area_name', cleanArea);
 
-            console.log("📦 All blocks for area:", blocks, blockError);
+        console.log("📦 All blocks for area:", blocks, blockError);
 
-            if (!blockError && blocks && blocks.length > 0) {
+        if (!blockError && blocks && blocks.length > 0) {
+
+            // 1. Pehle block input se match karo (existing logic)
+            if (cleanBlock) {
                 const matchedBlock = blocks.find(b => 
-                    (b.block_name || "").trim().toLowerCase() === cleanBlock.toLowerCase()
+                    (b.block_name || "").trim().toLowerCase() === cleanBlock
                 );
-
                 if (matchedBlock && matchedBlock.delivery_fee !== null && Number(matchedBlock.delivery_fee) > 0) {
-                    console.log("✅ Block fee found via JS match:", matchedBlock.delivery_fee);
+                    console.log("✅ Block fee found via input match:", matchedBlock.delivery_fee);
                     return Number(matchedBlock.delivery_fee);
                 }
             }
-            console.warn("⚠️ Block fee not matched. Falling back to area fee.");
+
+            // 2. Fallback: address text scan karo
+            if (addressText) {
+                // Address clean karo: numbers, special chars, "block" word hatao
+                const cleanAddress = addressText
+                    .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')   // numbers & special chars
+                    .replace(/\bblock\b/gi, '')                        // "block" word
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')                               // extra spaces
+                    .trim();
+
+                console.log("🧹 Cleaned address for block scan:", cleanAddress);
+
+                for (const block of blocks) {
+                    const dbBlockClean = (block.block_name || "").trim().toLowerCase();
+                    if (dbBlockClean && cleanAddress.includes(dbBlockClean)) {
+                        console.log("✅ Block detected in address:", block.block_name, block.delivery_fee);
+                        return Number(block.delivery_fee) > 0 ? Number(block.delivery_fee) : 0;
+                    }
+                }
+            }
+
+            console.warn("⚠️ Block fee not matched via input or address. Falling back to area fee.");
         }
 
+        // 3. Fallback: delivery_areas
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
