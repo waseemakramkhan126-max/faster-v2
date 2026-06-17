@@ -1224,11 +1224,10 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
-    // Block input aur address ko ek jaisa clean karo (sirf letters aur spaces bache)
     const cleanText = (text) => (text || "").trim()
-        .replace(/[^a-zA-Z\s]/g, ' ')      // numbers, special characters hatao
-        .replace(/\bblock\b/gi, '')         // "block" word hatao
-        .replace(/\s+/g, ' ')               // extra spaces hataye
+        .replace(/[^a-zA-Z\s]/g, ' ')
+        .replace(/\bblock\b/gi, '')
+        .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
 
@@ -1246,7 +1245,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            // Blocks ko length ke hisab se descending sort karo (pehle longer names check honge)
             const sortedBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
@@ -1255,11 +1253,9 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }))
                 .sort((a, b) => b.clean.length - a.clean.length);
 
-            // Helper: kisi bhi cleaned text mein whole‑word match dhundo
             const findBlockInText = (text) => {
                 if (!text) return null;
                 for (const block of sortedBlocks) {
-                    // Whole‑word boundary regex: \b ensures word boundary
                     const regex = new RegExp(`\\b${block.clean.replace(/\s+/g, '\\s+')}\\b`, 'i');
                     if (regex.test(text)) {
                         return block;
@@ -1268,7 +1264,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 return null;
             };
 
-            // 1. Pehle block input scan karo
             if (cleanBlockInput) {
                 const match = findBlockInText(cleanBlockInput);
                 if (match) {
@@ -1277,7 +1272,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }
             }
 
-            // 2. Address scan
             if (cleanAddress) {
                 const match = findBlockInText(cleanAddress);
                 if (match) {
@@ -1286,10 +1280,9 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }
             }
 
-            console.warn("⚠️ No block matched in input or address. Falling back to area fee.");
+            console.warn("⚠️ No block matched. Falling back to area fee.");
         }
 
-        // 3. Fallback: delivery_areas
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
@@ -1297,15 +1290,12 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             .ilike('area_name', cleanArea)
             .maybeSingle();
 
-        console.log("🏠 Area query result:", areaData, areaError);
-
         if (!areaError && areaData) {
             const fee = Number(areaData.customer_delivery_fee) || 0;
             console.log("🏠 Area fee fallback:", fee);
             return fee;
         }
 
-        console.warn("⚠️ No fee found. Returning 0.");
         return 0;
     } catch (err) {
         console.error("Fee calculation error:", err);
