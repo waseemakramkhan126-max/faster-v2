@@ -1227,6 +1227,26 @@ function normalizeString(str) {
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
+    // ⚡ Customer override check (sirf tab jab userPhone available ho)
+    if (typeof userPhone !== 'undefined' && userPhone) {
+        try {
+            const { data: cust } = await _supabase
+                .from('customers')
+                .select('custom_delivery_fee')
+                .eq('phone', userPhone)
+                .maybeSingle();
+
+            if (cust && cust.custom_delivery_fee !== null && cust.custom_delivery_fee > 0) {
+                console.log("🎯 Customer-specific delivery fee applied:", cust.custom_delivery_fee);
+                return Number(cust.custom_delivery_fee);
+            }
+        } catch (e) {
+            console.warn("Customer override fetch failed, falling back.", e);
+        }
+    }
+
+    // ... baaki aapka existing block/area logic ...
+}
 
     const cleanText = (text) => (text || "").trim()
         .replace(/[^a-zA-Z\s]/g, ' ')
