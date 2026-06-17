@@ -1227,6 +1227,7 @@ function normalizeString(str) {
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
+
     // ⚡ Customer override check (sirf tab jab userPhone available ho)
     if (typeof userPhone !== 'undefined' && userPhone) {
         try {
