@@ -1223,57 +1223,73 @@ function normalizeString(str) {
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
-    const cleanBlock = (userInputBlock || "").trim()
-        .replace(/\s*block\s*/i, '')
+
+    // Block input ko basic clean karo (numbers, special chars, "block" word hatao)
+    let rawBlockInput = (userInputBlock || "").trim()
+        .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
+        .replace(/\bblock\b/gi, '')
+        .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
 
-    console.log("🔍 Fee lookup:", { cleanCity, cleanArea, cleanBlock, addressText });
+    console.log("🔍 Fee lookup:", { cleanCity, cleanArea, rawBlockInput, addressText });
 
     try {
-        // Pehle area ke saare blocks fetch karo (ek hi baar)
+        // Sabse pehle area ke saare blocks fetch karo
         const { data: blocks, error: blockError } = await _supabase
             .from('delivery_blocks')
             .select('block_name, delivery_fee')
             .ilike('area_name', cleanArea);
 
-        console.log("📦 All blocks for area:", blocks, blockError);
+        if (blockError) console.error("Block fetch error:", blockError);
 
-        if (!blockError && blocks && blocks.length > 0) {
+        if (blocks && blocks.length > 0) {
+            // DB block names ki cleaned list banao
+            const dbBlocks = blocks.map(b => ({
+                original: b.block_name.trim(),
+                clean: (b.block_name || "").trim().toLowerCase(),
+                fee: Number(b.delivery_fee) || 0
+            }));
 
-            // 1. Pehle block input se match karo (existing logic)
-            if (cleanBlock) {
-                const matchedBlock = blocks.find(b => 
-                    (b.block_name || "").trim().toLowerCase() === cleanBlock
-                );
-                if (matchedBlock && matchedBlock.delivery_fee !== null && Number(matchedBlock.delivery_fee) > 0) {
-                    console.log("✅ Block fee found via input match:", matchedBlock.delivery_fee);
-                    return Number(matchedBlock.delivery_fee);
+            // Helper: kisi bhi text string se known block dhundo (token match)
+            const findBlockInText = (text) => {
+                if (!text) return null;
+                const tokens = text.split(/\s+/).filter(t => t.length > 0);
+                // Har token ko DB blocks se match karo (exact)
+                for (const token of tokens) {
+                    const match = dbBlocks.find(db => db.clean === token);
+                    if (match && match.fee > 0) return match;
+                }
+                return null;
+            };
+
+            // 1. Pehle block input scan karo
+            if (rawBlockInput) {
+                const blockMatch = findBlockInText(rawBlockInput);
+                if (blockMatch) {
+                    console.log("✅ Block matched from input:", blockMatch.original, blockMatch.fee);
+                    return blockMatch.fee;
                 }
             }
 
-            // 2. Fallback: address text scan karo
+            // 2. Address scan (agar address text diya ho)
             if (addressText) {
-                // Address clean karo: numbers, special chars, "block" word hatao
                 const cleanAddress = addressText
-                    .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')   // numbers & special chars
-                    .replace(/\bblock\b/gi, '')                        // "block" word
-                    .toLowerCase()
-                    .replace(/\s+/g, ' ')                               // extra spaces
-                    .trim();
+                    .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
+                    .replace(/\bblock\b/gi, '')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .toLowerCase();
 
-                console.log("🧹 Cleaned address for block scan:", cleanAddress);
-
-                for (const block of blocks) {
-                    const dbBlockClean = (block.block_name || "").trim().toLowerCase();
-                    if (dbBlockClean && cleanAddress.includes(dbBlockClean)) {
-                        console.log("✅ Block detected in address:", block.block_name, block.delivery_fee);
-                        return Number(block.delivery_fee) > 0 ? Number(block.delivery_fee) : 0;
-                    }
+                console.log("🧹 Cleaned address:", cleanAddress);
+                const addrMatch = findBlockInText(cleanAddress);
+                if (addrMatch) {
+                    console.log("✅ Block detected from address:", addrMatch.original, addrMatch.fee);
+                    return addrMatch.fee;
                 }
             }
 
-            console.warn("⚠️ Block fee not matched via input or address. Falling back to area fee.");
+            console.warn("⚠️ No block matched in input or address. Falling back to area fee.");
         }
 
         // 3. Fallback: delivery_areas
