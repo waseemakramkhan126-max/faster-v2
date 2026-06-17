@@ -643,7 +643,7 @@ function addAiBubble(text) {
     chat.appendChild(b);
     chat.scrollTop = chat.scrollHeight; 
 }
-//async function askAI() {
+async function askAI() {
     const inputField = document.getElementById('orderInput');
     if (!inputField.value.trim()) {
         return Dialog.show("Error", "Pehle kuch type karein.");
@@ -652,7 +652,7 @@ function addAiBubble(text) {
 }
 
 // File ko Base64 banakar AI ko bhejne wala function
-function sendMediaToAI(file, promptText) {
+/*function sendMediaToAI(file, promptText) {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = async () => {
@@ -664,10 +664,10 @@ function sendMediaToAI(file, promptText) {
         console.error("File reading error:", error);
         Dialog.show("Error", "File read nahi ho saki.", "alert");
     };
-}
+}*/
 
 // Function parameters mein fileData aur mimeType add kiya gaya 645 se 787
-async function getAiReply(userMessage, fileData = null, mimeType = null) {
+/*async function getAiReply(userMessage, fileData = null, mimeType = null) {
     const btn = document.getElementById('sendBtn'); 
     const confirmBtn = document.getElementById('finalSubmitBtn'); 
     
@@ -809,7 +809,7 @@ async function getAiReply(userMessage, fileData = null, mimeType = null) {
             confirmBtn.disabled = false; 
         }
     }
-}
+}*/
 
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
