@@ -285,8 +285,8 @@
                 </p>
             </div>
 
-            <!-- Block Name (Optional) -->
-            <div>
+            <!-- Block Name (Optional) - conditionally visible -->
+            <div id="blockInputContainer" style="display: none;">
                 <label class="section-label ml-1 mb-1.5 block">
                     Block Name <span class="text-gray-300 font-medium">(optional)</span>
                 </label>
@@ -359,24 +359,38 @@
         let selectedCity = null;
         let selectedArea = null;
 
-        // Fetch active cities & areas
+        // Fetch active cities & areas + has_blocks info
         async function loadDeliveryData() {
             const { data, error } = await _supabase
                 .from('delivery_areas')
-                .select('city, area_name')
+                .select('city, area_name, has_blocks')
                 .eq('is_active', true);
             if (error) { console.error(error); return; }
             const citySet = new Set();
             const cityAreaMap = new Map();
+            const areaHasBlocksMap = new Map();
             data.forEach(row => {
                 const c = row.city.trim();
                 const a = row.area_name.trim();
                 citySet.add(c);
                 if (!cityAreaMap.has(c)) cityAreaMap.set(c, []);
                 cityAreaMap.get(c).push(a);
+                areaHasBlocksMap.set(a, row.has_blocks);
             });
             citiesList = Array.from(citySet).sort();
             window.cityAreaMap = cityAreaMap;
+            window.areaHasBlocksMap = areaHasBlocksMap;
+        }
+
+        // Toggle block input visibility based on area's has_blocks
+        function updateBlockVisibility(areaName) {
+            const blockContainer = document.getElementById('blockInputContainer');
+            if (!areaName) {
+                blockContainer.style.display = 'none';
+                return;
+            }
+            const hasBlocks = window.areaHasBlocksMap?.get(areaName) === true;
+            blockContainer.style.display = hasBlocks ? 'block' : 'none';
         }
 
         // Load customer data
@@ -416,6 +430,7 @@
                     document.getElementById('areaDisplay').classList.remove('text-gray-500');
                     document.getElementById('areaDisplay').classList.add('text-gray-900');
                     document.getElementById('areaDisplay').closest('.dropdown-btn').classList.add('is-filled');
+                    updateBlockVisibility(cust.area);
                 }
                 document.getElementById('blockInput').value = cust.block || '';
             }
@@ -461,6 +476,7 @@
             document.getElementById('areaDisplay').classList.add('text-gray-500');
             document.getElementById('areaDisplay').classList.remove('text-gray-900');
             document.getElementById('areaDisplay').closest('.dropdown-btn').classList.remove('is-filled');
+            updateBlockVisibility(null); // hide block input until new area chosen
             await refreshAreasForCity(city);
             closeSelectionModal();
         }
@@ -485,6 +501,7 @@
             document.getElementById('areaDisplay').textContent = area;
             document.getElementById('areaDisplay').classList.replace('text-gray-500', 'text-gray-900');
             document.getElementById('areaDisplay').closest('.dropdown-btn').classList.add('is-filled');
+            updateBlockVisibility(area);
             closeSelectionModal();
         }
         function closeSelectionModal() {
