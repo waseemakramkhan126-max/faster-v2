@@ -400,12 +400,14 @@
         }
         
         async function logout() { 
-            if(confirm("Are you sure you want to logout?")) { 
-                await _supabase.auth.signOut();
-                localStorage.clear(); 
-                setTimeout(() => { window.location.replace("index.html"); }, 500);
-            } 
-        }
+          if(confirm("Are you sure you want to logout?")) { 
+            await _supabase.auth.signOut();
+             localStorage.clear();
+             // 👇 Yeh line add karo
+            localStorage.setItem('faster_logged_out', 'true');
+           setTimeout(() => { window.location.replace("index.html"); }, 500);
+         } 
+     }
 
         function setGreeting() {
             const hour = new Date().getHours();
