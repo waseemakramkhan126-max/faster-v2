@@ -1246,7 +1246,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     }
 
     // ... baaki aapka existing block/area logic ...
-
+}
     const cleanText = (text) => (text || "").trim()
         .replace(/[^a-zA-Z\s]/g, ' ')
         .replace(/\bblock\b/gi, '')
