@@ -845,80 +845,85 @@
 
         // Save Profile (including location)
         async function updateProfile() {
-            const name = document.getElementById('nameInput').value.trim();
-            const phone = document.getElementById('phoneInput').value.trim();
-            const address = document.getElementById('addressInput').value.trim();
-            const block = document.getElementById('blockInput').value.trim();
-            if (!name || !phone || !address) { alert('Fill required fields.'); return; }
-            if (!selectedCity || !selectedArea) { alert('Select city and area.'); return; }
+    const name = document.getElementById('nameInput').value.trim();
+    const phone = document.getElementById('phoneInput').value.trim();
+    const address = document.getElementById('addressInput').value.trim();
+    const block = document.getElementById('blockInput').value.trim();
 
-            const btn = document.getElementById('saveBtn');
-            btn.disabled = true;
-            document.getElementById('btnIcon').className = 'fas fa-spinner fa-spin';
-            document.getElementById('btnText').textContent = 'Updating...';
+    if (!name || !phone || !address) { alert('Fill required fields.'); return; }
+    if (!selectedCity || !selectedArea) { alert('Select city and area.'); return; }
 
-            try {
-                if (phone !== originalPhone) {
-                    const { data: dup } = await _supabase.from('customers').select('email').eq('phone', phone).maybeSingle();
-                    if (dup && dup.email !== userEmail) {
-                        alert('Phone already registered.');
-                        resetBtn();
-                        return;
-                    }
-                }
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    document.getElementById('btnIcon').className = 'fas fa-spinner fa-spin';
+    document.getElementById('btnText').textContent = 'Updating...';
 
-                let finalAddress = address;
-                if (exactLatLng) finalAddress += " | GPS: " + exactLatLng;
-
-                let avatarUrl = undefined;
-                if (newAvatarFile) {
-                    const fileExt = newAvatarFile.name.split('.').pop();
-                    const fileName = `${userEmail}_${Date.now()}.${fileExt}`;
-                    const { error: uploadError } = await _supabase.storage
-                        .from('avatars')
-                        .upload(fileName, newAvatarFile, { cacheControl: '3600', upsert: true });
-                    if (uploadError) throw uploadError;
-
-                    const { data: urlData } = _supabase.storage
-                        .from('avatars')
-                        .getPublicUrl(fileName);
-                    avatarUrl = urlData.publicUrl;
-                }
-
-                const updateData = {
-                    name,
-                    phone,
-                    address: finalAddress,
-                    city: selectedCity,
-                    area: selectedArea,
-                    block
-                };
-                if (avatarUrl) updateData.avatar_url = avatarUrl;
-                if (exactLatLng) updateData.location = exactLatLng;  // Save to customers.location
-
-                const { error } = await _supabase
-                    .from('customers')
-                    .update(updateData)
-                    .eq('email', userEmail);
-                if (error) throw error;
-
-                localStorage.setItem('faster_name', name);
-                localStorage.setItem('faster_phone', phone);
-                localStorage.setItem('faster_address', address);
-                localStorage.setItem('faster_city', selectedCity);
-                localStorage.setItem('faster_area', selectedArea);
-                localStorage.setItem('faster_block', block);
-                localStorage.setItem('faster_exact_location', exactLatLng);
-
-                document.getElementById('btnIcon').className = 'fas fa-check-circle';
-                document.getElementById('btnText').textContent = 'Saved!';
-                btn.classList.add('bg-green-600');
-                setTimeout(() => window.location.replace('home.html'), 800);
-            } catch (err) {
-                alert('Error: ' + err.message);
+    try {
+        if (phone !== originalPhone) {
+            const { data: dup } = await _supabase.from('customers').select('email').eq('phone', phone).maybeSingle();
+            if (dup && dup.email !== userEmail) {
+                alert('Phone already registered.');
                 resetBtn();
+                return;
             }
         }
+
+        // ❌ Ab GPS address mein nahi jodega
+        // let finalAddress = address;
+        // if (exactLatLng) finalAddress += " | GPS: " + exactLatLng;
+
+        // ✅ Seedha user ka likha address use karo
+        const finalAddress = address;
+
+        let avatarUrl = undefined;
+        if (newAvatarFile) {
+            const fileExt = newAvatarFile.name.split('.').pop();
+            const fileName = `${userEmail}_${Date.now()}.${fileExt}`;
+            const { error: uploadError } = await _supabase.storage
+                .from('avatars')
+                .upload(fileName, newAvatarFile, { cacheControl: '3600', upsert: true });
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = _supabase.storage
+                .from('avatars')
+                .getPublicUrl(fileName);
+            avatarUrl = urlData.publicUrl;
+        }
+
+        const updateData = {
+            name,
+            phone,
+            address: finalAddress,       // 🧹 sirf text address
+            city: selectedCity,
+            area: selectedArea,
+            block
+        };
+        if (avatarUrl) updateData.avatar_url = avatarUrl;
+        if (exactLatLng) updateData.location = exactLatLng;   // 📍 GPS alag save
+
+        const { error } = await _supabase
+            .from('customers')
+            .update(updateData)
+            .eq('email', userEmail);
+        if (error) throw error;
+
+        localStorage.setItem('faster_name', name);
+        localStorage.setItem('faster_phone', phone);
+        localStorage.setItem('faster_address', address);
+        localStorage.setItem('faster_city', selectedCity);
+        localStorage.setItem('faster_area', selectedArea);
+        localStorage.setItem('faster_block', block);
+        localStorage.setItem('faster_exact_location', exactLatLng);
+
+        document.getElementById('btnIcon').className = 'fas fa-check-circle';
+        document.getElementById('btnText').textContent = 'Saved!';
+        btn.classList.add('bg-green-600');
+        setTimeout(() => window.location.replace('home.html'), 800);
+    } catch (err) {
+        alert('Error: ' + err.message);
+        resetBtn();
+    }
+}
 
         function resetBtn() {
             const btn = document.getElementById('saveBtn');
