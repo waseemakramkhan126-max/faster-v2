@@ -1246,8 +1246,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         }
     }
 
-    // ... baaki aapka existing block/area logic ...
-}
     const cleanText = (text) => (text || "").trim()
         .replace(/[^a-zA-Z\s]/g, ' ')
         .replace(/\bblock\b/gi, '')
@@ -1269,7 +1267,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            // Pehle se blocks ko token length ke hisaab se bada rakho (longer blocks pehle)
             const allBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
@@ -1278,12 +1275,10 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }))
                 .sort((a, b) => b.tokens.length - a.tokens.length);
 
-            // Helper: kisi bhi cleaned text mein best block dhundo
             const findBlock = (text, allowSingleLetters = true) => {
                 if (!text) return null;
                 const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
                 for (const block of allBlocks) {
-                    // Agar allowSingleLetters false hai aur block single letter hai → skip
                     if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
                         continue;
                     }
@@ -1294,7 +1289,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 return null;
             };
 
-            // 1. Block input se match (hamesha single letters bhi allow)
             if (cleanBlockInput) {
                 const match = findBlock(cleanBlockInput, true);
                 if (match) {
@@ -1303,7 +1297,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }
             }
 
-            // 2. Address se match (⚠️ single letters ignore karo)
             if (cleanAddress) {
                 const match = findBlock(cleanAddress, false);
                 if (match) {
@@ -1315,7 +1308,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
 
-        // 3. Fallback: area fee
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
