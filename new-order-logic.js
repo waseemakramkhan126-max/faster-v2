@@ -1249,7 +1249,8 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            const sortedBlocks = blocks
+            // 1. Exact phrase match (existing logic)
+            const exactBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
                     clean: (b.block_name || "").trim().toLowerCase(),
@@ -1257,27 +1258,44 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }))
                 .sort((a, b) => b.clean.length - a.clean.length);
 
-            const findBlockInText = (text) => {
-                if (!text) return null;
-                for (const block of sortedBlocks) {
+            const exactMatch = (text) => {
+                for (const block of exactBlocks) {
                     const regex = new RegExp(`\\b${block.clean.replace(/\s+/g, '\\s+')}\\b`, 'i');
-                    if (regex.test(text)) {
-                        return block;
-                    }
+                    if (regex.test(text)) return block;
                 }
                 return null;
             };
 
+            // 2. Token‑based fallback (order‑insensitive)
+            const tokenMatch = (text) => {
+                const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
+                const candidates = [];
+                for (const block of exactBlocks) {
+                    const blockTokens = block.clean.split(/\s+/);
+                    if (blockTokens.every(t => inputTokens.includes(t))) {
+                        candidates.push({ block, tokenCount: blockTokens.length });
+                    }
+                }
+                if (candidates.length > 0) {
+                    // Prefer the block with most tokens (longest), then first match
+                    candidates.sort((a, b) => b.tokenCount - a.tokenCount);
+                    return candidates[0].block;
+                }
+                return null;
+            };
+
+            // Try block input (exact then token)
             if (cleanBlockInput) {
-                const match = findBlockInText(cleanBlockInput);
+                let match = exactMatch(cleanBlockInput) || tokenMatch(cleanBlockInput);
                 if (match) {
                     console.log("✅ Block matched from input:", match.original, match.fee);
                     return match.fee;
                 }
             }
 
+            // Try address (exact then token)
             if (cleanAddress) {
-                const match = findBlockInText(cleanAddress);
+                let match = exactMatch(cleanAddress) || tokenMatch(cleanAddress);
                 if (match) {
                     console.log("✅ Block detected from address:", match.original, match.fee);
                     return match.fee;
