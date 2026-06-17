@@ -643,7 +643,7 @@ function addAiBubble(text) {
     chat.appendChild(b);
     chat.scrollTop = chat.scrollHeight; 
 }
-async function askAI() {
+//async function askAI() {
     const inputField = document.getElementById('orderInput');
     if (!inputField.value.trim()) {
         return Dialog.show("Error", "Pehle kuch type karein.");
