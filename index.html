@@ -366,37 +366,77 @@
 
         // --- Auth & redirection ---
         async function checkAuthState() {
-            const { data: { session } } = await _supabase.auth.getSession();
-            if (!session) {
-                document.getElementById('googleLoginSection').classList.remove('hidden');
-                return;
+    try {
+        if (!navigator.onLine) {
+            document.getElementById('mainLoader').classList.add('hidden');
+            document.getElementById('googleLoginSection').classList.remove('hidden');
+            return;
+        }
+        
+        const { data: { session }, error } = await _supabase.auth.getSession();
+        
+        if (error || !session) {
+            document.getElementById('googleLoginSection').classList.remove('hidden');
+            return;
+        }
+
+        const userEmail = session.user.email.toLowerCase();
+        const googleName = session.user.user_metadata.full_name;
+
+        // 👇 Flag check: agar user ne logout kiya tha to profile form dikhao
+        const loggedOutFlag = localStorage.getItem('faster_logged_out');
+        if (loggedOutFlag === 'true') {
+            localStorage.removeItem('faster_logged_out'); // flag hatao
+            // Agar customer record hai to data pre-fill karo, nahi to blank
+            const { data: cust } = await _supabase.from('customers').select('phone, name, city, area, block').eq('email', userEmail).maybeSingle();
+            if (cust) {
+                document.getElementById('nameInput').value = cust.name || googleName || "";
+                // phone, city, area, block pre-fill mat karo taake user dobara enter kare? Ya pre-fill karo.
+                // Aap decide karo. Hum phone ko blank rakh sakte hain validation ke liye.
+                // City/area dropdowns refresh karna hoga.
+                if (cust.city) {
+                    selectedCity = cust.city;
+                    document.getElementById('cityDisplay').textContent = cust.city;
+                    // class changes...
+                }
+                if (cust.area) {
+                    selectedArea = cust.area;
+                    document.getElementById('areaDisplay').textContent = cust.area;
+                    // class changes...
+                }
+                document.getElementById('phoneInput').value = cust.phone || "";
+                document.getElementById('addressInput').value = cust.address || "";
+                if (cust.block) {
+                    document.getElementById('blockInput').value = cust.block;
+                }
+            } else {
+                document.getElementById('nameInput').value = googleName || "";
             }
+            document.getElementById('profileFormSection').classList.remove('hidden');
+            document.getElementById('mainLoader').classList.add('hidden');
+            return;
+        }
 
-            const userEmail = session.user.email.toLowerCase();
-            const { data: cust } = await _supabase
-                .from('customers')
-                .select('phone, name, city, area, block')
-                .eq('email', userEmail)
-                .maybeSingle();
+        // Pehle jaisa logic (registered users ke liye direct home)
+        const { data: customerRecord } = await _supabase.from('customers').select('phone, name, city, area, block').eq('email', userEmail).maybeSingle();
 
-            if (cust && cust.phone) {
-                // Already registered – go home
-                localStorage.setItem('faster_phone', cust.phone);
-                localStorage.setItem('faster_name', cust.name || '');
-                localStorage.setItem('faster_city', cust.city || '');
-                localStorage.setItem('faster_area', cust.area || '');
-                localStorage.setItem('faster_block', cust.block || '');
-                window.location.replace('home.html');
-                return;
-            }
-
-            // Pre-fill name if available
-            if (session.user.user_metadata?.full_name) {
-                document.getElementById('nameInput').value = session.user.user_metadata.full_name;
-            }
-
+        if (customerRecord && customerRecord.phone) {
+            localStorage.setItem('faster_phone', customerRecord.phone);
+            localStorage.setItem('faster_name', customerRecord.name);
+            localStorage.setItem('faster_city', customerRecord.city || "");
+            localStorage.setItem('faster_area', customerRecord.area || "");
+            localStorage.setItem('faster_block', customerRecord.block || ""); 
+            window.location.replace('home.html');
+        } else {
+            document.getElementById('nameInput').value = googleName || "";
             document.getElementById('profileFormSection').classList.remove('hidden');
         }
+    } catch (err) {
+        document.getElementById('googleLoginSection').classList.remove('hidden');
+    } finally {
+        document.getElementById('mainLoader').classList.add('hidden');
+    }
+}
 
         async function loginWithGoogle() {
             if (!navigator.onLine) { alert('No internet!'); return; }
