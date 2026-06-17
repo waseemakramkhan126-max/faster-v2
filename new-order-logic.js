@@ -1228,6 +1228,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
+    // Clean text: keep only letters and spaces
     const cleanText = (text) => (text || "").trim()
         .replace(/[^a-zA-Z\s]/g, ' ')
         .replace(/\bblock\b/gi, '')
@@ -1241,6 +1242,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     console.log("🔍 Fee lookup:", { cleanCity, cleanArea, blockInput: cleanBlockInput, address: cleanAddress });
 
     try {
+        // Fetch all blocks for the area
         const { data: blocks, error: blockError } = await _supabase
             .from('delivery_blocks')
             .select('block_name, delivery_fee')
@@ -1249,53 +1251,40 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            // 1. Exact phrase match (existing logic)
-            const exactBlocks = blocks
+            // Prepare blocks, sorted by number of words (descending)
+            const sortedBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
-                    clean: (b.block_name || "").trim().toLowerCase(),
+                    tokens: (b.block_name || "").trim().toLowerCase().split(/\s+/),
                     fee: Number(b.delivery_fee) || 0
                 }))
-                .sort((a, b) => b.clean.length - a.clean.length);
+                .sort((a, b) => b.tokens.length - a.tokens.length); // more words first
 
-            const exactMatch = (text) => {
-                for (const block of exactBlocks) {
-                    const regex = new RegExp(`\\b${block.clean.replace(/\s+/g, '\\s+')}\\b`, 'i');
-                    if (regex.test(text)) return block;
-                }
-                return null;
-            };
-
-            // 2. Token‑based fallback (order‑insensitive)
-            const tokenMatch = (text) => {
+            // Helper: find best matching block for a cleaned text
+            const findBlock = (text) => {
+                if (!text) return null;
                 const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
-                const candidates = [];
-                for (const block of exactBlocks) {
-                    const blockTokens = block.clean.split(/\s+/);
-                    if (blockTokens.every(t => inputTokens.includes(t))) {
-                        candidates.push({ block, tokenCount: blockTokens.length });
+                // Try blocks from most specific to least
+                for (const block of sortedBlocks) {
+                    if (block.tokens.every(t => inputTokens.includes(t))) {
+                        return block;
                     }
                 }
-                if (candidates.length > 0) {
-                    // Prefer the block with most tokens (longest), then first match
-                    candidates.sort((a, b) => b.tokenCount - a.tokenCount);
-                    return candidates[0].block;
-                }
                 return null;
             };
 
-            // Try block input (exact then token)
+            // 1. Try block input first
             if (cleanBlockInput) {
-                let match = exactMatch(cleanBlockInput) || tokenMatch(cleanBlockInput);
+                const match = findBlock(cleanBlockInput);
                 if (match) {
                     console.log("✅ Block matched from input:", match.original, match.fee);
                     return match.fee;
                 }
             }
 
-            // Try address (exact then token)
+            // 2. Try address
             if (cleanAddress) {
-                let match = exactMatch(cleanAddress) || tokenMatch(cleanAddress);
+                const match = findBlock(cleanAddress);
                 if (match) {
                     console.log("✅ Block detected from address:", match.original, match.fee);
                     return match.fee;
@@ -1305,6 +1294,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
 
+        // 3. Fallback to area fee
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
@@ -1312,12 +1302,15 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             .ilike('area_name', cleanArea)
             .maybeSingle();
 
+        console.log("🏠 Area query result:", areaData, areaError);
+
         if (!areaError && areaData) {
             const fee = Number(areaData.customer_delivery_fee) || 0;
             console.log("🏠 Area fee fallback:", fee);
             return fee;
         }
 
+        console.warn("⚠️ No fee found. Returning 0.");
         return 0;
     } catch (err) {
         console.error("Fee calculation error:", err);
