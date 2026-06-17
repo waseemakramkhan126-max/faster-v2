@@ -822,7 +822,11 @@ async function handleConfirmPrompt() {
     const city = localStorage.getItem('faster_city') || "Lahore";
     const area = localStorage.getItem('faster_area') || "";
     const block = localStorage.getItem('faster_block') || ""; 
-    const currentFee = await getFinalDeliveryFee(city, area, block, 
+    // Pehle overviewAddress set karo
+document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
+
+// Ab fee calculate karo (taake address scan ke liye value maujood ho)
+const currentFee = await getFinalDeliveryFee(city, area, block, 
     document.getElementById('overviewAddress').value.trim()
 );
 
