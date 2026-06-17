@@ -1228,7 +1228,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
-    // Clean text: keep only letters and spaces
     const cleanText = (text) => (text || "").trim()
         .replace(/[^a-zA-Z\s]/g, ' ')
         .replace(/\bblock\b/gi, '')
@@ -1242,7 +1241,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     console.log("🔍 Fee lookup:", { cleanCity, cleanArea, blockInput: cleanBlockInput, address: cleanAddress });
 
     try {
-        // Fetch all blocks for the area
         const { data: blocks, error: blockError } = await _supabase
             .from('delivery_blocks')
             .select('block_name, delivery_fee')
@@ -1251,21 +1249,24 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            // Prepare blocks, sorted by number of words (descending)
-            const sortedBlocks = blocks
+            // Pehle se blocks ko token length ke hisaab se bada rakho (longer blocks pehle)
+            const allBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
                     tokens: (b.block_name || "").trim().toLowerCase().split(/\s+/),
                     fee: Number(b.delivery_fee) || 0
                 }))
-                .sort((a, b) => b.tokens.length - a.tokens.length); // more words first
+                .sort((a, b) => b.tokens.length - a.tokens.length);
 
-            // Helper: find best matching block for a cleaned text
-            const findBlock = (text) => {
+            // Helper: kisi bhi cleaned text mein best block dhundo
+            const findBlock = (text, allowSingleLetters = true) => {
                 if (!text) return null;
                 const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
-                // Try blocks from most specific to least
-                for (const block of sortedBlocks) {
+                for (const block of allBlocks) {
+                    // Agar allowSingleLetters false hai aur block single letter hai → skip
+                    if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
+                        continue;
+                    }
                     if (block.tokens.every(t => inputTokens.includes(t))) {
                         return block;
                     }
@@ -1273,18 +1274,18 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 return null;
             };
 
-            // 1. Try block input first
+            // 1. Block input se match (hamesha single letters bhi allow)
             if (cleanBlockInput) {
-                const match = findBlock(cleanBlockInput);
+                const match = findBlock(cleanBlockInput, true);
                 if (match) {
                     console.log("✅ Block matched from input:", match.original, match.fee);
                     return match.fee;
                 }
             }
 
-            // 2. Try address
+            // 2. Address se match (⚠️ single letters ignore karo)
             if (cleanAddress) {
-                const match = findBlock(cleanAddress);
+                const match = findBlock(cleanAddress, false);
                 if (match) {
                     console.log("✅ Block detected from address:", match.original, match.fee);
                     return match.fee;
@@ -1294,7 +1295,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
 
-        // 3. Fallback to area fee
+        // 3. Fallback: area fee
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
@@ -1302,15 +1303,12 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             .ilike('area_name', cleanArea)
             .maybeSingle();
 
-        console.log("🏠 Area query result:", areaData, areaError);
-
         if (!areaError && areaData) {
             const fee = Number(areaData.customer_delivery_fee) || 0;
             console.log("🏠 Area fee fallback:", fee);
             return fee;
         }
 
-        console.warn("⚠️ No fee found. Returning 0.");
         return 0;
     } catch (err) {
         console.error("Fee calculation error:", err);
