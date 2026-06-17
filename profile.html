@@ -28,7 +28,6 @@
             color: var(--ink);
         }
 
-        /* Header */
         .app-header {
             background: rgba(255,255,255,0.85);
             backdrop-filter: blur(14px);
@@ -42,7 +41,6 @@
         }
         .back-btn:active { transform: scale(0.94); background: #f1f5f9; }
 
-        /* Avatar */
         .avatar-ring {
             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             box-shadow: 0 12px 24px -8px rgba(37,99,235,0.45);
@@ -65,7 +63,6 @@
             color: white;
         }
 
-        /* Card */
         .profile-card {
             background: #ffffff;
             border-radius: 26px;
@@ -81,7 +78,6 @@
             color: #94a3b8;
         }
 
-        /* Inputs */
         .field-group {
             background: #f8fafc;
             border: 1.5px solid var(--line);
@@ -112,7 +108,6 @@
             color: var(--brand);
         }
 
-        /* Dropdowns */
         .dropdown-btn {
             background: #f8fafc;
             border: 1.5px solid var(--line);
@@ -138,14 +133,12 @@
             font-size: 11px;
         }
 
-        /* Two-column layout for City / Area */
         .dual-col {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
 
-        /* Map pick button */
         .map-btn {
             background: var(--brand-light);
             color: var(--brand);
@@ -175,7 +168,6 @@
             color: #94a3b8;
         }
 
-        /* Save button */
         .save-btn {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
             box-shadow: 0 14px 28px -10px rgba(37,99,235,0.5);
@@ -186,7 +178,6 @@
 
         .divider { height: 1px; background: var(--line); margin: 4px 0; }
 
-        /* Modal */
         .modal-overlay {
             background: rgba(15,23,42,0.55);
             backdrop-filter: blur(6px);
@@ -197,7 +188,6 @@
         }
         .list-item:active { background: #f1f5f9; }
 
-        /* Map modal */
         .map-leave { transform: translateY(100%); opacity: 0; pointer-events: none; }
         .map-enter { transform: translateY(0); opacity: 1; pointer-events: auto; }
         .center-pin {
@@ -237,10 +227,12 @@
 
         <!-- Avatar / Title block -->
         <div class="flex flex-col items-center mb-6">
-            <div class="avatar-ring w-20 h-20 rounded-full flex items-center justify-center mb-3 relative" onclick="document.getElementById('avatarInput').click()">
+            <div class="avatar-ring w-20 h-20 rounded-full flex items-center justify-center mb-3 relative" onclick="handleAvatarClick()">
                 <img id="avatarImg" src="" alt="Profile" class="w-full h-full object-cover rounded-full" style="display:none;">
                 <i id="avatarPlaceholder" class="fas fa-user text-white text-2xl absolute inset-0 flex items-center justify-center"></i>
-                <div class="overlay-icon"><i class="fas fa-camera"></i></div>
+                <div class="overlay-icon" onclick="event.stopPropagation(); document.getElementById('avatarInput').click()">
+                    <i class="fas fa-camera"></i>
+                </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="previewAvatar(event)">
             </div>
             <p class="text-sm font-bold text-gray-400">Manage your account details</p>
@@ -363,6 +355,14 @@
         </div>
     </div>
 
+    <!-- Avatar Preview Modal -->
+    <div id="avatarPreviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-90" onclick="closeAvatarPreview()">
+        <img id="avatarPreviewImg" src="" class="max-w-[90%] max-h-[80vh] object-contain rounded-lg" onclick="event.stopPropagation()">
+        <button onclick="closeAvatarPreview()" class="absolute top-6 right-6 text-white text-2xl bg-white/20 rounded-full w-10 h-10 flex items-center justify-center">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const _supabase = supabase.createClient(
@@ -378,13 +378,12 @@
         let currentAreas = [];
         let selectedCity = null;
         let selectedArea = null;
-        let newAvatarFile = null; // newly selected image file
+        let newAvatarFile = null;
 
         // --- Avatar functions ---
         function previewAvatar(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             newAvatarFile = file;
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -393,6 +392,26 @@
                 document.getElementById('avatarPlaceholder').style.display = 'none';
             };
             reader.readAsDataURL(file);
+        }
+
+        function handleAvatarClick() {
+            const img = document.getElementById('avatarImg');
+            if (img.style.display !== 'none' && img.src && img.src.trim() !== '') {
+                openAvatarPreview(img.src);
+            } else {
+                document.getElementById('avatarInput').click();
+            }
+        }
+
+        function openAvatarPreview(src) {
+            document.getElementById('avatarPreviewImg').src = src;
+            document.getElementById('avatarPreviewModal').classList.remove('hidden');
+            document.getElementById('avatarPreviewModal').classList.add('flex');
+        }
+
+        function closeAvatarPreview() {
+            document.getElementById('avatarPreviewModal').classList.add('hidden');
+            document.getElementById('avatarPreviewModal').classList.remove('flex');
         }
 
         // Simple MD5 (needed for Gravatar)
@@ -586,9 +605,8 @@
             // Set initial avatar
             let avatarUrl = null;
             if (session.user.user_metadata?.avatar_url) {
-                avatarUrl = session.user.user_metadata.avatar_url; // OAuth avatar
+                avatarUrl = session.user.user_metadata.avatar_url;
             } else {
-                // Gravatar fallback
                 const emailHash = md5(userEmail.trim().toLowerCase());
                 avatarUrl = `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=200`;
             }
@@ -630,13 +648,11 @@
                 }
                 document.getElementById('blockInput').value = cust.block || '';
 
-                // If customer has custom avatar_url, use it, else keep initial
                 if (cust.avatar_url) {
                     avatarUrl = cust.avatar_url;
                 }
             }
 
-            // Set avatar image
             const avatarImg = document.getElementById('avatarImg');
             const placeholder = document.getElementById('avatarPlaceholder');
             if (avatarUrl) {
@@ -644,7 +660,6 @@
                 avatarImg.style.display = 'block';
                 placeholder.style.display = 'none';
             } else {
-                // show placeholder icon (already visible)
                 avatarImg.style.display = 'none';
                 placeholder.style.display = 'flex';
             }
@@ -795,7 +810,6 @@
                 if (exactLatLng) finalAddress += " | GPS: " + exactLatLng;
 
                 let avatarUrl = undefined;
-                // Upload avatar if a new file was selected
                 if (newAvatarFile) {
                     const fileExt = newAvatarFile.name.split('.').pop();
                     const fileName = `${userEmail}_${Date.now()}.${fileExt}`;
