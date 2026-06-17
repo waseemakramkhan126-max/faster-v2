@@ -71,9 +71,9 @@
         }
 
         .section-label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: #94a3b8;
         }
@@ -81,25 +81,25 @@
         .field-group {
             background: #f8fafc;
             border: 1.5px solid var(--line);
-            border-radius: 14px;
-            padding: 13px 14px;
+            border-radius: 12px;
+            padding: 10px 12px;
             transition: all 0.18s;
         }
         .field-group:focus-within {
             background: #ffffff;
             border-color: var(--brand);
-            box-shadow: 0 0 0 4px rgba(37,99,235,0.10);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
         }
         .field-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 9px;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
             background: #eef2f9;
             color: #64748b;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 13px;
+            font-size: 12px;
             flex-shrink: 0;
             transition: all 0.18s;
         }
@@ -111,45 +111,55 @@
         .dropdown-btn {
             background: #f8fafc;
             border: 1.5px solid var(--line);
-            border-radius: 14px;
-            padding: 13px 14px;
+            border-radius: 12px;
+            padding: 10px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
             transition: all 0.18s;
+            overflow: hidden;
         }
         .dropdown-btn:active { background: #f1f5f9; }
         .dropdown-btn.is-filled { border-color: #cbd5e1; }
+        .dropdown-btn .display-text {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
         .chevron-wrap {
-            width: 26px;
-            height: 26px;
-            border-radius: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 7px;
             background: #eef2f9;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #94a3b8;
-            font-size: 11px;
+            font-size: 10px;
+            flex-shrink: 0;
         }
 
         .dual-col {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 8px;
         }
 
         .map-btn {
             background: var(--brand-light);
             color: var(--brand);
             border: 1px solid #bfdbfe;
-            border-radius: 10px;
-            padding: 7px 13px;
+            border-radius: 9px;
+            padding: 5px 10px;
             font-weight: 700;
-            font-size: 11px;
+            font-size: 10px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             transition: all 0.18s;
         }
         .map-btn:active { background: #dbeafe; transform: scale(0.96); }
@@ -162,8 +172,8 @@
         .hint-row {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 11px;
+            gap: 5px;
+            font-size: 10px;
             font-weight: 600;
             color: #94a3b8;
         }
@@ -172,11 +182,12 @@
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
             box-shadow: 0 14px 28px -10px rgba(37,99,235,0.5);
             transition: all 0.18s;
+            padding: 14px 20px;
         }
         .save-btn:active { transform: scale(0.985); box-shadow: 0 8px 16px -8px rgba(37,99,235,0.4); }
         .save-btn:disabled { opacity: 0.85; }
 
-        .divider { height: 1px; background: var(--line); margin: 4px 0; }
+        .divider { height: 1px; background: var(--line); margin: 2px 0; }
 
         .modal-overlay {
             background: rgba(15,23,42,0.55);
@@ -184,7 +195,8 @@
         }
         .list-item {
             transition: background 0.15s;
-            border-radius: 12px;
+            border-radius: 10px;
+            padding: 12px 14px;
         }
         .list-item:active { background: #f1f5f9; }
 
@@ -215,101 +227,97 @@
 <body class="min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="app-header sticky top-0 z-30 px-5 py-4 flex items-center gap-3">
-        <button onclick="history.back()" class="back-btn w-10 h-10 rounded-full flex items-center justify-center">
+    <header class="app-header sticky top-0 z-30 px-4 py-3 flex items-center gap-3">
+        <button onclick="history.back()" class="back-btn w-9 h-9 rounded-full flex items-center justify-center">
             <i class="fas fa-arrow-left text-gray-700 text-sm"></i>
         </button>
         <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">My <span class="text-blue-600">Profile</span></h1>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 max-w-md w-full mx-auto px-5 py-6">
+    <main class="flex-1 max-w-md w-full mx-auto px-4 py-4">
 
-        <!-- Avatar / Title block -->
-        <div class="flex flex-col items-center mb-6">
-            <div class="avatar-ring w-20 h-20 rounded-full flex items-center justify-center mb-3 relative" onclick="handleAvatarClick()">
+        <!-- Avatar block -->
+        <div class="flex flex-col items-center mb-4">
+            <div class="avatar-ring w-16 h-16 rounded-full flex items-center justify-center mb-2 relative" onclick="handleAvatarClick()">
                 <img id="avatarImg" src="" alt="Profile" class="w-full h-full object-cover rounded-full" style="display:none;">
-                <i id="avatarPlaceholder" class="fas fa-user text-white text-2xl absolute inset-0 flex items-center justify-center"></i>
+                <i id="avatarPlaceholder" class="fas fa-user text-white text-xl absolute inset-0 flex items-center justify-center"></i>
                 <div class="overlay-icon" onclick="event.stopPropagation(); document.getElementById('avatarInput').click()">
                     <i class="fas fa-camera"></i>
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="previewAvatar(event)">
             </div>
-            <p class="text-sm font-bold text-gray-400">Manage your account details</p>
+            <p class="text-xs font-bold text-gray-400">Manage your account details</p>
         </div>
 
         <!-- Profile Card -->
-        <div class="profile-card p-6 space-y-5">
+        <div class="profile-card p-4 space-y-3">
 
             <!-- Full Name -->
             <div>
-                <label class="section-label ml-1 mb-1.5 block">Full Name</label>
-                <div class="field-group flex items-center gap-3">
+                <label class="section-label ml-1 mb-1 block">Full Name</label>
+                <div class="field-group flex items-center gap-2">
                     <div class="field-icon"><i class="fas fa-user"></i></div>
-                    <input type="text" id="nameInput" placeholder="Enter your full name" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
+                    <input type="text" id="nameInput" placeholder="Enter your full name" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none text-sm">
                 </div>
             </div>
 
             <!-- Phone -->
             <div>
-                <label class="section-label ml-1 mb-1.5 block">Phone Number</label>
-                <div class="field-group flex items-center gap-3">
+                <label class="section-label ml-1 mb-1 block">Phone Number</label>
+                <div class="field-group flex items-center gap-2">
                     <div class="field-icon"><i class="fas fa-phone"></i></div>
-                    <input type="tel" id="phoneInput" placeholder="03XX-XXXXXXX" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
+                    <input type="tel" id="phoneInput" placeholder="03XX-XXXXXXX" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none text-sm">
                 </div>
             </div>
-
-            <div class="divider"></div>
 
             <!-- City + Area side by side -->
             <div class="dual-col">
                 <div>
-                    <label class="section-label ml-1 mb-1.5 block">City</label>
+                    <label class="section-label ml-1 mb-1 block">City</label>
                     <div onclick="openCityModal()" class="dropdown-btn">
-                        <span id="cityDisplay" class="font-semibold text-gray-500 text-sm truncate">Select city</span>
+                        <span id="cityDisplay" class="display-text text-gray-500 text-sm">Select city</span>
                         <div class="chevron-wrap"><i class="fas fa-chevron-down"></i></div>
                     </div>
                 </div>
                 <div>
-                    <label class="section-label ml-1 mb-1.5 block">Area</label>
+                    <label class="section-label ml-1 mb-1 block">Area</label>
                     <div onclick="openAreaModal()" class="dropdown-btn">
-                        <span id="areaDisplay" class="font-semibold text-gray-500 text-sm truncate">Select area</span>
+                        <span id="areaDisplay" class="display-text text-gray-500 text-sm">Select area</span>
                         <div class="chevron-wrap"><i class="fas fa-chevron-down"></i></div>
                     </div>
                 </div>
             </div>
 
-            <div class="divider"></div>
-
-            <!-- Delivery Address (with Map) -->
+            <!-- Delivery Address -->
             <div>
-                <div class="flex items-end justify-between ml-1 mb-1.5">
+                <div class="flex items-end justify-between ml-1 mb-1">
                     <label class="section-label">Delivery Address</label>
                     <button onclick="openMapModal()" id="locBtn" class="map-btn">
                         <i class="fas fa-map-marked-alt text-xs"></i> Pick on Map
                     </button>
                 </div>
                 <div class="field-group">
-                    <textarea id="addressInput" rows="3" placeholder="House #, Street, Area..." class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none resize-none"></textarea>
+                    <textarea id="addressInput" rows="2" placeholder="House #, Street, Area..." class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none resize-none text-sm"></textarea>
                 </div>
-                <p class="hint-row ml-1 mt-1.5">
-                    <i class="fas fa-info-circle text-blue-400 text-xs"></i> Set pin to help rider find you exactly.
+                <p class="hint-row ml-1 mt-1">
+                    <i class="fas fa-info-circle text-blue-400 text-xs"></i> Set pin to help rider find you.
                 </p>
             </div>
 
-            <!-- Block Name (Optional) - conditionally visible -->
+            <!-- Block (conditional) -->
             <div id="blockInputContainer" style="display: none;">
-                <label class="section-label ml-1 mb-1.5 block">
+                <label class="section-label ml-1 mb-1 block">
                     Block Name <span class="text-gray-300 font-medium">(optional)</span>
                 </label>
-                <div class="field-group flex items-center gap-3">
+                <div class="field-group flex items-center gap-2">
                     <div class="field-icon"><i class="fas fa-map-pin"></i></div>
-                    <input type="text" id="blockInput" placeholder="e.g. A" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
+                    <input type="text" id="blockInput" placeholder="e.g. A" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none text-sm">
                 </div>
             </div>
 
             <!-- Save Button -->
-            <button onclick="updateProfile()" id="saveBtn" class="save-btn w-full text-white font-extrabold py-4 rounded-2xl flex items-center justify-center gap-2 mt-2">
+            <button onclick="updateProfile()" id="saveBtn" class="save-btn w-full text-white font-extrabold rounded-xl flex items-center justify-center gap-2 mt-1">
                 <i id="btnIcon" class="fas fa-check-circle"></i>
                 <span id="btnText">SAVE CHANGES</span>
             </button>
@@ -318,8 +326,8 @@
 
     <!-- City/Area Selection Modal -->
     <div id="selectionModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center modal-overlay">
-        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 max-h-[70vh] flex flex-col animate-slide-up">
-            <div class="flex items-center justify-between mb-4">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-4 max-h-[70vh] flex flex-col animate-slide-up">
+            <div class="flex items-center justify-between mb-3">
                 <button onclick="closeSelectionModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-times text-gray-500"></i>
                 </button>
@@ -414,7 +422,7 @@
             document.getElementById('avatarPreviewModal').classList.remove('flex');
         }
 
-        // Simple MD5 (needed for Gravatar)
+        // Simple MD5 (for Gravatar)
         function md5(string) {
             function rotateLeft(lValue, iShiftBits) {
                 return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits));
@@ -563,7 +571,7 @@
             return (wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d)).toLowerCase();
         }
 
-        // Fetch active cities & areas + has_blocks info
+        // Fetch active cities & areas + has_blocks
         async function loadDeliveryData() {
             const { data, error } = await _supabase
                 .from('delivery_areas')
@@ -602,7 +610,6 @@
             if (!session) { window.location.replace('index.html'); return; }
             userEmail = session.user.email;
 
-            // Set initial avatar
             let avatarUrl = null;
             if (session.user.user_metadata?.avatar_url) {
                 avatarUrl = session.user.user_metadata.avatar_url;
@@ -613,7 +620,7 @@
 
             const { data: cust } = await _supabase
                 .from('customers')
-                .select('name, phone, address, city, area, block, avatar_url')
+                .select('name, phone, address, city, area, block, avatar_url, location')
                 .eq('email', userEmail)
                 .maybeSingle();
 
@@ -629,6 +636,11 @@
                     updatePinButton(true);
                 } else {
                     document.getElementById('addressInput').value = addrText;
+                }
+                // Load location from separate column if exists (new)
+                if (cust.location && !exactLatLng) {
+                    exactLatLng = cust.location;
+                    updatePinButton(true);
                 }
                 if (cust.city) {
                     selectedCity = cust.city;
@@ -682,18 +694,41 @@
         const selectionModal = document.getElementById('selectionModal');
         function openCityModal() {
             document.getElementById('modalTitle').textContent = 'Select City';
-            document.getElementById('modalList').innerHTML = '';
+            const list = document.getElementById('modalList');
+            list.innerHTML = '';
+
+            // "Not in my city" option
+            const notListed = document.createElement('div');
+            notListed.className = 'list-item font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer flex justify-between';
+            notListed.innerHTML = '<span>Not in my city</span><i class="fas fa-times-circle text-gray-300"></i>';
+            notListed.onclick = () => {
+                selectedCity = null;
+                document.getElementById('cityDisplay').textContent = 'Select city';
+                document.getElementById('cityDisplay').classList.add('text-gray-500');
+                document.getElementById('cityDisplay').classList.remove('text-gray-900');
+                document.getElementById('cityDisplay').closest('.dropdown-btn').classList.remove('is-filled');
+                selectedArea = null;
+                document.getElementById('areaDisplay').textContent = 'Select area';
+                document.getElementById('areaDisplay').classList.add('text-gray-500');
+                document.getElementById('areaDisplay').classList.remove('text-gray-900');
+                document.getElementById('areaDisplay').closest('.dropdown-btn').classList.remove('is-filled');
+                updateBlockVisibility(null);
+                closeSelectionModal();
+            };
+            list.appendChild(notListed);
+
             citiesList.forEach(city => {
                 const div = document.createElement('div');
-                div.className = 'list-item p-3 font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
+                div.className = 'list-item font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
                 div.textContent = city;
                 if (selectedCity === city) div.classList.add('bg-blue-50', 'text-blue-700');
                 div.onclick = () => selectCity(city);
-                document.getElementById('modalList').appendChild(div);
+                list.appendChild(div);
             });
             selectionModal.classList.remove('hidden');
             selectionModal.classList.add('flex');
         }
+
         async function selectCity(city) {
             selectedCity = city;
             document.getElementById('cityDisplay').textContent = city;
@@ -708,22 +743,47 @@
             await refreshAreasForCity(city);
             closeSelectionModal();
         }
+
         function openAreaModal() {
             if (!selectedCity) { alert('Please select city first.'); return; }
-            if (currentAreas.length === 0) { alert('No active areas found.'); return; }
             document.getElementById('modalTitle').textContent = 'Select Area';
-            document.getElementById('modalList').innerHTML = '';
-            currentAreas.forEach(area => {
-                const div = document.createElement('div');
-                div.className = 'list-item p-3 font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
-                div.textContent = area;
-                if (selectedArea === area) div.classList.add('bg-blue-50', 'text-blue-700');
-                div.onclick = () => selectArea(area);
-                document.getElementById('modalList').appendChild(div);
-            });
+            const list = document.getElementById('modalList');
+            list.innerHTML = '';
+
+            // "Not in my area" option
+            const notListed = document.createElement('div');
+            notListed.className = 'list-item font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer flex justify-between';
+            notListed.innerHTML = '<span>Not in my area</span><i class="fas fa-times-circle text-gray-300"></i>';
+            notListed.onclick = () => {
+                selectedArea = null;
+                document.getElementById('areaDisplay').textContent = 'Select area';
+                document.getElementById('areaDisplay').classList.add('text-gray-500');
+                document.getElementById('areaDisplay').classList.remove('text-gray-900');
+                document.getElementById('areaDisplay').closest('.dropdown-btn').classList.remove('is-filled');
+                updateBlockVisibility(null);
+                closeSelectionModal();
+            };
+            list.appendChild(notListed);
+
+            if (currentAreas.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'p-3 text-center text-gray-400 font-semibold';
+                empty.textContent = 'No active areas in this city.';
+                list.appendChild(empty);
+            } else {
+                currentAreas.forEach(area => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item font-semibold text-gray-700 hover:bg-blue-50 cursor-pointer flex justify-between';
+                    div.textContent = area;
+                    if (selectedArea === area) div.classList.add('bg-blue-50', 'text-blue-700');
+                    div.onclick = () => selectArea(area);
+                    list.appendChild(div);
+                });
+            }
             selectionModal.classList.remove('hidden');
             selectionModal.classList.add('flex');
         }
+
         function selectArea(area) {
             selectedArea = area;
             document.getElementById('areaDisplay').textContent = area;
@@ -732,6 +792,7 @@
             updateBlockVisibility(area);
             closeSelectionModal();
         }
+
         function closeSelectionModal() {
             selectionModal.classList.add('hidden');
             selectionModal.classList.remove('flex');
@@ -782,7 +843,7 @@
             }
         }
 
-        // Save
+        // Save Profile (including location)
         async function updateProfile() {
             const name = document.getElementById('nameInput').value.trim();
             const phone = document.getElementById('phoneInput').value.trim();
@@ -833,6 +894,7 @@
                     block
                 };
                 if (avatarUrl) updateData.avatar_url = avatarUrl;
+                if (exactLatLng) updateData.location = exactLatLng;  // Save to customers.location
 
                 const { error } = await _supabase
                     .from('customers')
@@ -846,6 +908,7 @@
                 localStorage.setItem('faster_city', selectedCity);
                 localStorage.setItem('faster_area', selectedArea);
                 localStorage.setItem('faster_block', block);
+                localStorage.setItem('faster_exact_location', exactLatLng);
 
                 document.getElementById('btnIcon').className = 'fas fa-check-circle';
                 document.getElementById('btnText').textContent = 'Saved!';
