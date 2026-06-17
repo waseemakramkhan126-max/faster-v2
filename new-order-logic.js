@@ -1224,26 +1224,20 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
-    // Block input ko basic clean karo (numbers, special chars, "block" word hatao)
-    const cleanBlockInput = (userInputBlock || "").trim()
-        .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
-        .replace(/\bblock\b/gi, '')
-        .replace(/\s+/g, ' ')
+    // Block input aur address ko ek jaisa clean karo (sirf letters aur spaces bache)
+    const cleanText = (text) => (text || "").trim()
+        .replace(/[^a-zA-Z\s]/g, ' ')      // numbers, special characters hatao
+        .replace(/\bblock\b/gi, '')         // "block" word hatao
+        .replace(/\s+/g, ' ')               // extra spaces hataye
         .trim()
         .toLowerCase();
 
-    // Address ko bhi same tarah clean karo
-    const cleanAddress = (addressText || "").trim()
-        .replace(/[\d,.\/#!$%\^&\*;:{}=\-_`~()]/g, ' ')
-        .replace(/\bblock\b/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
+    const cleanBlockInput = cleanText(userInputBlock);
+    const cleanAddress = cleanText(addressText);
 
     console.log("🔍 Fee lookup:", { cleanCity, cleanArea, blockInput: cleanBlockInput, address: cleanAddress });
 
     try {
-        // Area ke saare blocks fetch karo
         const { data: blocks, error: blockError } = await _supabase
             .from('delivery_blocks')
             .select('block_name, delivery_fee')
@@ -1252,7 +1246,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
-            // Blocks ko length ke hisaab se descending sort karo (pehle longer names check honge)
+            // Blocks ko length ke hisab se descending sort karo (pehle longer names check honge)
             const sortedBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
@@ -1261,11 +1255,13 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }))
                 .sort((a, b) => b.clean.length - a.clean.length);
 
-            // Helper: kisi bhi cleaned text mein block name dhundho (substring match)
+            // Helper: kisi bhi cleaned text mein whole‑word match dhundo
             const findBlockInText = (text) => {
                 if (!text) return null;
                 for (const block of sortedBlocks) {
-                    if (block.clean && text.includes(block.clean)) {
+                    // Whole‑word boundary regex: \b ensures word boundary
+                    const regex = new RegExp(`\\b${block.clean.replace(/\s+/g, '\\s+')}\\b`, 'i');
+                    if (regex.test(text)) {
                         return block;
                     }
                 }
