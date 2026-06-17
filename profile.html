@@ -10,85 +10,179 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --brand: #2563eb;
+            --brand-dark: #1d4ed8;
+            --brand-light: #eff6ff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e7eaf0;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; }
+
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: #f8fafc;
-            -webkit-tap-highlight-color: transparent;
+            background: linear-gradient(180deg, #eef2f9 0%, #f8fafc 220px, #f8fafc 100%);
+            color: var(--ink);
         }
+
+        /* Header */
+        .app-header {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--line);
+        }
+        .back-btn {
+            background: #fff;
+            border: 1px solid var(--line);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+            transition: all 0.15s;
+        }
+        .back-btn:active { transform: scale(0.94); background: #f1f5f9; }
+
+        /* Avatar */
+        .avatar-ring {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 12px 24px -8px rgba(37,99,235,0.45);
+        }
+
+        /* Card */
         .profile-card {
             background: #ffffff;
-            border-radius: 28px;
-            box-shadow: 0 20px 45px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.02);
+            border-radius: 26px;
+            border: 1px solid var(--line);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.03), 0 18px 40px -16px rgba(15,23,42,0.08);
         }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        /* Inputs */
         .field-group {
-            background: #f9fafb;
-            border: 1px solid #f1f5f9;
-            border-radius: 16px;
-            padding: 12px 16px;
-            transition: all 0.2s;
+            background: #f8fafc;
+            border: 1.5px solid var(--line);
+            border-radius: 14px;
+            padding: 13px 14px;
+            transition: all 0.18s;
         }
         .field-group:focus-within {
             background: #ffffff;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+            border-color: var(--brand);
+            box-shadow: 0 0 0 4px rgba(37,99,235,0.10);
         }
+        .field-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: #eef2f9;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+            transition: all 0.18s;
+        }
+        .field-group:focus-within .field-icon {
+            background: var(--brand-light);
+            color: var(--brand);
+        }
+
+        /* Dropdowns */
         .dropdown-btn {
-            background: #f9fafb;
-            border: 1px solid #f1f5f9;
-            border-radius: 16px;
-            padding: 14px 16px;
+            background: #f8fafc;
+            border: 1.5px solid var(--line);
+            border-radius: 14px;
+            padding: 13px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.18s;
         }
-        .dropdown-btn:focus {
-            background: #ffffff;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+        .dropdown-btn:active { background: #f1f5f9; }
+        .dropdown-btn.is-filled { border-color: #cbd5e1; }
+        .chevron-wrap {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: #eef2f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 11px;
         }
-        .save-btn {
-            background: #2563eb;
-            box-shadow: 0 10px 25px rgba(37,99,235,0.3);
-            transition: all 0.2s;
+
+        /* Two-column layout for City / Area */
+        .dual-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
-        .save-btn:active {
-            transform: scale(0.97);
-            box-shadow: 0 5px 15px rgba(37,99,235,0.2);
-        }
+
+        /* Map pick button */
         .map-btn {
-            background: #eff6ff;
-            color: #2563eb;
+            background: var(--brand-light);
+            color: var(--brand);
             border: 1px solid #bfdbfe;
-            border-radius: 12px;
-            padding: 6px 12px;
+            border-radius: 10px;
+            padding: 7px 13px;
             font-weight: 700;
             font-size: 11px;
-            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.18s;
         }
-        .map-btn:active {
-            background: #dbeafe;
-            transform: scale(0.96);
-        }
+        .map-btn:active { background: #dbeafe; transform: scale(0.96); }
         .pin-saved {
             background: #ecfdf5 !important;
             color: #059669 !important;
             border-color: #a7f3d0 !important;
         }
+
+        .hint-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        /* Save button */
+        .save-btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            box-shadow: 0 14px 28px -10px rgba(37,99,235,0.5);
+            transition: all 0.18s;
+        }
+        .save-btn:active { transform: scale(0.985); box-shadow: 0 8px 16px -8px rgba(37,99,235,0.4); }
+        .save-btn:disabled { opacity: 0.85; }
+
+        .divider { height: 1px; background: var(--line); margin: 4px 0; }
+
+        /* Modal */
         .modal-overlay {
-            background: rgba(15,23,42,0.5);
-            backdrop-filter: blur(8px);
+            background: rgba(15,23,42,0.55);
+            backdrop-filter: blur(6px);
         }
         .list-item {
             transition: background 0.15s;
             border-radius: 12px;
         }
-        .list-item:active {
-            background: #f1f5f9;
-        }
-        .map-enter { transform: translateY(0); opacity: 1; pointer-events: auto; }
+        .list-item:active { background: #f1f5f9; }
+
+        /* Map modal */
         .map-leave { transform: translateY(100%); opacity: 0; pointer-events: none; }
+        .map-enter { transform: translateY(0); opacity: 1; pointer-events: auto; }
         .center-pin {
             position: absolute;
             top: 50%;
@@ -98,90 +192,107 @@
             pointer-events: none;
             filter: drop-shadow(0 8px 8px rgba(0,0,0,0.25));
         }
+        .locate-fab {
+            background: #fff;
+            box-shadow: 0 10px 24px -6px rgba(15,23,42,0.25);
+        }
+        .locate-fab:active { transform: scale(0.93); }
+
         @keyframes slideUp {
             from { transform: translateY(30px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .animate-slide-up {
-            animation: slideUp 0.25s ease-out;
-        }
+        .animate-slide-up { animation: slideUp 0.25s ease-out; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 px-5 py-4 flex items-center gap-3">
-        <button onclick="history.back()" class="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition">
-            <i class="fas fa-arrow-left text-gray-700"></i>
+    <header class="app-header sticky top-0 z-30 px-5 py-4 flex items-center gap-3">
+        <button onclick="history.back()" class="back-btn w-10 h-10 rounded-full flex items-center justify-center">
+            <i class="fas fa-arrow-left text-gray-700 text-sm"></i>
         </button>
-        <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">My <span class="text-blue-600">Profile</span></h1>
+        <h1 class="text-lg font-extrabold text-gray-900 tracking-tight">My <span class="text-blue-600">Profile</span></h1>
     </header>
 
     <!-- Main Content -->
     <main class="flex-1 max-w-md w-full mx-auto px-5 py-6">
+
+        <!-- Avatar / Title block -->
+        <div class="flex flex-col items-center mb-6">
+            <div class="avatar-ring w-20 h-20 rounded-full flex items-center justify-center mb-3">
+                <i class="fas fa-user text-white text-2xl"></i>
+            </div>
+            <p class="text-sm font-bold text-gray-400">Manage your account details</p>
+        </div>
+
         <!-- Profile Card -->
         <div class="profile-card p-6 space-y-5">
 
             <!-- Full Name -->
             <div>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2 mb-1 block">Full Name</label>
+                <label class="section-label ml-1 mb-1.5 block">Full Name</label>
                 <div class="field-group flex items-center gap-3">
-                    <i class="fas fa-user text-gray-400 text-sm"></i>
+                    <div class="field-icon"><i class="fas fa-user"></i></div>
                     <input type="text" id="nameInput" placeholder="Enter your full name" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
                 </div>
             </div>
 
             <!-- Phone -->
             <div>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2 mb-1 block">Phone Number</label>
+                <label class="section-label ml-1 mb-1.5 block">Phone Number</label>
                 <div class="field-group flex items-center gap-3">
-                    <i class="fas fa-phone text-gray-400 text-sm"></i>
+                    <div class="field-icon"><i class="fas fa-phone"></i></div>
                     <input type="tel" id="phoneInput" placeholder="03XX-XXXXXXX" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
                 </div>
             </div>
 
+            <div class="divider"></div>
+
+            <!-- City + Area side by side -->
+            <div class="dual-col">
+                <div>
+                    <label class="section-label ml-1 mb-1.5 block">City</label>
+                    <div onclick="openCityModal()" class="dropdown-btn">
+                        <span id="cityDisplay" class="font-semibold text-gray-500 text-sm truncate">Select city</span>
+                        <div class="chevron-wrap"><i class="fas fa-chevron-down"></i></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="section-label ml-1 mb-1.5 block">Area</label>
+                    <div onclick="openAreaModal()" class="dropdown-btn">
+                        <span id="areaDisplay" class="font-semibold text-gray-500 text-sm truncate">Select area</span>
+                        <div class="chevron-wrap"><i class="fas fa-chevron-down"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
             <!-- Delivery Address (with Map) -->
             <div>
-                <div class="flex items-end justify-between ml-2 mb-2">
-                    <label class="text-xs font-bold text-gray-500 uppercase tracking-widest">Delivery Address</label>
-                    <button onclick="openMapModal()" id="locBtn" class="map-btn flex items-center gap-1.5">
+                <div class="flex items-end justify-between ml-1 mb-1.5">
+                    <label class="section-label">Delivery Address</label>
+                    <button onclick="openMapModal()" id="locBtn" class="map-btn">
                         <i class="fas fa-map-marked-alt text-xs"></i> Pick on Map
                     </button>
                 </div>
                 <div class="field-group">
                     <textarea id="addressInput" rows="3" placeholder="House #, Street, Area..." class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none resize-none"></textarea>
                 </div>
-                <p class="text-[10px] text-gray-400 font-semibold ml-2 mt-1 flex items-center gap-1">
+                <p class="hint-row ml-1 mt-1.5">
                     <i class="fas fa-info-circle text-blue-400 text-xs"></i> Set pin to help rider find you exactly.
                 </p>
             </div>
 
-            <!-- Block Name (Optional) - placed right after Delivery Address -->
+            <!-- Block Name (Optional) -->
             <div>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2 mb-1 block">
+                <label class="section-label ml-1 mb-1.5 block">
                     Block Name <span class="text-gray-300 font-medium">(optional)</span>
                 </label>
                 <div class="field-group flex items-center gap-3">
-                    <i class="fas fa-map-pin text-gray-400 text-sm"></i>
+                    <div class="field-icon"><i class="fas fa-map-pin"></i></div>
                     <input type="text" id="blockInput" placeholder="e.g. A" class="w-full bg-transparent font-semibold text-gray-800 placeholder-gray-300 outline-none">
-                </div>
-            </div>
-
-            <!-- City Dropdown -->
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2 mb-1 block">City</label>
-                <div onclick="openCityModal()" class="dropdown-btn">
-                    <span id="cityDisplay" class="font-semibold text-gray-500">Select city</span>
-                    <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
-                </div>
-            </div>
-
-            <!-- Area Dropdown -->
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2 mb-1 block">Area</label>
-                <div onclick="openAreaModal()" class="dropdown-btn">
-                    <span id="areaDisplay" class="font-semibold text-gray-500">Select area</span>
-                    <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
                 </div>
             </div>
 
@@ -220,7 +331,7 @@
             <div class="center-pin text-red-500 text-[40px]">
                 <i class="fas fa-map-pin"></i>
             </div>
-            <button onclick="locateMe()" class="absolute bottom-6 right-4 z-[1000] w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-blue-600">
+            <button onclick="locateMe()" class="locate-fab absolute bottom-6 right-4 z-[1000] w-12 h-12 rounded-full flex items-center justify-center text-blue-600">
                 <i class="fas fa-crosshairs text-xl"></i>
             </button>
         </div>
@@ -296,6 +407,7 @@
                     document.getElementById('cityDisplay').textContent = cust.city;
                     document.getElementById('cityDisplay').classList.remove('text-gray-500');
                     document.getElementById('cityDisplay').classList.add('text-gray-900');
+                    document.getElementById('cityDisplay').closest('.dropdown-btn').classList.add('is-filled');
                     await refreshAreasForCity(cust.city);
                 }
                 if (cust.area) {
@@ -303,6 +415,7 @@
                     document.getElementById('areaDisplay').textContent = cust.area;
                     document.getElementById('areaDisplay').classList.remove('text-gray-500');
                     document.getElementById('areaDisplay').classList.add('text-gray-900');
+                    document.getElementById('areaDisplay').closest('.dropdown-btn').classList.add('is-filled');
                 }
                 document.getElementById('blockInput').value = cust.block || '';
             }
@@ -342,10 +455,12 @@
             selectedCity = city;
             document.getElementById('cityDisplay').textContent = city;
             document.getElementById('cityDisplay').classList.replace('text-gray-500', 'text-gray-900');
+            document.getElementById('cityDisplay').closest('.dropdown-btn').classList.add('is-filled');
             selectedArea = null;
             document.getElementById('areaDisplay').textContent = 'Select area';
             document.getElementById('areaDisplay').classList.add('text-gray-500');
             document.getElementById('areaDisplay').classList.remove('text-gray-900');
+            document.getElementById('areaDisplay').closest('.dropdown-btn').classList.remove('is-filled');
             await refreshAreasForCity(city);
             closeSelectionModal();
         }
@@ -369,6 +484,7 @@
             selectedArea = area;
             document.getElementById('areaDisplay').textContent = area;
             document.getElementById('areaDisplay').classList.replace('text-gray-500', 'text-gray-900');
+            document.getElementById('areaDisplay').closest('.dropdown-btn').classList.add('is-filled');
             closeSelectionModal();
         }
         function closeSelectionModal() {
