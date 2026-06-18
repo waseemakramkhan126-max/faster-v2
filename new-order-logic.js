@@ -1222,7 +1222,23 @@ function normalizeString(str) {
     if (!str) return "";
     return str.toLowerCase().replace(/\s+/g, ''); 
 }
-
+// Fuzzy matching helper
+function levenshtein(a, b) {
+    const an = a.length, bn = b.length;
+    const matrix = Array.from({ length: an + 1 }, () => Array(bn + 1).fill(0));
+    for (let i = 0; i <= an; i++) matrix[i][0] = i;
+    for (let j = 0; j <= bn; j++) matrix[0][j] = j;
+    for (let i = 1; i <= an; i++) {
+        for (let j = 1; j <= bn; j++) {
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+        }
+    }
+    return matrix[an][bn];
+}
 // 2. Hybrid Delivery Fee Calculator
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
@@ -1277,20 +1293,31 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 .sort((a, b) => b.tokens.length - a.tokens.length);
 
             const findBlock = (text, allowSingleLetters = true) => {
-                if (!text) return null;
-                const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
-                for (const block of allBlocks) {
-                    // Single‑letter blocks skip karo agar allowSingleLetters false hai
-                    if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
-                        continue;
-                    }
-                    // Har token input mein maujood ho
-                    if (block.tokens.every(t => inputTokens.includes(t))) {
-                        return block;
-                    }
-                }
-                return null;
-            };
+    if (!text) return null;
+    const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
+    for (const block of allBlocks) {
+        // Single‑letter blocks skip agar allowSingleLetters false hai
+        if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
+            continue;
+        }
+        // 1. Exact match
+        if (block.tokens.every(t => inputTokens.includes(t))) {
+            return block;
+        }
+        // 2. Fuzzy match (sirf tab jab exact fail, aur token length > 2)
+        if (block.tokens.every(bt => {
+            return inputTokens.some(it => {
+                if (it === bt) return true;
+                // sirf longer words ke liye fuzzy check
+                if (bt.length > 2 && it.length > 2 && levenshtein(bt, it) <= 2) return true;
+                return false;
+            });
+        })) {
+            return block;
+        }
+    }
+    return null;
+};
 
             // 1. Block input se match (single letters bhi allow)
             if (cleanBlockInput) {
