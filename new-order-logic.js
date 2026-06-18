@@ -1292,18 +1292,37 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 .filter(b => b.fee > 0) // sirf positive fee wale blocks consider karo
                 .sort((a, b) => b.tokens.length - a.tokens.length);
 
-            const findBlock = (text, allowSingleLetters = true) => {
+            // Normalisation helper: common Urdu transliteration variations
+function normalizeToken(t) {
+    if (!t) return '';
+    let nt = t.toLowerCase();
+    // EE -> I (tauheed/tauhid)
+    nt = nt.replace(/ee/g, 'i');
+    // OO -> U (junaid/junad)
+    nt = nt.replace(/oo/g, 'u');
+    // GH -> G (baghdad/bagdad) – optional, already fuzzy handles it
+    // nt = nt.replace(/gh/g, 'g');
+    return nt;
+}
+
+const findBlock = (text, allowSingleLetters = true) => {
     if (!text) return null;
     const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
+    // Normalised input tokens
+    const normalizedInput = inputTokens.map(normalizeToken);
+
     for (const block of allBlocks) {
-        if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
-            continue;
-        }
-        // 1. Exact match
-        if (block.tokens.every(t => inputTokens.includes(t))) {
+        if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) continue;
+
+        // Normalised block tokens
+        const normalizedBlock = block.tokens.map(normalizeToken);
+
+        // 1. Exact match on normalised tokens
+        if (normalizedBlock.every(bt => normalizedInput.includes(bt))) {
             return block;
         }
-        // 2. Fuzzy match (sirf lambey alfaaz, max 1 ghalati)
+
+        // 2. Fuzzy match (original tokens, threshold ≤1, len≥4)
         if (block.tokens.every(bt => {
             return inputTokens.some(it => {
                 if (it === bt) return true;
