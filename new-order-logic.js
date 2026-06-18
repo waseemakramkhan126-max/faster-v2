@@ -1228,7 +1228,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
-    // ⚡ Customer override check (sirf tab jab userPhone available ho)
+    // ⚡ Customer override check
     if (typeof userPhone !== 'undefined' && userPhone) {
         try {
             const { data: cust } = await _supabase
@@ -1236,7 +1236,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 .select('custom_delivery_fee')
                 .eq('phone', userPhone)
                 .maybeSingle();
-
             if (cust && cust.custom_delivery_fee !== null && cust.custom_delivery_fee > 0) {
                 console.log("🎯 Customer-specific delivery fee applied:", cust.custom_delivery_fee);
                 return Number(cust.custom_delivery_fee);
@@ -1267,21 +1266,25 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
+            // Longest blocks pehle (taake "a" pehle na match ho)
             const allBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
-                    tokens: (b.block_name || "").trim().toLowerCase().split(/\s+/),
+                    tokens: (b.block_name || "").trim().toLowerCase().replace(/\bblock\b/gi, '').trim().split(/\s+/).filter(t => t.length > 0),
                     fee: Number(b.delivery_fee) || 0
                 }))
+                .filter(b => b.fee > 0) // sirf positive fee wale blocks consider karo
                 .sort((a, b) => b.tokens.length - a.tokens.length);
 
             const findBlock = (text, allowSingleLetters = true) => {
                 if (!text) return null;
                 const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
                 for (const block of allBlocks) {
+                    // Single‑letter blocks skip karo agar allowSingleLetters false hai
                     if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
                         continue;
                     }
+                    // Har token input mein maujood ho
                     if (block.tokens.every(t => inputTokens.includes(t))) {
                         return block;
                     }
@@ -1289,6 +1292,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 return null;
             };
 
+            // 1. Block input se match (single letters bhi allow)
             if (cleanBlockInput) {
                 const match = findBlock(cleanBlockInput, true);
                 if (match) {
@@ -1297,6 +1301,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
                 }
             }
 
+            // 2. Address se match (single letters ignore)
             if (cleanAddress) {
                 const match = findBlock(cleanAddress, false);
                 if (match) {
@@ -1308,6 +1313,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
 
+        // 3. Area fee
         const { data: areaData, error: areaError } = await _supabase
             .from('delivery_areas')
             .select('customer_delivery_fee')
