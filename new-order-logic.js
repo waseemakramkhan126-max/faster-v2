@@ -8,6 +8,7 @@ let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
 let userPhone = localStorage.getItem('faster_phone');
 let fullSavedAddress = ""; 
+let matchedBlockName = null;  // Yahan block ka naam store hoga
 
 // Camera & Video Variables
 let stream = null;
@@ -863,6 +864,12 @@ const currentFee = await getFinalDeliveryFee(city, area, block,
     
     // --- UPDATED UI: Dynamic Fee Display ---
     document.getElementById('overviewDcAmount').innerText = `Rs. ${currentFee}`;
+    const blockDisplay = document.getElementById('overviewBlockDisplay');
+if (matchedBlockName) {
+    blockDisplay.innerText = '✅ Block: ' + matchedBlockName;
+} else {
+    blockDisplay.innerText = '📍 Block: (using area fee)';
+}
     
     document.getElementById('overviewSummaryText').innerText = currentExtractedSummary;
     document.getElementById('overviewSchedule').value = ""; 
@@ -1270,6 +1277,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
 
     const cleanBlockInput = cleanText(userInputBlock);
     const cleanAddress = cleanText(addressText);
+    matchedBlockName = null;
 
     console.log("🔍 Fee lookup:", { cleanCity, cleanArea, blockInput: cleanBlockInput, address: cleanAddress });
 
@@ -1339,20 +1347,20 @@ const findBlock = (text, allowSingleLetters = true) => {
             // 1. Block input se match (single letters bhi allow)
             if (cleanBlockInput) {
                 const match = findBlock(cleanBlockInput, true);
-                if (match) {
-                    console.log("✅ Block matched from input:", match.original, match.fee);
-                    return match.fee;
-                }
-            }
-
-            // 2. Address se match (single letters ignore)
-            if (cleanAddress) {
-                const match = findBlock(cleanAddress, false);
-                if (match) {
-                    console.log("✅ Block detected from address:", match.original, match.fee);
-                    return match.fee;
-                }
-            }
+              if (match) {
+                 matchedBlockName = match.original;   // 👈 add this
+                 console.log("✅ Block matched from input:", match.original, match.fee);
+             return match.fee;
+         }
+     }
+if (cleanAddress) {
+    const match = findBlock(cleanAddress, false);
+    if (match) {
+        matchedBlockName = match.original;   // 👈 add this
+        console.log("✅ Block detected from address:", match.original, match.fee);
+        return match.fee;
+    }
+}
 
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
