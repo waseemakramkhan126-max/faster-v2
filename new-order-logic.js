@@ -1296,7 +1296,6 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     if (!text) return null;
     const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
     for (const block of allBlocks) {
-        // Single‑letter blocks skip agar allowSingleLetters false hai
         if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) {
             continue;
         }
@@ -1304,12 +1303,11 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (block.tokens.every(t => inputTokens.includes(t))) {
             return block;
         }
-        // 2. Fuzzy match (sirf tab jab exact fail, aur token length > 2)
+        // 2. Fuzzy match (sirf lambey alfaaz, max 1 ghalati)
         if (block.tokens.every(bt => {
             return inputTokens.some(it => {
                 if (it === bt) return true;
-                // sirf longer words ke liye fuzzy check
-                if (bt.length > 2 && it.length > 2 && levenshtein(bt, it) <= 2) return true;
+                if (bt.length >= 4 && it.length >= 4 && levenshtein(bt, it) <= 1) return true;
                 return false;
             });
         })) {
