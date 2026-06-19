@@ -236,6 +236,7 @@
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
         
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        const customerId = localStorage.getItem('faster_customer_id') || '';
         const userName = localStorage.getItem('faster_name') || 'Customer';
         
         const isLocalPreview = window.location.protocol === 'file:';
@@ -276,7 +277,7 @@
                 const { data: walletData, error: walErr } = await _supabase
                     .from('wallets')
                     .select('current_balance')
-                    .eq('customer_phone', userPhone)
+                    .eq('customer_id', customerId)
                     .maybeSingle(); 
                 
                 if (!walErr && walletData) {
@@ -288,7 +289,7 @@
                     const { data: orders, error: ordErr } = await _supabase
                         .from('orders')
                         .select('balance_amount')
-                        .eq('customer_phone', userPhone)
+                        .eq('customer_id', customerId)
                         .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
                         .order('updated_at', { ascending: false })
                         .limit(1); 
@@ -329,11 +330,11 @@
                 const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
                 
                 const [orderRes, notifRes, promoRes, topupRes, withdrawRes] = await Promise.all([
-                    _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead),
+                    _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
                     _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
                     _supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('promo_active', true).gt('created_at', lastRead),
-                    _supabase.from('topup_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('updated_at', lastRead),
-                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead)
+                    _supabase.from('topup_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
+                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('created_at', lastRead)
                 ]);
 
                 const totalUpdates = (orderRes.count || 0) + 
@@ -364,7 +365,7 @@
             if (!navigator.onLine) return;
             try {
                 const { data: activeOrders } = await _supabase
-                    .from('orders').select('id, updated_at').eq('customer_phone', userPhone)
+                    .from('orders').select('id, updated_at').eq('customer_id', customerId)
                     .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
                 const card = document.getElementById('activeOrdersCard');
                 const badge = document.getElementById('activeChatBadge');
@@ -425,7 +426,7 @@
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => { 
                     updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        if (payload.new && payload.new.customer_phone === userPhone) {
+                        if (payload.new && String(payload.new.customer_id) === customerId) {
                             sound.play().catch(e => console.log("Sound error:", e));
                         }
                     }
@@ -444,13 +445,13 @@
                     sound.play().catch(e => console.log("Sound error:", e));
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'topup_requests' }, (payload) => {
-                    if (payload.new && payload.new.customer_phone === userPhone) {
+                    if (payload.new && String(payload.new.customer_id) === customerId) {
                         checkNotifications();
                         sound.play().catch(e => console.log("Sound error:", e));
                     }
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'withdraw_requests' }, (payload) => {
-                    if (payload.new && payload.new.customer_phone === userPhone) {
+                    if (payload.new && String(payload.new.customer_id) === customerId) {
                         checkNotifications();
                         sound.play().catch(e => console.log("Sound error:", e));
                     }
