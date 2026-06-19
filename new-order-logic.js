@@ -966,6 +966,15 @@ async function confirmOrderFromOverview() {
     let customerArea = localStorage.getItem('faster_area');
 
     if (!customerArea || customerArea === "null" || !customerCity) {
+        if (!customerId || customerId.trim() === '' || isNaN(customerId)) {
+        if (typeof Dialog !== 'undefined') {
+            await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
+        } else {
+            alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
+        }
+        window.location.href = "profile.html";
+        return;
+    }
         try {
             const { data: custData } = await _supabase.from('customers').select('city, area').eq('customer_id', customerId).single();
             if (custData && custData.area) {
@@ -1176,10 +1185,11 @@ async function confirmOrderFromOverview() {
         // 📍 INSERT SE THEEK PEHLE DYNAMIC FEE CALCULATE KAREIN (Yahan paste karein)
         const userBlock = localStorage.getItem('faster_block') || "";
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
+        const finalCustomerId = (customerId && customerId.trim() !== '' && !isNaN(customerId)) ? customerId : null;
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
-            customer_id: customerId,
+            ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
             customer_name: name, 
             delivery_address: addr, 
             area: realDBAreaName, // ✅ Safely saved with correct DB database capitalization
@@ -1254,7 +1264,8 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanArea = (areaName || "").trim();
 
     // ⚡ Customer override check
-    if (typeof userPhone !== 'undefined' && userPhone) {
+    // Override tabhi karo jab customerId valid ho
+if (customerId && !isNaN(customerId) && typeof userPhone !== 'undefined' && userPhone) {
         try {
             const { data: cust } = await _supabase
                 .from('customers')
