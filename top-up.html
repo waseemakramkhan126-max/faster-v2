@@ -136,6 +136,7 @@
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         const userPhone = localStorage.getItem('faster_phone');
+        const customerId = localStorage.getItem('faster_customer_id') || '';
         let selectedFile = null;
 
         function customAlert(message) {
@@ -249,11 +250,12 @@
                 // 3. Insert record in topup_requests
                 const { error: dbError } = await _supabase.from('topup_requests').insert([{
                     customer_phone: userPhone,
+                    customer_id: customerId,
                     amount: parseFloat(amount),
                     proof_image: proofUrl,
-                    bank_snapshot: bankInfo, // Naya column yahan add kiya hai
+                    bank_snapshot: bankInfo,
                     status: 'pending'
-                }]);
+                  }]);
 
                 if (dbError) throw new Error("Database saving failed!");
 
