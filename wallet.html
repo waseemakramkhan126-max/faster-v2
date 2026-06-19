@@ -172,6 +172,7 @@
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        const customerId = localStorage.getItem('faster_customer_id') || '';
 
         window.unifiedCache = [];
         window.currentGlobalBalance = 0;
@@ -181,13 +182,13 @@
             if (!navigator.onLine || !userPhone) return;
             try {
                 let currentBal = 0;
-                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle(); 
+                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_id', customerId).maybeSingle(); 
                 if (walletData) currentBal = parseFloat(walletData.current_balance || 0);
                 window.currentGlobalBalance = currentBal;
 
-                const { data: orders } = await _supabase.from('orders').select('*').eq('customer_phone', userPhone).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']);
-                const { data: topups } = await _supabase.from('topup_requests').select('*').eq('customer_phone', userPhone);
-                const { data: withdraws } = await _supabase.from('withdraw_requests').select('*').eq('customer_phone', userPhone);
+                const { data: orders } = await _supabase.from('orders').select('*').eq('customer_id', customerId).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']);
+                const { data: topups } = await _supabase.from('topup_requests').select('*').eq('customer_id', customerId);
+                const { data: withdraws } = await _supabase.from('withdraw_requests').select('*').eq('customer_id', customerId);
 
                 let tempTimeline = [];
                 if (orders) orders.forEach(o => tempTimeline.push({ ...o, txType: 'order', sortDate: o.updated_at || o.created_at }));
@@ -669,15 +670,15 @@
 
         function setupLiveSync() {
             _supabase.channel('wallet-balance-tracker')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_phone=eq.${userPhone}` }, () => {
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets', filter: `customer_id=eq.${customerId}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
             _supabase.channel('topup-tracker')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'topup_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'topup_requests', filter: `customer_id=eq.${customerId}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
             _supabase.channel('withdraw-tracker')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdraw_requests', filter: `customer_phone=eq.${userPhone}` }, () => {
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'withdraw_requests', filter: `customer_id=eq.${customerId}` }, () => {
                     loadWalletData(); 
                 }).subscribe();
             _supabase.channel('customer-notifications')
