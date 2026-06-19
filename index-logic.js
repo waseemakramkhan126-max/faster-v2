@@ -191,17 +191,38 @@ async function checkAuthState() {
         const userEmail = session.user.email.toLowerCase();
         const googleName = session.user.user_metadata.full_name;
 
-        const { data: customerRecord } = await _supabase.from('customers').select('phone, name, city, area, block').eq('email', userEmail).maybeSingle();
+        const { data: customerRecord } = await _supabase
+            .from('customers')
+            .select('phone, name, city, area, block, customer_id')
+            .eq('email', userEmail)
+            .maybeSingle();
 
-        if (customerRecord && customerRecord.phone) {
+        // 👇 Logout flag check
+        const loggedOutFlag = localStorage.getItem('faster_logged_out');
+
+        if (customerRecord && customerRecord.phone && loggedOutFlag !== 'true') {
+            // Normal login (no logout flag) → direct home
             localStorage.setItem('faster_phone', customerRecord.phone);
+            localStorage.setItem('faster_customer_id', customerRecord.customer_id || '');
             localStorage.setItem('faster_name', customerRecord.name);
             localStorage.setItem('faster_city', customerRecord.city || "");
             localStorage.setItem('faster_area', customerRecord.area || "");
             localStorage.setItem('faster_block', customerRecord.block || ""); 
             window.location.replace('home.html');
         } else {
-            document.getElementById('nameInput').value = googleName || "";
+            // Logout ke baad ya pehli baar registration → form dikhao
+            if (loggedOutFlag === 'true') {
+                localStorage.removeItem('faster_logged_out'); // flag hatao
+            }
+            // Pre-fill form with existing data if available
+            if (customerRecord) {
+                document.getElementById('nameInput').value = customerRecord.name || googleName || "";
+                document.getElementById('phoneInput').value = customerRecord.phone || "";
+                document.getElementById('citySelect').value = customerRecord.city || "";
+                // area aur block dropdowns refresh honge loadCities/loadAreas se
+            } else {
+                document.getElementById('nameInput').value = googleName || "";
+            }
             document.getElementById('profileFormSection').classList.remove('hidden');
         }
     } catch (err) {
@@ -252,7 +273,7 @@ async function saveProfile() {
         const userEmail = session.user.email.toLowerCase();
 
         // 3. STRONG UPSERT: Email ki base par check karega
-        const { error } = await _supabase.from('customers').upsert([{ 
+        const { data: upsertData, error } = await _supabase.from('customers').upsert([{ 
             email: userEmail, // Email ab identity check hai
             phone: phone, 
             name: name, 
@@ -262,7 +283,7 @@ async function saveProfile() {
             block: block || null,
             lat: String(lat), 
             lng: String(lng)
-        }], { onConflict: 'email' }); // Conflict hamesha email par!
+         }], { onConflict: 'email' }).select('customer_id'); 
 
         // 4. SMART ERROR HANDLING: Agar number pehle se majood hai
         if (error) {
@@ -279,6 +300,9 @@ async function saveProfile() {
         localStorage.setItem('faster_city', city);
         localStorage.setItem('faster_area', area);
         localStorage.setItem('faster_block', block || ""); 
+        if (upsertData && upsertData.length > 0) {
+            localStorage.setItem('faster_customer_id', upsertData[0].customer_id);
+        }
         
         window.location.replace('home.html');
         
