@@ -88,6 +88,7 @@
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
         
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        const customerId = localStorage.getItem('faster_customer_id') || '';
         let maxWithdrawable = 0;
 
         function checkBankSelection(val) {
@@ -110,7 +111,7 @@
                 const { data, error } = await _supabase
                     .from('wallets')
                     .select('current_balance')
-                    .eq('customer_phone', userPhone)
+                    .eq('customer_id', customerId)
                     .maybeSingle();
 
                 if (data) {
@@ -152,6 +153,7 @@
 
             const requestData = {
                 customer_phone: userPhone,
+                customer_id: customerId,
                 bank_name: finalBankName,
                 account_title: document.getElementById('accountTitle').value,
                 account_number: document.getElementById('accountNumber').value,
