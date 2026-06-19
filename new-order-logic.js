@@ -7,6 +7,7 @@ let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
 let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
 let userPhone = localStorage.getItem('faster_phone');
+const customerId = localStorage.getItem('faster_customer_id') || '';
 let fullSavedAddress = ""; 
 let matchedBlockName = null;  // Yahan block ka naam store hoga
 
@@ -80,7 +81,7 @@ function setupRealtime() {
             if(payload.new && payload.new.sender_phone !== userPhone) ring(); 
         })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => { 
-            if(payload.new && payload.new.customer_phone === userPhone) ring(); 
+            if(payload.new && String(payload.new.customer_id) === customerId) ring();
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, (payload) => { 
             if(payload.new && payload.new.receiver_id === userPhone) ring(); 
@@ -966,7 +967,7 @@ async function confirmOrderFromOverview() {
 
     if (!customerArea || customerArea === "null" || !customerCity) {
         try {
-            const { data: custData } = await _supabase.from('customers').select('city, area').eq('phone', userPhone).single();
+            const { data: custData } = await _supabase.from('customers').select('city, area').eq('customer_id', customerId).single();
             if (custData && custData.area) {
                 customerCity = custData.city;
                 customerArea = custData.area;
@@ -1178,6 +1179,7 @@ async function confirmOrderFromOverview() {
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
+            customer_id: customerId,
             customer_name: name, 
             delivery_address: addr, 
             area: realDBAreaName, // ✅ Safely saved with correct DB database capitalization
@@ -1257,7 +1259,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
             const { data: cust } = await _supabase
                 .from('customers')
                 .select('custom_delivery_fee')
-                .eq('phone', userPhone)
+                .eq('customer_id', customerId)
                 .maybeSingle();
             if (cust && cust.custom_delivery_fee !== null && cust.custom_delivery_fee > 0) {
                 console.log("🎯 Customer-specific delivery fee applied:", cust.custom_delivery_fee);
