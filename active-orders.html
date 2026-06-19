@@ -92,6 +92,7 @@
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const userPhone = (localStorage.getItem('faster_phone') || "").trim();
+        const customerId = localStorage.getItem('faster_customer_id') || '';
         
         let currentOrders = [];
         let activeTimers = {};
@@ -133,7 +134,7 @@
         }
 
         async function init() {
-            if(!userPhone) {
+            if(!customerId) {
                 window.location.replace('index.html');
                 return;
             }
@@ -155,7 +156,7 @@
             _supabase.channel('active-orders').on('postgres_changes', { 
                 event: 'UPDATE', schema: 'public', table: 'orders' 
             }, (payload) => {
-                if (payload.new && payload.new.customer_phone === userPhone) {
+                if (payload.new && payload.new.customer_id === customerId) {
                     const oldOrder = currentOrders.find(o => o.id.toString() === payload.new.id.toString());
                     if (oldOrder && (oldOrder.status !== payload.new.status || oldOrder.rider_status !== payload.new.rider_status)) {
                         ring(); 
@@ -188,7 +189,7 @@
             try {
                 const { data, error } = await _supabase.from('orders')
                     .select('*')
-                    .eq('customer_phone', userPhone)
+                    .eq('customer_id', customerId)
                     .neq('status', 'completed')
                     .neq('status', 'canceled')
                     .neq('status', 'CANCELLED')
