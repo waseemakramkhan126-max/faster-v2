@@ -620,7 +620,7 @@
 
             const { data: cust } = await _supabase
                 .from('customers')
-                .select('name, phone, address, city, area, block, avatar_url, location')
+                .select('name, phone, address, city, area, block, avatar_url, location, customer_id')
                 .eq('email', userEmail)
                 .maybeSingle();
 
@@ -663,7 +663,8 @@
                 if (cust.avatar_url) {
                     avatarUrl = cust.avatar_url;
                 }
-            }
+                localStorage.setItem('faster_customer_id', cust.customer_id || '');
+            
 
             const avatarImg = document.getElementById('avatarImg');
             const placeholder = document.getElementById('avatarPlaceholder');
