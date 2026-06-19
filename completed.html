@@ -80,19 +80,19 @@
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
-        const userPhone = localStorage.getItem('faster_phone');
+        const customerId = localStorage.getItem('faster_customer_id') || '';
 
         async function initPage() {
-            if (!userPhone) { window.location.replace('index.html'); return; }
+            if (!customerId) { window.location.replace('index.html'); return; }
             fetchCompletedOrders();
         }
 
         async function fetchCompletedOrders() {
             try {
-                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle();
+                const { data: walletData } = await _supabase.from('wallets').select('current_balance').eq('customer_id', customerId).maybeSingle();
                 const currentWalletBal = walletData ? parseFloat(walletData.current_balance || 0) : 0;
 
-                const { data: orders, error } = await _supabase.from('orders').select('*').eq('customer_phone', userPhone).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']).order('updated_at', { ascending: false });
+                const { data: orders, error } = await _supabase.from('orders').select('*').eq('customer_id', customerId).in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled']).order('updated_at', { ascending: false });
 
                 if (error) throw error;
                 renderOrders(orders, currentWalletBal);
@@ -169,7 +169,7 @@
 
             // ✅ 3. Breakdown Logic
             const balNum = parseFloat(o.balance_amount || 0);
-            const { data: wallet } = await _supabase.from('wallets').select('current_balance').eq('customer_phone', userPhone).maybeSingle();
+            const { data: wallet } = await _supabase.from('wallets').select('current_balance').eq('customer_id', customerId).maybeSingle();
             const liveBal = wallet ? parseFloat(wallet.current_balance || 0) : 0;
 
             let finalStatusLabel = balNum > 0 ? (liveBal <= 0 ? "Settled via Top-up" : "Pending Payment") : "Payment Clear";
