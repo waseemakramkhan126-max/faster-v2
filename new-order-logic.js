@@ -257,6 +257,18 @@ const Dialog = {
 };
 
 // ===============================
+// File Upload Helper
+// ===============================
+async function uploadFileToStorage(file, folder = 'draft') {
+    const ext = file.name ? file.name.split('.').pop() : 'bin';
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substr(2,5)}.${ext}`;
+    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+    if (error) throw error;
+    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
+    return { publicUrl: urlData.publicUrl, filePath: fileName };
+}
+
+// ===============================
 // Page Initialization & Draft Restore
 // ===============================
 async function initPage() {
@@ -267,7 +279,7 @@ async function initPage() {
 
     setupRealtime();
 
-    // Restore saved draft (text, image URLs, voice URLs, etc.)
+    // Restore saved draft
     const savedDraft = localStorage.getItem('faster_order_draft');
     if (savedDraft) {
         try {
@@ -293,13 +305,7 @@ async function initPage() {
                                 <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
                             </button>
                             <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1 pointer-events-none">
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-6 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
+                                <div class="w-[3px] h-3 bg-white rounded-full"></div><div class="w-[3px] h-5 bg-white rounded-full"></div><div class="w-[3px] h-3 bg-white rounded-full"></div><div class="w-[3px] h-6 bg-white rounded-full"></div><div class="w-[3px] h-3 bg-white rounded-full"></div><div class="w-[3px] h-5 bg-white rounded-full"></div><div class="w-[3px] h-3 bg-white rounded-full"></div>
                             </div>
                             <div class="text-[10px] text-white font-medium min-w-[35px] text-right pointer-events-none">
                                 <span class="time-current">0:00</span>
@@ -337,7 +343,6 @@ async function initPage() {
                     b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
                 }
 
-                // Bubble event listeners
                 let pressTimer;
                 b.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleSelect(bId, type); if(navigator.vibrate) navigator.vibrate(50); }, 500); });
                 b.addEventListener('touchmove', () => clearTimeout(pressTimer));
@@ -457,6 +462,7 @@ async function addToDraft(type, content) {
         b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
         if(typeof content !== 'string') { document.getElementById('orderInput').value = ""; handleInput(document.getElementById('orderInput')); }
         // AI call disabled
+        // getAiReply(val);
     }
     else if (type === 'image') {
         let imgData;
@@ -466,6 +472,8 @@ async function addToDraft(type, content) {
             b.innerHTML = `<img src="${publicUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}`;
         } catch(e) { Dialog.show("Error", "Image upload failed."); return; }
         itemData = imgData;
+        // AI call disabled
+        // sendMediaToAI(content.file, promptText);
     }
     else if (type === 'voice') {
         let voiceData;
@@ -506,6 +514,8 @@ async function addToDraft(type, content) {
             }, 150);
         } catch(e) { Dialog.show("Error", "Voice upload failed."); return; }
         itemData = voiceData;
+        // AI call disabled
+        // sendMediaToAI(content, "Mera voice note sunein...");
     }
     else if (type === 'doc') {
         let docData;
@@ -515,6 +525,8 @@ async function addToDraft(type, content) {
             b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
         } catch(e) { Dialog.show("Error", "Document upload failed."); return; }
         itemData = docData;
+        // AI call disabled
+        // sendMediaToAI(content, "Is document ko read karein...");
     }
     else if (type === 'video') {
         let videoData;
@@ -524,6 +536,8 @@ async function addToDraft(type, content) {
             b.innerHTML = `<video controls src="${publicUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
         } catch(e) { Dialog.show("Error", "Video upload failed."); return; }
         itemData = videoData;
+        // AI call disabled
+        // sendMediaToAI(content, "Is video ko check karein.");
     }
 
     // Bubble selection & full-view
@@ -691,10 +705,123 @@ async function askAI() {
     await addToDraft('text');
 }
 
-// AI sendMediaToAI and getAiReply are commented out below
+// =============== DISABLED AI FUNCTIONS =============== //
 /*
-function sendMediaToAI(file, promptText) { ... }
-async function getAiReply(userMessage, fileData = null, mimeType = null) { ... }
+function sendMediaToAI(file, promptText) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+        const base64String = reader.result.split(',')[1];
+        const mimeType = file.type;
+        await getAiReply(promptText, base64String, mimeType);
+    };
+    reader.onerror = error => {
+        console.error("File reading error:", error);
+        Dialog.show("Error", "File read nahi ho saki.", "alert");
+    };
+}
+
+async function getAiReply(userMessage, fileData = null, mimeType = null) {
+    const btn = document.getElementById('sendBtn');
+    const confirmBtn = document.getElementById('finalSubmitBtn');
+
+    let originalContent = "";
+
+    if (btn) {
+        originalContent = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        btn.disabled = true;
+    }
+    if (confirmBtn) {
+        confirmBtn.classList.add('opacity-50', 'pointer-events-none');
+        confirmBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Wait...`;
+    }
+
+    try {
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let rawHistory = [];
+
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            if (text && !text.includes("⚠️")) {
+                if (el.classList.contains('ai-bubble')) {
+                    let cleanText = text.replace(/Faster AI:/i, "").trim();
+                    rawHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    rawHistory.push({ role: 'user', content: text });
+                }
+            }
+        });
+
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
+        }
+
+        let safeHistory = [];
+        let expectedRole = 'user';
+        for (let msg of rawHistory) {
+            if (msg.role === expectedRole) {
+                safeHistory.push(msg);
+                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+            } else if (safeHistory.length > 0) {
+                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
+            }
+        }
+        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
+            let lastUserMsg = safeHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
+
+        const systemInstruction = `You are a professional order taker.
+        Current stage: Drafting/Updating Order.
+        - ALWAYS update the order summary if the user adds new items (e.g., "Shimla add karein").
+        - NEVER say "Order process ho raha hai" or "Live status check karein" unless the user explicitly confirms. Keep the customer in the order flow.`;
+
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: { message: userMessage, history: safeHistory, fileData: fileData, mimeType: mimeType, systemInstruction: systemInstruction }
+        });
+
+        let hasError = false;
+        let errorMsg = "";
+        if (error) { hasError = true; errorMsg = error.message || error.toString(); }
+        if (data && data.error) { hasError = true; errorMsg = data.error; }
+
+        if (hasError) {
+            let lowerError = errorMsg.toLowerCase();
+            if (lowerError.includes("limit") || lowerError.includes("quota") || lowerError.includes("exceeded") || lowerError.includes("429")) {
+                Dialog.show("Limit Reached", "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", "alert");
+            } else {
+                addAiBubble(`⚠️ System Error: ${errorMsg}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
+            }
+            return;
+        }
+
+        if (data && data.reply) {
+            addAiBubble(data.reply);
+
+            const confirmRegex = /\b(ok|oky|okay|okie|okei|ok\s*g|oky\s*g|okay\s*g|okie\s*g|okei\s*g|done|confirm|theek|theek\s*hai|theek\s*hai\s*g|thk|proceed|process)\b/i;
+            let userLatestText = userMessage.split("|").pop().trim().toLowerCase();
+
+            if (confirmRegex.test(userLatestText)) {
+                setTimeout(() => { handleConfirmPrompt(); }, 1000);
+            }
+        }
+    } catch(err) {
+        console.error("AI Error:", err);
+        if (err.message.toLowerCase().includes("limit") || err.message.toLowerCase().includes("quota")) {
+            Dialog.show("Limit Reached", "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", "alert");
+        } else {
+            addAiBubble(`⚠️ System Error: ${err.message}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
+        }
+    } finally {
+        if (btn) { btn.innerHTML = originalContent; btn.disabled = false; }
+        if (confirmBtn) {
+            confirmBtn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`;
+            confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
+            confirmBtn.disabled = false;
+        }
+    }
+}
 */
 
 // ===============================
@@ -712,7 +839,6 @@ async function handleConfirmPrompt() {
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
     const currentFee = await getFinalDeliveryFee(city, area, block, document.getElementById('overviewAddress').value.trim());
 
-    // Extract manual summary from bubbles
     const customerBubbles = document.querySelectorAll('.customer-bubble');
     let manualSummaryList = [];
     customerBubbles.forEach(bubble => { let text = bubble.innerText.trim(); if (text) manualSummaryList.push("👉 " + text); });
@@ -725,7 +851,6 @@ async function handleConfirmPrompt() {
     }
     if (!currentExtractedSummary) currentExtractedSummary = "Order details are in attached voice notes/images.";
 
-    // Populate popup fields
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
     document.getElementById('overviewDcAmount').innerText = `Rs. ${currentFee}`;
@@ -736,7 +861,6 @@ async function handleConfirmPrompt() {
     document.getElementById('overviewSummaryText').innerText = currentExtractedSummary;
     document.getElementById('overviewSchedule').value = "";
 
-    // Populate images in popup
     const imgContainer = document.getElementById('overviewImages');
     imgContainer.innerHTML = '';
     draftData.images.forEach(imgObj => {
@@ -750,7 +874,6 @@ async function handleConfirmPrompt() {
             </div>`;
     });
 
-    // Populate voice notes
     const voiceContainer = document.getElementById('overviewVoices');
     voiceContainer.innerHTML = '';
     draftData.voices.forEach((vceObj, index) => {
@@ -815,11 +938,12 @@ async function confirmOrderFromOverview() {
         try {
             const { data: custData } = await _supabase.from('customers').select('city, area').eq('customer_id', customerId).single();
             if (custData && custData.area) { customerCity = custData.city; customerArea = custData.area; localStorage.setItem('faster_city', customerCity); localStorage.setItem('faster_area', customerArea); }
-            else { /* show error */ window.location.href = "profile.html"; return; }
+            else { window.location.href = "profile.html"; return; }
         } catch(e) { showInlineError("Network Error", "Area fetch nahi ho saka, internet check karein."); return; }
     }
 
-    // ... area status and time checks (existing) ...
+    // ... (area status, time checks - unchanged for brevity, include your existing time checking code) ...
+
     const name = document.getElementById('overviewName').value.trim();
     const addr = document.getElementById('overviewAddress').value.trim();
     const scheduleTime = document.getElementById('overviewSchedule').value;
@@ -827,7 +951,6 @@ async function confirmOrderFromOverview() {
     btn.disabled = true; btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; btn.classList.replace('bg-orange-600', 'bg-gray-400');
 
     try {
-        // Update customer name/address
         await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
         // Use draft URLs directly (no re-upload)
@@ -885,15 +1008,6 @@ window.addEventListener('online', () => { document.getElementById('offlineBanner
 // ===============================
 // Utility Functions
 // ===============================
-async function uploadFileToStorage(file, folder = 'draft') {
-    const ext = file.name ? file.name.split('.').pop() : 'bin';
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substr(2,5)}.${ext}`;
-    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
-    if (error) throw error;
-    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
-    return { publicUrl: urlData.publicUrl, filePath: fileName };
-}
-
 function normalizeString(str) {
     if (!str) return "";
     return str.toLowerCase().replace(/\s+/g, '');
