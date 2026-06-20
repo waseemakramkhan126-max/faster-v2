@@ -158,7 +158,7 @@ function handleCapture() {
         c.getContext('2d').drawImage(v, 0, 0);
         c.toBlob(async b => {
             const cap = await Dialog.show("Photo Detail", "Add a caption... (Optional)", "prompt");
-            await addToDraft('image', { file: b, caption: cap });
+            addToDraft('image', { file: b, caption: cap });
             stopCustomCamera();
         }, 'image/jpeg');
     } else { 
@@ -239,18 +239,6 @@ const Dialog = {
     }
 };
 
-// ===============================
-// File Upload Helper
-// ===============================
-async function uploadFileToStorage(file, folder = 'draft') {
-    const ext = file.name ? file.name.split('.').pop() : 'bin';
-    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substr(2,5)}.${ext}`;
-    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
-    if (error) throw error;
-    const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
-    return { publicUrl: urlData.publicUrl, filePath: fileName };
-}
-
 // Page Initialization (100% Dynamic Exact Area Matching)
 async function initPage() {
     if(!userPhone) return window.location.replace('index.html');
@@ -259,100 +247,6 @@ async function initPage() {
     document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
     
     setupRealtime();
-
-    // Restore saved draft
-    const savedDraft = localStorage.getItem('faster_order_draft');
-    if (savedDraft) {
-        try {
-            draftData = JSON.parse(savedDraft);
-            chatArea.innerHTML = '';
-            document.getElementById('emptyPlaceholder').style.display = 'none';
-
-            async function restoreItem(type, data) {
-                const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2,5);
-                const b = document.createElement('div');
-                b.className = "bubble customer-bubble animate-pop";
-                b.id = bId;
-
-                if (type === 'text') {
-                    b.innerHTML = `<p class="whitespace-pre-wrap">${data}</p>`;
-                } else if (type === 'image') {
-                    b.innerHTML = `<img src="${data.url}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
-                                  ${data.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${data.caption}</p>` : ''}`;
-                } else if (type === 'voice') {
-                    b.innerHTML = `
-                        <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
-                            <button type="button" class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 28px;">
-                                <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
-                            </button>
-                            <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1 pointer-events-none">
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-6 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                            </div>
-                            <div class="text-[10px] text-white font-medium min-w-[35px] text-right pointer-events-none">
-                                <span class="time-current">0:00</span>
-                            </div>
-                            <audio src="${data.url}" playsinline preload="auto" style="display:none;"></audio>
-                            <div class="text-white pl-1 pointer-events-none"><i class="fas fa-microphone text-sm"></i></div>
-                        </div>`;
-                    setTimeout(() => {
-                        const container = b.querySelector('.voice-player-container');
-                        const audioEl = b.querySelector('audio');
-                        const playBtn = b.querySelector('.play-btn-custom');
-                        const playIcon = playBtn.querySelector('i');
-                        const timeCurrent = b.querySelector('.time-current');
-                        if (!audioEl || !playBtn || !container) return;
-                        const stopSelect = (e) => e.stopPropagation();
-                        container.addEventListener('click', stopSelect);
-                        container.addEventListener('touchstart', stopSelect, { passive: true });
-                        container.addEventListener('touchend', stopSelect, { passive: true });
-                        playBtn.addEventListener('click', async (e) => {
-                            e.stopPropagation();
-                            if (audioEl.paused) {
-                                document.querySelectorAll('audio').forEach(aud => { if(aud !== audioEl && !aud.paused) { aud.pause(); const btn = aud.parentElement.querySelector('.play-btn-custom i'); if(btn) btn.className = 'fas fa-play text-sm ml-0.5'; } });
-                                try { await audioEl.play(); playIcon.className = 'fas fa-pause text-sm pointer-events-none'; } catch(err) {}
-                            } else { audioEl.pause(); playIcon.className = 'fas fa-play text-sm ml-0.5'; }
-                        });
-                        const formatTime = (sec) => { if(isNaN(sec)||!isFinite(sec)) return "0:00"; const m = Math.floor(sec/60); const s = Math.floor(sec%60).toString().padStart(2,'0'); return `${m}:${s}`; };
-                        audioEl.addEventListener('loadedmetadata', () => { timeCurrent.textContent = formatTime(audioEl.duration); });
-                        audioEl.addEventListener('timeupdate', () => { let rem = audioEl.duration - audioEl.currentTime; if(rem<0) rem=0; timeCurrent.textContent = formatTime(rem); });
-                        audioEl.addEventListener('ended', () => { playIcon.className = 'fas fa-play text-sm ml-0.5'; timeCurrent.textContent = formatTime(audioEl.duration); });
-                    }, 150);
-                } else if (type === 'video') {
-                    b.innerHTML = `<video controls src="${data.url}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
-                } else if (type === 'doc') {
-                    b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
-                }
-
-                let pressTimer;
-                b.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleSelect(bId, type); if(navigator.vibrate) navigator.vibrate(50); }, 500); });
-                b.addEventListener('touchmove', () => clearTimeout(pressTimer));
-                b.addEventListener('touchend', () => clearTimeout(pressTimer));
-                b.addEventListener('click', () => {
-                    if (selectedItems.length > 0) toggleSelect(bId, type);
-                    else if (type === 'image' || type === 'video') openFull({src: type==='image'? data.url : data.url}, type==='image'?'img':'vid');
-                });
-
-                chatArea.appendChild(b);
-            }
-
-            if (draftData.texts) for (const t of draftData.texts) await restoreItem('text', t.data);
-            if (draftData.images) for (const i of draftData.images) await restoreItem('image', i.data);
-            if (draftData.voices) for (const v of draftData.voices) await restoreItem('voice', v.data);
-            if (draftData.videos) for (const v of draftData.videos) await restoreItem('video', v.data);
-            if (draftData.docs) for (const d of draftData.docs) await restoreItem('doc', d.data);
-
-            chatArea.scrollTop = chatArea.scrollHeight;
-            if (Object.values(draftData).flat().length > 0) {
-                document.getElementById('confirmBtnRow').classList.remove('hidden');
-            }
-        } catch(e) { console.warn("Draft load failed", e); }
-    }
 
     try {
         if(navigator.onLine) {
@@ -381,7 +275,7 @@ async function initPage() {
                 }
             }
 
-            // Session & Customer Profile Data Fetching
+            // 4. Session & Customer Profile Data Fetching
             const { data: { session } } = await _supabase.auth.getSession();
             if(session) {
                 const { data: customerData } = await _supabase.from('customers').select('name, address, city, area').eq('email', session.user.email).single();
@@ -426,16 +320,16 @@ async function previewFile(input, mode) {
         const type = file.type.startsWith('video') ? 'video' : (mode === 'doc' ? 'doc' : 'image');
         if(type === 'image') {
             const caption = await Dialog.show("Add Caption", "Would you like to add a message with this picture? (Optional)", "prompt");
-            await addToDraft('image', { file: file, caption: caption || "" });
-        } else await addToDraft(type, file);
+            addToDraft('image', { file: file, caption: caption || "" });
+        } else { addToDraft(type, file); }
     }
     input.value = ""; 
 }
 
 // -----------------------------------------------------
-// CLEANED & FIXED ADD TO DRAFT FUNCTION (with upload on attach)
+// CLEANED & FIXED ADD TO DRAFT FUNCTION
 // -----------------------------------------------------
-async function addToDraft(type, content) {
+function addToDraft(type, content) {
     document.getElementById('emptyPlaceholder').style.display = 'none';
     const chat = document.getElementById('chatArea');
     const bId = "b-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
@@ -448,20 +342,26 @@ async function addToDraft(type, content) {
         const val = (typeof content === 'string') ? content : document.getElementById('orderInput').value.trim();
         if(!val) return;
 
+        // ==========================================
         // SMART AUTO-TRIGGER (Confirm Order Detection)
+        // ==========================================
         let lowerVal = val.toLowerCase().replace(/[^a-z ]/g, '').trim(); 
         const confirmKeywords = ["ok", "okay", "done", "theek hai", "thek hai", "thk", "theek", "confirm", "confirm order", "order confirm", "done karo", "bhej do", "yes"];
         
+        // Check karega ke customer ne pehle koi item (text, image, voice) bheja hai ya nahi
         let totalItems = draftData.texts.length + draftData.images.length + draftData.voices.length + draftData.videos.length + draftData.docs.length;
         
+        // Agar pehle se order data maujood hai aur customer ne sirf exact keyword bheja hai
         if (totalItems > 0 && confirmKeywords.includes(lowerVal)) {
             if(typeof content !== 'string') {
                 document.getElementById('orderInput').value = "";
                 handleInput(document.getElementById('orderInput'));
             }
+            // AI ko bhejne ke bajaye direct Confirm Popup khol dega
             handleConfirmPrompt();
             return; 
         }
+        // ==========================================
 
         itemData = val;
         b.innerHTML = `<p class="whitespace-pre-wrap">${val}</p>`;
@@ -473,149 +373,120 @@ async function addToDraft(type, content) {
       //getAiReply(val);
     }
     else if (type === 'image') {
-        let imgData;
-        try {
-            const { publicUrl, filePath } = await uploadFileToStorage(content.file, 'images');
-            imgData = { url: publicUrl, filePath, caption: content.caption || '' };
-            b.innerHTML = `
-                <img src="${publicUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
-                ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
-            `;
-        } catch(e) {
-            Dialog.show("Error", "Image upload failed.");
-            return;
-        }
-        itemData = imgData;
+        const objUrl = URL.createObjectURL(content.file);
+        b.innerHTML = `
+            <img src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
+            ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
+        `;
+        let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
         //sendMediaToAI(content.file, promptText);
     } 
     else if (type === 'voice') {
-        let voiceData;
-        try {
-            const { publicUrl, filePath } = await uploadFileToStorage(content, 'voices');
-            voiceData = { url: publicUrl, filePath };
-            const objUrl = publicUrl;
-            
-            b.innerHTML = `
-                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
-            
-            <button type="button" class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 28px;">
-                <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
-            </button>
-            
-            <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1 pointer-events-none">
-                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                <div class="w-[3px] h-6 bg-white rounded-full"></div>
-                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                <div class="w-[3px] h-3 bg-white rounded-full"></div>
-            </div>
-
-            <div class="text-[10px] text-white font-medium min-w-[35px] text-right pointer-events-none">
-                <span class="time-current">0:00</span>
-            </div>
-            
-            <audio src="${objUrl}" playsinline preload="auto" style="display:none;"></audio>
-            
-            <div class="text-white pl-1 pointer-events-none">
-                <i class="fas fa-microphone text-sm"></i>
-            </div>
+        const objUrl = URL.createObjectURL(content);
+        
+        b.innerHTML = `
+            <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+        
+        <button type="button" class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 28px;">
+            <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
+        </button>
+        
+        <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1 pointer-events-none">
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-5 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-6 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
+            <div class="w-[3px] h-5 bg-white rounded-full"></div>
+            <div class="w-[3px] h-3 bg-white rounded-full"></div>
         </div>
-            `;
+
+        <div class="text-[10px] text-white font-medium min-w-[35px] text-right pointer-events-none">
+            <span class="time-current">0:00</span>
+        </div>
+        
+        <audio src="${objUrl}" playsinline preload="auto" style="display:none;"></audio>
+        
+        <div class="text-white pl-1 pointer-events-none">
+            <i class="fas fa-microphone text-sm"></i>
+        </div>
+    </div>
+        `;
+        
+        setTimeout(() => {
+            const container = b.querySelector('.voice-player-container');
+            const audioEl = b.querySelector('audio');
+            const playBtn = b.querySelector('.play-btn-custom');
+            const playIcon = playBtn.querySelector('i');
+            const timeCurrent = b.querySelector('.time-current');
             
-            setTimeout(() => {
-                const container = b.querySelector('.voice-player-container');
-                const audioEl = b.querySelector('audio');
-                const playBtn = b.querySelector('.play-btn-custom');
-                const playIcon = playBtn.querySelector('i');
-                const timeCurrent = b.querySelector('.time-current');
-                
-                if (!audioEl || !playBtn || !container) return;
+            if (!audioEl || !playBtn || !container) return;
 
-                const stopSelect = (e) => e.stopPropagation();
-                container.addEventListener('click', stopSelect);
-                container.addEventListener('touchstart', stopSelect, { passive: true });
-                container.addEventListener('touchend', stopSelect, { passive: true });
+            // Stop click propagation to bubble
+            const stopSelect = (e) => e.stopPropagation();
+            container.addEventListener('click', stopSelect);
+            container.addEventListener('touchstart', stopSelect, { passive: true });
+            container.addEventListener('touchend', stopSelect, { passive: true });
 
-                playBtn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
+            playBtn.addEventListener('click', async (e) => {
+                // IMPORTANT FIX: e.preventDefault() HATA DIYA GAYA HAI! Yeh mobile par audio rok raha tha.
+                e.stopPropagation();
 
-                    if (audioEl.paused) {
-                        document.querySelectorAll('audio').forEach(aud => {
-                            if(aud !== audioEl && !aud.paused) {
-                                aud.pause();
-                                const btn = aud.parentElement.querySelector('.play-btn-custom i');
-                                if(btn) btn.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
-                            }
-                        });
-
-                        try {
-                            await audioEl.play();
-                            playIcon.className = 'fas fa-pause text-sm pointer-events-none';
-                        } catch(err) {
-                            console.error("Playback failed:", err);
+                if (audioEl.paused) {
+                    // Dusri chalne wali audios rokein
+                    document.querySelectorAll('audio').forEach(aud => {
+                        if(aud !== audioEl && !aud.paused) {
+                            aud.pause();
+                            const btn = aud.parentElement.querySelector('.play-btn-custom i');
+                            if(btn) btn.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
                         }
-                    } else {
-                        audioEl.pause();
-                        playIcon.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
+                    });
+
+                    try {
+                        await audioEl.play();
+                        playIcon.className = 'fas fa-pause text-sm pointer-events-none';
+                    } catch(err) {
+                        console.error("Playback failed:", err);
                     }
-                });
-
-                const formatTime = (seconds) => {
-                    if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
-                    const min = Math.floor(seconds / 60);
-                    const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
-                    return `${min}:${sec}`;
-                };
-
-                audioEl.addEventListener('loadedmetadata', () => {
-                    timeCurrent.textContent = formatTime(audioEl.duration);
-                });
-
-                audioEl.addEventListener('timeupdate', () => {
-                    let remDuration = audioEl.duration - audioEl.currentTime;
-                    if (remDuration < 0) remDuration = 0;
-                    timeCurrent.textContent = formatTime(remDuration);
-                });
-
-                audioEl.addEventListener('ended', () => {
+                } else {
+                    audioEl.pause();
                     playIcon.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
-                    timeCurrent.textContent = formatTime(audioEl.duration);
-                });
+                }
+            });
 
-            }, 150);
-        } catch(e) {
-            Dialog.show("Error", "Voice upload failed.");
-            return;
-        }
-        itemData = voiceData;
-        //sendMediaToAI(content, "Mera voice note sunein...");
+            const formatTime = (seconds) => {
+                if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
+                const min = Math.floor(seconds / 60);
+                const sec = Math.floor(seconds % 60).toString().padStart(2, '0');
+                return `${min}:${sec}`;
+            };
+
+            audioEl.addEventListener('loadedmetadata', () => {
+                timeCurrent.textContent = formatTime(audioEl.duration);
+            });
+
+            audioEl.addEventListener('timeupdate', () => {
+                let remDuration = audioEl.duration - audioEl.currentTime;
+                if (remDuration < 0) remDuration = 0;
+                timeCurrent.textContent = formatTime(remDuration);
+            });
+
+            audioEl.addEventListener('ended', () => {
+                playIcon.className = 'fas fa-play text-sm ml-0.5 pointer-events-none';
+                timeCurrent.textContent = formatTime(audioEl.duration);
+            });
+
+        }, 150);
+
+        //sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     }
     else if (type === 'doc') {
-        let docData;
-        try {
-            const { publicUrl, filePath } = await uploadFileToStorage(content, 'docs');
-            docData = { url: publicUrl, filePath };
-            b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
-        } catch(e) {
-            Dialog.show("Error", "Document upload failed.");
-            return;
-        }
-        itemData = docData;
-        //sendMediaToAI(content, "Is document ko read karein...");
+        b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
+        //sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
     }
     else if (type === 'video') {
-        let videoData;
-        try {
-            const { publicUrl, filePath } = await uploadFileToStorage(content, 'videos');
-            videoData = { url: publicUrl, filePath };
-            b.innerHTML = `<video controls src="${publicUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
-        } catch(e) {
-            Dialog.show("Error", "Video upload failed.");
-            return;
-        }
-        itemData = videoData;
+        const objUrl = URL.createObjectURL(content);
+        b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
         //sendMediaToAI(content, "Is video ko check karein.");
     }
 
@@ -625,16 +496,12 @@ async function addToDraft(type, content) {
     b.addEventListener('touchend', () => clearTimeout(pressTimer));
     b.addEventListener('click', () => {
         if (selectedItems.length > 0) toggleSelect(bId, type); 
-        else if (type === 'image' || type === 'video') {
-            const src = type === 'image' ? (itemData.url || itemData.data.url) : (itemData.url || itemData.data.url);
-            openFull({src: src}, type === 'image' ? 'img' : 'vid');
-        }
+        else if (type === 'image' || type === 'video') openFull({src: type === 'image' ? URL.createObjectURL(content.file) : URL.createObjectURL(content)}, type === 'image' ? 'img' : 'vid');
     });
 
     const key = type === 'text' ? 'texts' : type + 's';
     draftData[key].push({ id: bId, data: itemData });
     chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
-    localStorage.setItem('faster_order_draft', JSON.stringify(draftData));
     document.getElementById('confirmBtnRow').classList.remove('hidden');
 }
 
@@ -674,25 +541,12 @@ function confirmDelete() {
     if (selectedItems.length === 0) return;
     selectedItems.forEach(sel => {
         const key = sel.type === 'text' ? 'texts' : sel.type + 's';
-        const deletedItems = draftData[key].filter(item => item.id === sel.id);
         draftData[key] = draftData[key].filter(item => item.id !== sel.id);
         const el = document.getElementById(sel.id); if (el) el.remove();
-        // Remove from Supabase Storage
-        for (const delItem of deletedItems) {
-            if (delItem.data && delItem.data.filePath) {
-                _supabase.storage.from('order-files').remove([delItem.data.filePath]).catch(e => console.warn('Storage remove error', e));
-            }
-        }
     });
     cancelSelection();
     if (Object.values(draftData).flat().length === 0) {
-        const paths = [];
-        for (const type of ['images','voices','videos','docs']) {
-            if (draftData[type]) draftData[type].forEach(item => { if (item.data && item.data.filePath) paths.push(item.data.filePath); });
-        }
-        if (paths.length > 0) _supabase.storage.from('order-files').remove(paths).catch(e => console.warn('Bulk delete error', e));
         document.getElementById('confirmBtnRow').classList.add('hidden');
-        localStorage.removeItem('faster_order_draft');
         document.getElementById('emptyPlaceholder').style.display = 'flex';
     }
 }
@@ -727,6 +581,7 @@ async function handleVoice() {
         if (!audioRecorder || audioRecorder.state === "inactive") {
             const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
+            // PRIORITY: mp4 pehle check karo (iOS ke liye), phir opus/webm check karo
             let options = {};
             if (MediaRecorder.isTypeSupported('audio/mp4')) {
                 options = { mimeType: 'audio/mp4' };
@@ -774,6 +629,7 @@ function addAiBubble(text) {
     const bId = "ai-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
     const b = document.createElement('div');
     
+    // Yahan humne AI ka naam "Faster AI" aur sath icon add kar diya hai
     b.className = "bubble ai-bubble animate-pop bg-gray-100 text-gray-800 p-3 rounded-lg my-2 max-w-[80%] self-start"; 
     b.id = bId;
     b.innerHTML = `
@@ -798,26 +654,187 @@ async function askAI() {
 }
 
 // File ko Base64 banakar AI ko bhejne wala function
-/*function sendMediaToAI(file, promptText) { ... }*/
+/*function sendMediaToAI(file, promptText) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+        const base64String = reader.result.split(',')[1];
+        const mimeType = file.type;
+        await getAiReply(promptText, base64String, mimeType);
+    };
+    reader.onerror = error => {
+        console.error("File reading error:", error);
+        Dialog.show("Error", "File read nahi ho saki.", "alert");
+    };
+}*/
 
 // Function parameters mein fileData aur mimeType add kiya gaya 645 se 787
-/*async function getAiReply(userMessage, fileData = null, mimeType = null) { ... }*/
+/*async function getAiReply(userMessage, fileData = null, mimeType = null) {
+    const btn = document.getElementById('sendBtn'); 
+    const confirmBtn = document.getElementById('finalSubmitBtn'); 
+    
+    let originalContent = "";
+    
+    // ==========================================
+    // 1. LOADING (SPINNER) LOGIC
+    // ==========================================
+    if (btn) {
+        originalContent = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+        btn.disabled = true;
+    }
+    if (confirmBtn) {
+        confirmBtn.classList.add('opacity-50', 'pointer-events-none');
+        confirmBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Wait...`;
+    }
+
+    try {
+        // ==========================================
+        // 2. CHAT HISTORY LOGIC (Purana Wala)
+        // ==========================================
+        const chatElements = document.querySelectorAll('#chatArea .bubble');
+        let rawHistory = [];
+
+        chatElements.forEach(el => {
+            const text = el.innerText.trim();
+            if (text && !text.includes("⚠️")) { 
+                if (el.classList.contains('ai-bubble')) {
+                    let cleanText = text.replace(/Faster AI:/i, "").trim();
+                    rawHistory.push({ role: 'model', content: cleanText });
+                } else if (el.classList.contains('customer-bubble')) {
+                    rawHistory.push({ role: 'user', content: text });
+                }
+            }
+        });
+
+        if (rawHistory.length > 0 && rawHistory[rawHistory.length - 1].content === userMessage) {
+            rawHistory.pop();
+        }
+
+        let safeHistory = [];
+        let expectedRole = 'user';
+        
+        for (let msg of rawHistory) {
+            if (msg.role === expectedRole) {
+                safeHistory.push(msg);
+                expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+            } else if (safeHistory.length > 0) {
+                safeHistory[safeHistory.length - 1].content += " | " + msg.content;
+            }
+        }
+
+        if (safeHistory.length > 0 && safeHistory[safeHistory.length - 1].role === 'user') {
+            let lastUserMsg = safeHistory.pop();
+            userMessage = lastUserMsg.content + " | " + userMessage;
+        }
+
+        // ==========================================
+        // 3. AI SYSTEM INSTRUCTION (Drafting Mode)
+        // ==========================================
+        // Yeh line AI ko order final karne se rokti hai jab tak customer button na dabaye. 
+        // Agar customer naya item likhta hai, AI sirf summary update karega.
+        const systemInstruction = `You are a professional order taker. 
+        Current stage: Drafting/Updating Order.
+        - ALWAYS update the order summary if the user adds new items (e.g., "Shimla add karein").
+        - NEVER say "Order process ho raha hai" or "Live status check karein" unless the user explicitly confirms. Keep the customer in the order flow.`;
+
+        const { data, error } = await _supabase.functions.invoke('chat-brain', {
+            body: { message: userMessage, history: safeHistory, fileData: fileData, mimeType: mimeType, systemInstruction: systemInstruction }
+        });
+
+        // ==========================================
+        // 4. ERROR & LIMIT CHECKING
+        // ==========================================
+        let hasError = false;
+        let errorMsg = "";
+
+        if (error) { hasError = true; errorMsg = error.message || error.toString(); }
+        if (data && data.error) { hasError = true; errorMsg = data.error; }
+
+        if (hasError) {
+            let lowerError = errorMsg.toLowerCase();
+            if (lowerError.includes("limit") || lowerError.includes("quota") || lowerError.includes("exceeded") || lowerError.includes("429")) {
+                Dialog.show(
+                    "Limit Reached", 
+                    "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", 
+                    "alert"
+                );
+            } else {
+                addAiBubble(`⚠️ System Error: ${errorMsg}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
+            }
+            return; 
+        }
+
+        if (data && data.reply) {
+            addAiBubble(data.reply);
+
+            // ==========================================
+            // 5. SMART AUTO-POPUP (Saare Spelling Variations)
+            // ==========================================
+            // Is Regex mein aapke diye gaye saare lafz aur unke milte-julte spellings shamil hain
+            const confirmRegex = /\b(ok|oky|okay|okie|okei|ok\s*g|oky\s*g|okay\s*g|okie\s*g|okei\s*g|done|confirm|theek|theek\s*hai|theek\s*hai\s*g|thk|proceed|process)\b/i;
+            
+            // Latest message nikal kar check karenge
+            let userLatestText = userMessage.split("|").pop().trim().toLowerCase();
+
+            // Agar customer ne aapki list wala koi lafz bola hai
+            if (confirmRegex.test(userLatestText)) {
+                // 1 second ka delay taake customer apni aakhri summary dekh lay, phir popup aaye
+                setTimeout(() => {
+                    handleConfirmPrompt(); 
+                }, 1000);
+            }
+        }
+
+    } catch(err) {
+        console.error("AI Error:", err);
+        if (err.message.toLowerCase().includes("limit") || err.message.toLowerCase().includes("quota")) {
+            Dialog.show(
+                "Limit Reached", 
+                "You have reached your voice recording limit for this order. To complete your request, please type your order details and send them.", 
+                "alert"
+            );
+        } else {
+            addAiBubble(`⚠️ System Error: ${err.message}\n\n*Apne order ki mukammal tafseelat bhejne ke baad 'Confirm Order' button dabayen.*`);
+        }
+    } finally {
+        // ==========================================
+        // 6. UI RESET (Buttons ko wapas theek karna)
+        // ==========================================
+        if (btn) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+        if (confirmBtn) {
+            confirmBtn.innerHTML = `Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>`;
+            confirmBtn.classList.remove('opacity-50', 'pointer-events-none');
+            confirmBtn.disabled = false; 
+        }
+    }
+}*/
 
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
 
+    // ==========================================
+    // 🚀 HYBRID FEE CALCULATION (FIXED)
+    // ==========================================
     const city = localStorage.getItem('faster_city') || "Lahore";
     const area = localStorage.getItem('faster_area') || "";
     const block = localStorage.getItem('faster_block') || ""; 
-    
-    document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
-    
-    const currentFee = await getFinalDeliveryFee(city, area, block, 
-        document.getElementById('overviewAddress').value.trim()
-    );
+    // Pehle overviewAddress set karo
+document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
 
+// Ab fee calculate karo (taake address scan ke liye value maujood ho)
+const currentFee = await getFinalDeliveryFee(city, area, block, 
+    document.getElementById('overviewAddress').value.trim()
+);
+
+    // ==========================================
+    // MANUAL SUMMARY EXTRACTION
+    // ==========================================
     const customerBubbles = document.querySelectorAll('.customer-bubble');
     let manualSummaryList = [];
 
@@ -840,24 +857,29 @@ async function handleConfirmPrompt() {
         currentExtractedSummary = "Order details are in attached voice notes/images.";
     }
 
+    // ==========================================
+    // POPULATE POPUP DATA
+    // ==========================================
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
     
+    // --- UPDATED UI: Dynamic Fee Display ---
     document.getElementById('overviewDcAmount').innerText = `Rs. ${currentFee}`;
     const blockDisplay = document.getElementById('overviewBlockDisplay');
-    if (matchedBlockName) {
-        blockDisplay.innerText = '✅ Block: ' + matchedBlockName;
-    } else {
-        blockDisplay.innerText = '📍 Block: (using area fee)';
-    }
+if (matchedBlockName) {
+    blockDisplay.innerText = '✅ Block: ' + matchedBlockName;
+} else {
+    blockDisplay.innerText = '📍 Block: (using area fee)';
+}
     
     document.getElementById('overviewSummaryText').innerText = currentExtractedSummary;
     document.getElementById('overviewSchedule').value = ""; 
 
+    // 3. Populate Images 
     const imgContainer = document.getElementById('overviewImages');
     imgContainer.innerHTML = '';
     draftData.images.forEach(imgObj => {
-        const objUrl = imgObj.data.url || imgObj.data;
+        const objUrl = URL.createObjectURL(imgObj.data.file || imgObj.data);
         const cap = (imgObj.data.caption || "").replace(/'/g, "\\'").replace(/"/g, "&quot;"); 
         imgContainer.innerHTML += `
             <div class="relative w-[70px] h-[70px] rounded-lg overflow-hidden border border-gray-200 shadow-sm cursor-pointer active:scale-95 transition-transform" 
@@ -868,6 +890,7 @@ async function handleConfirmPrompt() {
         `;
     });
 
+    // 4. Populate Voices
     const voiceContainer = document.getElementById('overviewVoices');
     voiceContainer.innerHTML = '';
     draftData.voices.forEach((vceObj, index) => {
@@ -878,6 +901,7 @@ async function handleConfirmPrompt() {
         `;
     });
 
+    // 5. Show Full Screen Popup
     document.getElementById('orderOverviewModal').classList.remove('hidden');
     document.getElementById('orderOverviewModal').classList.add('flex');
 }
@@ -906,11 +930,15 @@ function openFullWithCaption(srcUrl, captionText) {
     };
 }
 
+// 'sync' ko 'async' kar diya
 async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
     if(!session) return;
 
     const btn = document.getElementById('overviewSubmitBtn');
+    // ==========================================
+    // 🎨 INLINE ERROR FUNCTION (Aapki purani logic)
+    // ==========================================
     function showInlineError(title, message) {
         let existingError = document.getElementById('inlineOrderError');
         if(existingError) existingError.remove();
@@ -931,20 +959,22 @@ async function confirmOrderFromOverview() {
             if(errorToRemove) errorToRemove.remove();
         }, 8000); 
     }
+    // ==========================================
 
+    // --- FIX 1: LOCALSTORAGE FALLBACK & PROFILE REDIRECT ---
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
     if (!customerArea || customerArea === "null" || !customerCity) {
         if (!customerId || customerId.trim() === '' || isNaN(customerId)) {
-            if (typeof Dialog !== 'undefined') {
-                await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
-            } else {
-                alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
-            }
-            window.location.href = "profile.html"; 
-            return;
+        if (typeof Dialog !== 'undefined') {
+            await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
+        } else {
+            alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
         }
+        window.location.href = "profile.html";
+        return;
+    }
         try {
             const { data: custData } = await _supabase.from('customers').select('city, area').eq('customer_id', customerId).single();
             if (custData && custData.area) {
@@ -953,13 +983,14 @@ async function confirmOrderFromOverview() {
                 localStorage.setItem('faster_city', customerCity);
                 localStorage.setItem('faster_area', customerArea);
             } else {
+                // Agar area nahi hai, toh Dialog show karein aur profile.html par bhejein
                 if (typeof Dialog !== 'undefined') {
                     await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
                 } else {
                     alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
                 }
                 window.location.href = "profile.html"; 
-                return;
+                return; // Code ko yahin rok do
             }
         } catch(e) {
             showInlineError("Network Error", "Area fetch nahi ho saka, internet check karein.");
@@ -967,6 +998,7 @@ async function confirmOrderFromOverview() {
         }
     }
 
+    // --- FIX 2: STANDARDIZE AREA (Crash-Proof) ---
     const safeAreaToSave = (customerArea || "").trim().toLowerCase();
 
     if (customerCity === "Other City" || customerArea === "Other Area") {
@@ -974,21 +1006,27 @@ async function confirmOrderFromOverview() {
         return; 
     }
 
-    let openHour = 8; 
-    let closeHour = 1; 
-    let realDBAreaName = customerArea; 
+    // ==========================================
+    // 🌍 SUPABASE SE AREA STATUS AUR DYNAMIC TIMING NIKALNA
+    // ==========================================
+    let openHour = 8; // Default 8 AM
+    let closeHour = 1; // Default 1 AM
+    let realDBAreaName = customerArea; // Admin panel formatting fallback
 
     try {
+        // CHANGED: `.eq` ki jagah `.ilike` use kiya hai taake case-sensitivity ka masla na ho
         const { data: areaData } = await _supabase
             .from('delivery_areas')
             .select('area_name, is_active, open_hour, close_hour') 
             .eq('city', customerCity)
             .ilike('area_name', customerArea) 
-            .maybeSingle();
+            .maybeSingle(); // Safe row fetching ke liye maybeSingle behtar hai
 
         if (areaData) {
+            // Admin panel par proper capitalize name dikhane ke liye real name uthayen
             realDBAreaName = areaData.area_name;
 
+            // Agar Admin ne is area ki service band ki hui hai
             if (areaData.is_active === false) {
                 showInlineError("⚠️ Service Unavailable", `Abhi ${realDBAreaName} mein hamari delivery service aarzi taur par band hai.`);
                 return; 
@@ -1010,7 +1048,10 @@ async function confirmOrderFromOverview() {
         return;
     }
 
-    // Time checks (unchanged)
+    // ==========================================
+    // 🕒 DYNAMIC TIME CHECK LOGIC (Admin Controlled) - UPDATED
+    // ==========================================
+    // Time ko minutes mein convert karne wala function taake 9:20 pm jaisi timings bhi cover hon
     function timeToMinutes(val, fallback) {
         if (val === null || val === undefined || val === '') return fallback * 60;
         if (typeof val === 'string' && val.includes(':')) {
@@ -1020,6 +1061,7 @@ async function confirmOrderFromOverview() {
         return parseInt(val) * 60;
     }
 
+    // Customer ko time PM/AM format mein dikhane ka function
     function formatTimeMsg(val, fallback) {
         let h = fallback;
         let m = 0;
@@ -1039,14 +1081,15 @@ async function confirmOrderFromOverview() {
         return `${h12}:${mStr} ${ampm}`;
     }
 
-    const openMins = timeToMinutes(openHour, 8);
-    const closeMins = timeToMinutes(closeHour, 17);
+    const openMins = timeToMinutes(openHour, 8); // Default 8 AM
+    const closeMins = timeToMinutes(closeHour, 17); // Default 5 PM (17:00)
     
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
     let isShopClosed = false;
     
+    // Normal Shift (e.g. 8 AM to 5 PM) aur Night Shift (e.g. 8 PM to 1 AM) logic
     if (openMins <= closeMins) {
         isShopClosed = (currentMins < openMins) || (currentMins >= closeMins);
     } else {
@@ -1056,12 +1099,15 @@ async function confirmOrderFromOverview() {
     const openStr = formatTimeMsg(openHour, 8);
     const closeStr = formatTimeMsg(closeHour, 17);
 
+    // Condition 1: Normal Order - Service Band hai lekin schedule kar sakta hai
     if (isShopClosed && !scheduleTime) {
+        // Aapka required message
         const msg = `Is waqt service time khatm hogya hai, aap apna order schedule kar sakte hain. (Timings: ${openStr} se ${closeStr})`;
         showInlineError("🕒 Service Closed", msg);
-        return;
+        return; // Process ruk jayega
     }
 
+    // Condition 2: Scheduled Order - Close hours mein schedule karne ki koshish
     if (scheduleTime) {
         const schedDate = new Date(scheduleTime);
         const schedMins = schedDate.getHours() * 60 + schedDate.getMinutes();
@@ -1074,15 +1120,19 @@ async function confirmOrderFromOverview() {
         }
 
         if (isSchedClosed) {
+            // Error aur Supabase wala Dynamic Guide message
             showInlineError("🕒 Invalid Schedule Time", `Aap band waqt mein order schedule nahi kar sakte. Hamari service ${openStr} se ${closeStr} tak open rehti hai, kripya open hour ke mutabiq time chunein.`);
-            return;
+            return; // Process ruk jayega
         }
     }
+    // ==========================================
 
     btn.disabled = true; 
     btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`; 
     btn.classList.replace('bg-orange-600', 'bg-gray-400');
     
+    // ... ISKE NEECHAY WALA UPLOADING AUR INSERT CODE WAISA HI RAHEGA ...
+
     try {
         const editNameEl = document.getElementById('editName');
         if (editNameEl) editNameEl.value = name;
@@ -1094,11 +1144,36 @@ async function confirmOrderFromOverview() {
         
         await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
-        // Use draft URLs directly (no re-upload)
-        const imgURLs = draftData.images.map(i => i.data.url).join(',');
-        const vidURLs = draftData.videos.map(v => v.data.url).join(',');
-        const vceURLs = draftData.voices.map(v => v.data.url).join(',');
-        const docURLs = draftData.docs.map(d => d.data.url).join(',');
+        // --- FIX 3: SAFE MEDIA UPLOADS ---
+        const uploadAll = async (items, prefix, defaultExt) => {
+            if (!items || items.length === 0) return "";
+            const promises = items.map(async (item) => {
+                try {
+                    const file = item.data.file || item.data; 
+                    let ext = defaultExt;
+                    if (file.name) {
+                        ext = file.name.split('.').pop();
+                    } else if (file.type) {
+                        const mimeExt = file.type.split('/')[1]?.split(';')[0];
+                        if (mimeExt) ext = mimeExt;
+                    }
+                    const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
+                    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+                    if(error) throw error;
+                    return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
+                } catch (err) {
+                    console.error("Single file skipped due to network:", err);
+                    return null; // Return null instead of crashing
+                }
+            });
+            const urls = await Promise.all(promises);
+            return urls.filter(url => url !== null).join(","); // Only join successful uploads
+        };
+        
+        const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
+            uploadAll(draftData.images, 'img', 'jpg'), uploadAll(draftData.videos, 'vid', 'mp4'),
+            uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
+        ]);
 
         let finalStatus = 'pending';
         let scheduledAtValue = null;
@@ -1107,16 +1182,17 @@ async function confirmOrderFromOverview() {
             scheduledAtValue = new Date(scheduleTime).toISOString();
         }
 
+        // 📍 INSERT SE THEEK PEHLE DYNAMIC FEE CALCULATE KAREIN (Yahan paste karein)
         const userBlock = localStorage.getItem('faster_block') || "";
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
         const finalCustomerId = (customerId && customerId.trim() !== '' && !isNaN(customerId)) ? customerId : null;
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
-            ...(finalCustomerId ? { customer_id: finalCustomerId } : {}),
+            ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
             customer_name: name, 
             delivery_address: addr, 
-            area: realDBAreaName,
+            area: realDBAreaName, // ✅ Safely saved with correct DB database capitalization
             order_details: currentExtractedSummary, 
             image_url: imgURLs, 
             video_url: vidURLs, 
@@ -1124,11 +1200,11 @@ async function confirmOrderFromOverview() {
             doc_url: docURLs, 
             status: finalStatus, 
             scheduled_at: scheduledAtValue, 
-            dc_amount: finalFee
+            dc_amount: finalFee // ✅ Sahi final fee save ho rahi hai
         }]);
         
         if(error) throw error;
-        localStorage.removeItem('faster_order_draft');
+        
         closeOrderOverview();
         
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
@@ -1165,7 +1241,6 @@ function normalizeString(str) {
     if (!str) return "";
     return str.toLowerCase().replace(/\s+/g, ''); 
 }
-
 // Fuzzy matching helper
 function levenshtein(a, b) {
     const an = a.length, bn = b.length;
@@ -1183,14 +1258,14 @@ function levenshtein(a, b) {
     }
     return matrix[an][bn];
 }
-
 // 2. Hybrid Delivery Fee Calculator
 async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressText = "") {
     const cleanCity = (cityName || "").trim();
     const cleanArea = (areaName || "").trim();
 
-    // ⚡ Customer override check (using customer_id)
-    if (customerId && !isNaN(customerId) && typeof userPhone !== 'undefined' && userPhone) {
+    // ⚡ Customer override check
+    // Override tabhi karo jab customerId valid ho
+if (customerId && !isNaN(customerId) && typeof userPhone !== 'undefined' && userPhone) {
         try {
             const { data: cust } = await _supabase
                 .from('customers')
@@ -1228,71 +1303,77 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         if (blockError) console.error("Block fetch error:", blockError);
 
         if (blocks && blocks.length > 0) {
+            // Longest blocks pehle (taake "a" pehle na match ho)
             const allBlocks = blocks
                 .map(b => ({
                     original: b.block_name.trim(),
                     tokens: (b.block_name || "").trim().toLowerCase().replace(/\bblock\b/gi, '').trim().split(/\s+/).filter(t => t.length > 0),
                     fee: Number(b.delivery_fee) || 0
                 }))
-                .filter(b => b.fee > 0)
+                .filter(b => b.fee > 0) // sirf positive fee wale blocks consider karo
                 .sort((a, b) => b.tokens.length - a.tokens.length);
 
             // Normalisation helper: common Urdu transliteration variations
-            function normalizeToken(t) {
-                if (!t) return '';
-                let nt = t.toLowerCase();
-                // EE -> I (tauheed/tauhid)
-                nt = nt.replace(/ee/g, 'i');
-                // OO -> U (junaid/junad)
-                nt = nt.replace(/oo/g, 'u');
-                return nt;
-            }
+function normalizeToken(t) {
+    if (!t) return '';
+    let nt = t.toLowerCase();
+    // EE -> I (tauheed/tauhid)
+    nt = nt.replace(/ee/g, 'i');
+    // OO -> U (junaid/junad)
+    nt = nt.replace(/oo/g, 'u');
+    // GH -> G (baghdad/bagdad) – optional, already fuzzy handles it
+    // nt = nt.replace(/gh/g, 'g');
+    return nt;
+}
 
-            const findBlock = (text, allowSingleLetters = true) => {
-                if (!text) return null;
-                const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
-                const normalizedInput = inputTokens.map(normalizeToken);
+const findBlock = (text, allowSingleLetters = true) => {
+    if (!text) return null;
+    const inputTokens = text.split(/\s+/).filter(t => t.length > 0);
+    // Normalised input tokens
+    const normalizedInput = inputTokens.map(normalizeToken);
 
-                for (const block of allBlocks) {
-                    if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) continue;
-                    const normalizedBlock = block.tokens.map(normalizeToken);
-                    // 1. Exact match on normalised tokens
-                    if (normalizedBlock.every(bt => normalizedInput.includes(bt))) {
-                        return block;
-                    }
-                    // 2. Fuzzy match (original tokens, threshold ≤1, len≥4)
-                    if (block.tokens.every(bt => {
-                        return inputTokens.some(it => {
-                            if (it === bt) return true;
-                            if (bt.length >= 4 && it.length >= 4 && levenshtein(bt, it) <= 1) return true;
-                            return false;
-                        });
-                    })) {
-                        return block;
-                    }
-                }
-                return null;
-            };
+    for (const block of allBlocks) {
+        if (!allowSingleLetters && block.tokens.length === 1 && block.tokens[0].length === 1) continue;
+
+        // Normalised block tokens
+        const normalizedBlock = block.tokens.map(normalizeToken);
+
+        // 1. Exact match on normalised tokens
+        if (normalizedBlock.every(bt => normalizedInput.includes(bt))) {
+            return block;
+        }
+
+        // 2. Fuzzy match (original tokens, threshold ≤1, len≥4)
+        if (block.tokens.every(bt => {
+            return inputTokens.some(it => {
+                if (it === bt) return true;
+                if (bt.length >= 4 && it.length >= 4 && levenshtein(bt, it) <= 1) return true;
+                return false;
+            });
+        })) {
+            return block;
+        }
+    }
+    return null;
+};
 
             // 1. Block input se match (single letters bhi allow)
             if (cleanBlockInput) {
                 const match = findBlock(cleanBlockInput, true);
-                if (match) {
-                    matchedBlockName = match.original;
-                    console.log("✅ Block matched from input:", match.original, match.fee);
-                    return match.fee;
-                }
-            }
-
-            // 2. Address se match (single letters ignore)
-            if (cleanAddress) {
-                const match = findBlock(cleanAddress, false);
-                if (match) {
-                    matchedBlockName = match.original;
-                    console.log("✅ Block detected from address:", match.original, match.fee);
-                    return match.fee;
-                }
-            }
+              if (match) {
+                 matchedBlockName = match.original;   // 👈 add this
+                 console.log("✅ Block matched from input:", match.original, match.fee);
+             return match.fee;
+         }
+     }
+if (cleanAddress) {
+    const match = findBlock(cleanAddress, false);
+    if (match) {
+        matchedBlockName = match.original;   // 👈 add this
+        console.log("✅ Block detected from address:", match.original, match.fee);
+        return match.fee;
+    }
+}
 
             console.warn("⚠️ No block matched. Falling back to area fee.");
         }
@@ -1317,3 +1398,4 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
         return 0;
     }
 }
+
