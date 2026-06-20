@@ -247,6 +247,24 @@ async function initPage() {
     document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
     
     setupRealtime();
+    const savedDraft = localStorage.getItem('faster_order_draft');
+    if (savedDraft) {
+        try {
+            draftData = JSON.parse(savedDraft);
+            // chatArea mein purane bubbles render karo
+            document.getElementById('chatArea').innerHTML = '';
+            document.getElementById('emptyPlaceholder').style.display = 'none';
+            for (const type of ['texts', 'images', 'voices', 'videos', 'docs']) {
+                for (const item of draftData[type]) {
+                    addToDraft(type, item.data); // bubble render karega (without saving again)
+                }
+            }
+            // confirm button dikhao agar koi item hai
+            if (Object.values(draftData).flat().length > 0) {
+                document.getElementById('confirmBtnRow').classList.remove('hidden');
+            }
+        } catch(e) { console.warn("Draft load failed", e); }
+    }
 
     try {
         if(navigator.onLine) {
@@ -502,6 +520,7 @@ function addToDraft(type, content) {
     const key = type === 'text' ? 'texts' : type + 's';
     draftData[key].push({ id: bId, data: itemData });
     chat.appendChild(b); chat.scrollTop = chat.scrollHeight;
+    localStorage.setItem('faster_order_draft', JSON.stringify(draftData));
     document.getElementById('confirmBtnRow').classList.remove('hidden');
 }
 
@@ -547,6 +566,7 @@ function confirmDelete() {
     cancelSelection();
     if (Object.values(draftData).flat().length === 0) {
         document.getElementById('confirmBtnRow').classList.add('hidden');
+        localStorage.removeItem('faster_order_draft');
         document.getElementById('emptyPlaceholder').style.display = 'flex';
     }
 }
@@ -1204,7 +1224,7 @@ async function confirmOrderFromOverview() {
         }]);
         
         if(error) throw error;
-        
+        localStorage.removeItem('faster_order_draft');
         closeOrderOverview();
         
         await Dialog.show("Success", "Your order has been placed successfully! ✅", "alert");
