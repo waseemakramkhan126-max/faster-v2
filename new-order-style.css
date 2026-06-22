@@ -1,254 +1,131 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+/* =============================================
+   NEW ORDER PAGE - ALL STYLES
+   ============================================= */
 
-/* ==========================================================================
-   MUKAMAL COLOR CONFIGURATION (YAHAN SE SUB COLORS CHANGE HONGAY)
-   ========================================================================== */
-:root {
-    /* 1. MAIN PAGE AUR CHAT AREA */
-    --main-page-bg: #f3f4f6;          /* Poore page ka background color */
-    --chat-area-bg: #e5ddd5;          /* Chat area ka background color (agar wallpaper image load na ho) */
-    
-    /* 2. APPBAR AREA (Enter Order Details) */
-    --appbar-bg: #0077b9;             /* Appbar ka background color */
-    --appbar-text-color: #ffffff;     /* "Enter Order Details" text ka color */
-    --appbar-bottom-border: #e5e7eb;  /* Appbar ke neeche wali patli line ka color */
-
-    /* 3. NEECHY ROW WALE AREA (Confirm Row & Footer Area) */
-    --confirm-row-bg: transparent;        /* Confirm Order button wali poori row ka background color */
-    --confirm-row-border: transparent;    /* Confirm row ki oopar wali patli line ka color */
-    --footer-bg: transparent;             /* Sab se neeche jahan plus, text input aur mic hai us area ka background color */
-    --footer-border: transparent;         /* Footer area ki oopar wali patli line ka color */
-
-    /* 4. BUTTONS KE BACKGROUND AUR TEXT COLORS */
-    --confirm-btn-bg: #0077b9;        /* "Confirm order" button ka background color */
-    --confirm-btn-text: #ffffff;      /* "Confirm order" button ke andar likhe text ka color */
-    
-    --plus-btn-bg: #f3f4f6;           /* Plus (+) button ka background color */
-    --plus-btn-icon: #6b7280;         /* Plus (+) button ke andar jo icon hai uska color */
-    
-    --send-btn-bg: #f97316;           /* Message send karne wale Teer (arrow) button ka background color */
-    --send-btn-icon: #ffffff;         /* Send button ke andar arrow icon ka color */
-    
-    --mic-btn-bg: #0077b9;            /* Microphone (Voice record) button ka background color */
-    --mic-btn-icon: #ffffff;          /* Microphone button ke andar icon ka color */
-
-    /* 5. TEXT INPUT BOX COLORS */
-    --input-box-bg: #f3f4f6;          /* "Type order details..." jis box me likha jata hai uska background color */
-    --input-text-color: #1f2937;      /* Jo text type ho rha hota hai uska color */
-
-    /* 6. CHAT BUBBLES COLORS (Messages) */
-    --customer-bubble-bg: #0077b9;    /* Jo order details chat me add hoti hain unke bubble ka background color */
-    --customer-bubble-text: #ffffff;  /* Chat ke andar likhe hue details ke text ka color */
-}
-
-/* ==========================================================================
-   CORE STYLE LOGIC (Is hisse ke structure ya logic me koi tabdeeli nahi ki gayi)
-   ========================================================================== */
-
-html, body { 
-    font-family: 'Plus Jakarta Sans', sans-serif; 
-    height: 100dvh; 
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden; 
-    margin: 0; 
-    background-color: var(--chat-area-bg) !important; /* Main page ka color yahan apply ho rha hai */
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-attachment: fixed;
-    overscroll-behavior-y: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Naya AppBar Layout aur Rang */
-#topAppBar {
-    background-color: var(--appbar-bg) !important;
-    border-color: var(--appbar-bottom-border) !important;
-}
-#topAppBar span {
-    color: var(--appbar-text-color) !important;
-}
-
-/* Chat Area Wallpaper aur Background */
-.chat-bg { 
-    background-color: transparent !important; 
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); 
-    background-attachment: fixed;
-    flex: 1; 
-    overflow-y: auto; 
-    padding: 16px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 8px; 
-    scroll-behavior: smooth;
-}
-
-/* Confirm Order Button Wali Row */
-#confirmBtnRow {
-    background-color: var(--confirm-row-bg) !important;
-    border-color: var(--confirm-row-border) !important;
-}
-#finalSubmitBtn {
-    background-color: var(--confirm-btn-bg) !important;
-    color: var(--confirm-btn-text) !important;
-}
-
-/* Sab se neeche typing area (Footer) aur uske buttons */
-footer {
-    background-color: transparent !important;
-    border-color: var(--footer-border) !important;
-}
-#plusBtn {
-    background-color: var(--plus-btn-bg) !important;
-    color: var(--plus-btn-icon) !important;
-}
-#textInputWrapper {
-    background-color: var(--input-box-bg) !important;
-}
-#orderInput {
-    color: var(--input-text-color) !important;
-}
-#sendBtn {
-    background-color: var(--send-btn-bg) !important;
-    color: var(--send-btn-icon) !important;
-}
-#voiceBtn {
-    background-color: var(--mic-btn-bg) !important;
-    color: var(--mic-btn-icon) !important;
-}
-
-/* Chat Bubbles (Messages) */
-.bubble { 
-    max-width: 82%; 
-    padding: 8px 10px; 
-    border-radius: 12px; 
-    font-size: 14.5px; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
-    word-wrap: break-word; 
-    position: relative; 
-    transition: all 0.2s ease; 
-    user-select: none; 
-    -webkit-user-select: none;
-    line-height: 1.4;
-}
-.customer-bubble { 
-    align-self: flex-end; 
-    background-color: var(--customer-bubble-bg) !important; 
-    color: var(--customer-bubble-text) !important; 
-    border-top-right-radius: 4px; 
-}
-
-/* Attachment Menu Box */
-#attachMenu { 
-    position: fixed; 
-    bottom: 75px; 
-    left: 16px; 
-    background: white; 
-    border-radius: 16px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
-    padding: 20px; 
-    width: 280px; 
-    z-index: 9999; 
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    transform: scale(0);
-    transform-origin: bottom left; 
-    opacity: 0; 
-    pointer-events: none;
-}
-#attachMenu.active { 
-    transform: scale(1); 
-    opacity: 1; 
-    pointer-events: auto; 
-}
-
-/* Selection State Custom Design */
-.bubble-selected { 
-    background-color: #bceb9e !important; 
-    transform: scale(0.96); 
-    border: 2px solid #008069; 
-    box-shadow: 0 4px 10px rgba(0,128,105,0.2); 
-    opacity: 0.9;
-}
-.bubble-selected::after {
-    content: '\f058'; 
-    font-family: 'Font Awesome 6 Free'; 
-    font-weight: 900;
-    position: absolute; 
-    right: -8px; 
-    bottom: -8px; 
-    color: #008069; 
-    background: white; 
-    border-radius: 50%;
-    font-size: 16px; 
-    box-shadow: 0 0 5px rgba(0,0,0,0.2);
-}
-
-/* Media/Documents Thumbnails */
-.media-thumb { 
-    width: 100%; 
-    max-width: 110px; 
-    max-height: 110px; 
-    border-radius: 12px; 
-    pointer-events: none; 
-    object-fit: cover; 
-    background-color: rgba(0,0,0,0.05); 
-}
-.caption-text { 
-    font-size: 13px; 
-    color: #1f2937; 
-    margin-top: 6px; 
-    padding-top: 4px; 
-    border-top: 1px solid rgba(0,0,0,0.05); 
-}
-
-/* Animations & Extra UI elements */
-.animate-pop { animation: pop 0.2s ease-out forwards; }
-@keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-
-.voice-active { background-color: #ef4444 !important; animation: pulse-shadow 1.5s infinite; }
-@keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-
-.capture-btn {
-    width: 70px; height: 70px; border: 6px solid rgba(255,255,255,0.3);
-    background: white; border-radius: 50%; position: relative;
-}
-.capture-btn::after { content: ''; position: absolute; inset: 4px; border: 2px solid #000; border-radius: 50%; }
-
-textarea::-webkit-scrollbar { display: none; }
-#offlineBanner { transition: top 0.3s ease-in-out; }
-.pb-safe { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
-/* ====================================================
-   CONFIRM ORDER BUTTON (Size, Center aur Hide/Show FIX)
-   ==================================================== */
-
-/* Button wali poori row ko center mein lane ke liye */
-#confirmBtnRow {
-    justify-content: center !important; 
-}
-
-/* FIX: Jab JavaScript 'hidden' class lagaye toh button lazmi chup jaye */
-#confirmBtnRow.hidden {
-    display: none !important;
-}
-
-/* Jab hidden class na ho, sirf tabhi display ko flex karein */
-#confirmBtnRow:not(.hidden) {
-    display: flex !important;
-}
-
-/* Button ki width aur height kam karne ke liye */
-#finalSubmitBtn {
-    width: 60% !important;          /* Width 60% */
-    padding-top: 8px !important;    /* Height kam karne k liye */
-    padding-bottom: 8px !important; 
-    border-radius: 50px !important; /* Pill shape design */
-}
-/* AI Bubble Style */
-.ai-bubble { 
-    background-color: #f3e8ff; 
-    color: #6b21a8; 
-    border-left: 4px solid #0077b9; 
-    padding: 10px; 
-    border-radius: 12px; 
-    margin: 8px 0;
+/* --- Chat Bubbles --- */
+.bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    margin: 6px 0;
     font-size: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.customer-bubble {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+    color: #1a1a1a;
+}
+
+.ai-bubble {
+    background-color: #ffffff;
+    align-self: flex-start;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+    color: #1f2937;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.bubble-selected {
+    outline: 3px solid #f97316;
+    outline-offset: 2px;
+    transform: scale(0.97);
+    opacity: 0.85;
+}
+
+/* --- Animations --- */
+@keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop {
+    animation: popIn 0.3s ease-out;
+}
+
+/* --- Attachment Menu --- */
+#attachMenu {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+
+#attachMenu.active {
+    max-height: 120px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* --- Voice Button Active State --- */
+.voice-active {
+    animation: pulse-red 1s infinite;
+    background-color: #ef4444 !important;
+}
+
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+    50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+}
+
+/* --- Rotate Plus Icon --- */
+.rotate-45 {
+    transform: rotate(45deg);
+}
+
+/* --- Voice Player --- */
+.voice-player-container {
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.voice-player-container:active {
+    transform: scale(0.97);
+}
+
+/* --- Scrollbar Styling --- */
+#chatArea::-webkit-scrollbar {
+    width: 4px;
+}
+
+#chatArea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#chatArea::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+/* --- Smooth Transitions --- */
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+/* --- Input Focus --- */
+textarea:focus {
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
+}
+
+/* --- Modal Overlay --- */
+#orderOverviewModal {
+    transition: opacity 0.3s ease;
+}
+
+/* --- Offline Banner --- */
+#offlineBanner {
+    transition: top 0.4s ease;
+}
+
+/* --- Full View --- */
+#fullView {
+    transition: opacity 0.3s ease;
 }
