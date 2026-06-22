@@ -1,218 +1,171 @@
 <!DOCTYPE html>
-<html lang="ur" dir="rtl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>New Order - Faster</title>
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Tailwind CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - New Order</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- Apni CSS -->
     <link rel="stylesheet" href="new-order-style.css">
 </head>
-<body class="bg-gray-50 h-screen flex flex-col overflow-hidden">
+<body>
 
-    <!-- 🔔 Offline Banner -->
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center py-2 text-sm font-bold z-50 transition-all duration-300">
-        ⚠️ No Internet Connection
+    <audio id="notifSound" src="https://hfaghazbwdbjurachzzq.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 z-[60] font-black shadow-md">
+        <i class="fas fa-wifi-slash mr-2"></i> No Internet Connection
     </div>
 
-    <!-- 🔝 Top App Bar -->
-    <div id="topAppBar" class="bg-white shadow-sm px-4 py-3 flex items-center gap-3 transition-all duration-300 z-30">
-        <button onclick="history.back()" class="text-gray-600 text-xl">&larr;</button>
-        <div>
-            <h1 class="text-lg font-extrabold text-gray-800">New Order</h1>
-            <p class="text-xs text-gray-500">Place your delivery order</p>
+    <div id="customModal" class="fixed inset-0 bg-black/60 z-[100000] hidden items-center justify-center backdrop-blur-sm px-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-95 opacity-0" id="modalBox">
+            <h3 id="modalTitle" class="text-lg font-bold text-gray-900 mb-1"></h3>
+            <p id="modalText" class="text-sm text-gray-600 mb-4 leading-relaxed"></p>
+            <input type="text" id="modalInput" class="hidden w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-orange-500 mb-4 bg-gray-50">
+            <div class="flex justify-end gap-3 mt-2" id="modalButtons"></div>
         </div>
     </div>
 
-    <!-- ✏️ Selection Header (Hidden by default) -->
-    <div id="selectionHeader" class="hidden bg-orange-500 text-white px-4 py-2 flex items-center justify-between shadow-md z-40">
-        <button onclick="cancelSelection()" class="text-white">&larr; Cancel</button>
-        <span class="font-bold text-sm"><span id="selectionCount">0</span> selected</span>
-        <div class="flex gap-3">
-            <button id="editIcon" class="hidden text-white" onclick="editSelected()"><i class="fas fa-edit"></i></button>
-            <button class="text-red-200" onclick="confirmDelete()"><i class="fas fa-trash"></i></button>
+    <header id="selectionHeader" class="hidden bg-[#008069] p-4 text-white flex items-center shadow-md shrink-0 z-50 transition-all duration-300">
+        <div class="flex items-center">
+            <i class="fas fa-arrow-left mr-5 cursor-pointer text-xl active:scale-90" onclick="cancelSelection()"></i>
+            <span id="selectionCount" class="font-bold text-lg">1</span>
+        </div>
+        <div class="ml-auto flex items-center gap-6">
+            <i id="editIcon" class="fas fa-reply cursor-pointer text-xl active:scale-90 transition-transform" onclick="editSelected()"></i>
+            <i class="fas fa-trash cursor-pointer text-xl active:scale-90 transition-transform" onclick="confirmDelete()"></i>
+        </div>
+    </header>
+
+    <input type="hidden" id="editName">
+    <input type="hidden" id="editAddress">
+
+    <div id="topAppBar" class="bg-[#0077b9] py-2 shadow-sm shrink-0 border-b border-gray-200 z-40 relative transition-all duration-300 ease-in-out origin-top flex items-center justify-center">
+       <span class="text-xs font-extrabold text-white tracking-widest">Enter Order Details</span>
+    </div>
+    <div id="chatArea" class="chat-bg relative">
+        <div id="emptyPlaceholder" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            <span class="text-lg font-black uppercase tracking-[0.3em] text-gray-500">( Empty )</span>
         </div>
     </div>
 
-    <!-- 💬 Chat Area -->
-    <div id="chatArea" class="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50 scroll-smooth">
-        
-        <!-- Empty Placeholder -->
-        <div id="emptyPlaceholder" class="flex flex-col items-center justify-center h-full text-center px-6">
-            <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                <i class="fas fa-shopping-basket text-orange-500 text-3xl"></i>
-            </div>
-            <h3 class="text-lg font-extrabold text-gray-700 mb-1">Place New Order</h3>
-            <p class="text-sm text-gray-500">Type your order, send a voice note, or attach images/videos</p>
-        </div>
-
-    </div>
-
-    <!-- ✅ Confirm Button Row -->
-    <div id="confirmBtnRow" class="hidden px-4 pb-1 pt-1">
-        <button id="finalSubmitBtn" onclick="handleConfirmPrompt()" 
-            class="w-full bg-orange-600 text-white py-3 rounded-xl font-extrabold text-base shadow-lg active:scale-[0.98] transition-transform">
+    <div id="confirmBtnRow" class="hidden px-4 py-1 bg-transparent shrink-0 z-40">
+        <button onclick="handleConfirmPrompt()" id="finalSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-1.5 rounded-xl shadow-sm uppercase text-sm tracking-wide flex items-center justify-center gap-2 transition-colors">
             Confirm order <i class="fas fa-arrow-right ml-1 text-sm"></i>
         </button>
     </div>
 
-    <!-- ⌨️ Text Input Area -->
-    <div id="textInputWrapper" class="px-3 py-2 bg-white border-t border-gray-200 flex items-end gap-2 z-20">
+    <footer class="bg-transparent p-2.5 pb-safe flex items-end gap-2 shrink-0 z-50">
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+            <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
+        </button>
         
-        <!-- Plus Button -->
-        <button id="plusBtn" onclick="toggleAttachMenu()" 
-            class="w-11 h-11 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 text-xl active:scale-95 transition-transform flex-shrink-0">
-            <i id="plusIcon" class="fas fa-plus transition-all duration-300"></i>
-        </button>
-
-        <!-- Input Field -->
-        <textarea id="orderInput" rows="1" oninput="handleInput(this)" 
-            placeholder="Order details type karein..."
-            class="flex-1 bg-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none outline-none max-h-[120px]"></textarea>
-
-        <!-- Voice Button -->
-        <button id="voiceBtn" onclick="handleVoice()" 
-            class="w-11 h-11 bg-[#0077b9] rounded-full flex items-center justify-center text-white text-lg active:scale-95 transition-transform flex-shrink-0">
-            <i id="micIcon" class="fas fa-microphone"></i>
-        </button>
-
-        <!-- Send Button -->
-        <button id="sendBtn" onclick="askAI()" 
-            class="hidden w-11 h-11 bg-orange-500 rounded-full flex items-center justify-center text-white text-lg active:scale-95 transition-transform flex-shrink-0">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-    </div>
-
-    <!-- ⏺️ Voice Recording Timer -->
-    <div id="recordingTimerUI" class="hidden px-4 py-3 bg-red-50 border-t border-red-200 items-center justify-between z-20">
-        <div class="flex items-center gap-2">
-            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span class="text-red-600 font-bold text-sm">Recording...</span>
+        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+            <textarea id="orderInput" oninput="handleInput(this)" placeholder="Type order details..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
         </div>
-        <span id="recordTimer" class="text-red-600 font-mono font-bold">00:00</span>
-    </div>
 
-    <!-- 📎 Attachment Menu -->
-    <div id="attachMenu" class="bg-white border-t border-gray-200 px-4 py-3 flex gap-4 overflow-x-auto transition-all duration-300 max-h-0 opacity-0 pointer-events-none">
-        <label class="flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform flex-shrink-0" onclick="event.stopPropagation()">
-            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-lg"><i class="fas fa-image"></i></div>
-            <span class="text-[10px] font-bold text-gray-600">Image</span>
-            <input type="file" accept="image/*" multiple hidden onchange="previewFile(this, 'image')">
-        </label>
-        <label class="flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform flex-shrink-0" onclick="event.stopPropagation()">
-            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-lg"><i class="fas fa-video"></i></div>
-            <span class="text-[10px] font-bold text-gray-600">Video</span>
-            <input type="file" accept="video/*" multiple hidden onchange="previewFile(this, 'video')">
-        </label>
-        <label class="flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform flex-shrink-0" onclick="event.stopPropagation()">
-            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-lg"><i class="fas fa-file-pdf"></i></div>
-            <span class="text-[10px] font-bold text-gray-600">Document</span>
-            <input type="file" accept=".pdf,.doc,.docx,.txt" multiple hidden onchange="previewFile(this, 'doc')">
-        </label>
-        <button class="flex flex-col items-center gap-1 cursor-pointer active:scale-95 transition-transform flex-shrink-0" onclick="startCustomCamera()">
-            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-lg"><i class="fas fa-camera"></i></div>
-            <span class="text-[10px] font-bold text-gray-600">Camera</span>
+        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+        </div>
+
+        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
         </button>
-    </div>
+        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-microphone" id="micIcon"></i>
+        </button>
+    </footer>
 
-    <!-- 📸 Custom Camera Overlay -->
-    <div id="customCamOverlay" class="hidden fixed inset-0 bg-black z-50 flex-col">
-        <div class="flex items-center justify-between p-4 text-white">
-            <button onclick="stopCustomCamera()" class="text-2xl">&times;</button>
-            <div class="flex gap-4 text-sm font-bold">
-                <span id="pTab" class="cursor-pointer text-white border-b-2 border-white pb-1" onclick="setMode('photo')">Photo</span>
-                <span id="vTab" class="cursor-pointer pb-1" onclick="setMode('video')">Video</span>
+    <div id="attachMenu">
+        <div class="grid grid-cols-3 gap-6">
+            <div onclick="startCustomCamera()" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-camera"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Camera</span>
             </div>
-            <button onclick="switchCamera()" class="text-2xl"><i class="fas fa-sync-alt"></i></button>
+            <div onclick="document.getElementById('galleryInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-400 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-image"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Gallery</span>
+            </div>
+            <div onclick="document.getElementById('docInput').click(); toggleAttachMenu();" class="flex flex-col items-center gap-2 cursor-pointer active:scale-95 transition-transform">
+                <div class="w-14 h-14 bg-gradient-to-tr from-gray-700 to-slate-500 rounded-full flex items-center justify-center text-white text-xl shadow-lg"><i class="fas fa-file-lines"></i></div>
+                <span class="text-[10px] font-bold text-gray-600">Docs</span>
+            </div>
         </div>
-        <video id="v" autoplay playsinline class="flex-1 w-full object-cover"></video>
+    </div>
+
+    <div id="customCamOverlay" class="fixed inset-0 bg-black z-[10000] hidden flex-col">
+        <div class="flex justify-between p-6 absolute top-0 w-full z-20">
+            <button onclick="stopCustomCamera()" class="text-white text-3xl"><i class="fas fa-xmark"></i></button>
+            <div id="camTimerDisplay" class="hidden text-white font-bold bg-red-600 px-5 py-1.5 rounded-full text-xs animate-pulse">00:00</div>
+            <button onclick="switchCamera()" class="text-white text-2xl"><i class="fas fa-arrows-rotate"></i></button>
+        </div>
+        <video id="v" class="w-full flex-1 object-cover" autoplay playsinline muted></video>
+        <div class="absolute bottom-12 w-full flex flex-col items-center gap-8 z-20">
+            <div class="flex gap-12 text-gray-400 text-[11px] font-black tracking-[0.2em]">
+                <span id="pTab" onclick="setMode('photo')" class="text-white border-b-2 border-white pb-1">PHOTO</span>
+                <span id="vTab" onclick="setMode('video')" class="pb-1">VIDEO</span>
+            </div>
+            <button id="camBtn" onclick="handleCapture()" class="capture-btn active:scale-90 transition-transform"></button>
+        </div>
         <canvas id="c" class="hidden"></canvas>
-        <div class="p-6 flex flex-col items-center gap-3">
-            <span id="camTimerDisplay" class="hidden text-white font-mono text-lg">00:00</span>
-            <button id="camBtn" onclick="handleCapture()" class="w-16 h-16 rounded-full border-4 border-white bg-white shadow-lg active:scale-90 transition-transform"></button>
+    </div>
+
+    <input type="file" id="galleryInput" class="hidden" accept="image/*,video/*" multiple onchange="previewFile(this, 'media')">
+    <input type="file" id="docInput" class="hidden" accept=".pdf,.doc,.docx,.txt,.rtf,.dot,.xls,.xlsx,.ppt,.pptx,.zip,.apk,.csv" multiple onchange="previewFile(this, 'doc')">
+
+    <!-- Purana fullView wala hissa -->
+    <div id="fullView" class="fixed inset-0 bg-black/95 z-[10000] hidden items-center justify-center backdrop-blur-sm" onclick="this.style.display='none'">
+        <div id="fullContent" class="w-full h-full flex items-center justify-center p-4"></div>
+        <i class="fas fa-times absolute top-6 right-6 text-white text-2xl cursor-pointer"></i>
+    </div>
+
+    
+    <!-- YAHAN NAYA FULL SCREEN ORDER OVERVIEW POPUP PASTE KARNA HAI -->
+    
+    <div id="orderOverviewModal" class="fixed inset-0 bg-[#f3f4f6] z-[100000] hidden flex-col pb-safe">
+    
+    <div class="bg-[#0077b9] text-white flex items-center px-4 py-2.5 shrink-0 shadow-md relative">
+        <i class="fas fa-arrow-left text-lg cursor-pointer active:scale-90 transition-transform absolute left-4" onclick="closeOrderOverview()"></i>
+        <span class="font-bold text-base tracking-wide w-full text-center">Order Overview</span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
+        
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-1.5"><i class="fas fa-user-circle mr-1"></i> Customer Info</h3>
+            <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-1 mb-1.5 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#0077b9]">
+            <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-1 outline-none text-[13px] text-gray-800 resize-none focus:border-[#0077b9]"></textarea>
+        </div>
+
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-1.5"><i class="fas fa-shopping-bag mr-1"></i> Order Items</h3>
+            <div id="overviewSummaryText" class="text-[13px] text-gray-800 font-medium whitespace-pre-wrap mb-2 bg-blue-50/40 p-2 rounded-lg border border-blue-50 leading-snug"></div>
+            <div id="overviewImages" class="flex flex-wrap gap-1.5 mb-1.5 empty:hidden"></div>
+            <div id="overviewVoices" class="flex flex-col gap-1.5 empty:hidden"></div>
+        </div>
+
+        <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase mb-1"><i class="fas fa-clock mr-1"></i> Schedule Delivery</h3>
+            <p class="text-[10.5px] text-gray-500 mb-2.5 leading-snug">
+                Agar aap apna order baad mein mangwana chahte hain, toh yahan time select karein. 
+                Aapke diye gaye waqt se theek <b class="text-gray-700">30 minute pehle</b> rider order accept karega aur process shuru ho jayega.
+            </p>
+            <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-1.5 text-[13px] outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9]">
         </div>
     </div>
 
-    <!-- 📋 Order Overview Modal (Full Screen Popup) -->
-    <div id="orderOverviewModal" class="hidden fixed inset-0 bg-white z-50 overflow-y-auto">
-        <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm z-10">
-            <button onclick="closeOrderOverview()" class="text-gray-600 text-xl">&larr;</button>
-            <h2 class="text-lg font-extrabold text-gray-800">Order Overview</h2>
+    <div class="p-3 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div class="flex justify-between items-center px-1">
+            <span class="text-xs font-bold text-gray-500">Delivery Charges:</span>
+            <span class="text-base font-black text-orange-600" id="overviewDcAmount">Rs. 0</span>
         </div>
-        <div class="p-4 space-y-4 pb-24">
-            
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase">Name</label>
-                <input id="overviewName" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mt-1 text-sm font-bold outline-none focus:border-orange-400">
-            </div>
-            
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase">Delivery Address</label>
-                <textarea id="overviewAddress" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mt-1 text-sm resize-none outline-none focus:border-orange-400"></textarea>
-            </div>
-            
-            <!-- Delivery Charges Card -->
-            <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                    <span class="text-xs font-bold text-orange-700 uppercase">Delivery Fee</span>
-                    <p id="overviewBlockDisplay" class="text-[10px] text-orange-500 mt-0.5">📍 Block: ...</p>
-                </div>
-                <span id="overviewDcAmount" class="text-xl font-extrabold text-orange-600">Rs. 0</span>
-            </div>
-
-            <!-- Schedule Time -->
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase">Schedule (Optional)</label>
-                <input id="overviewSchedule" type="datetime-local" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mt-1 text-sm outline-none focus:border-orange-400">
-            </div>
-
-            <!-- Order Summary -->
-            <div>
-                <label class="text-xs font-bold text-gray-500 uppercase">Order Summary</label>
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mt-1">
-                    <p id="overviewSummaryText" class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed"></p>
-                </div>
-            </div>
-
-            <!-- Attached Images -->
-            <div id="overviewImages" class="flex gap-2 flex-wrap"></div>
-
-            <!-- Attached Voice Notes -->
-            <div id="overviewVoices" class="space-y-2"></div>
-
-            <!-- Submit Button -->
-            <button id="overviewSubmitBtn" onclick="confirmOrderFromOverview()" 
-                class="w-full bg-orange-600 text-white py-3.5 rounded-xl font-extrabold text-base shadow-lg active:scale-[0.98] transition-transform">
-                Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>
-            </button>
-        </div>
+        <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-2.5 rounded-xl shadow-md uppercase tracking-wide flex items-center justify-center gap-2 transition-colors text-[13px]">
+            Confirm Order <i class="fas fa-check-circle ml-1"></i>
+        </button>
     </div>
-
-    <!-- 🖼️ Full View Overlay -->
-    <div id="fullView" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:60; flex-direction:column; align-items:center; justify-content:center;" onclick="this.style.display='none'; document.getElementById('fullCaption').classList.add('hidden');">
-        <div id="fullContent" class="max-w-full max-h-[85vh] flex items-center justify-center"></div>
-        <div id="fullCaption" class="hidden text-white text-sm mt-4 px-6 py-2 bg-black/50 rounded-lg max-w-[90%] text-center"></div>
-    </div>
-
-    <!-- 🔊 Notification Sound -->
-    <audio id="notifSound" src="notification.mp3" preload="auto" playsinline></audio>
-
-    <!-- Custom Dialog Modal -->
-    <div id="customModal" class="hidden fixed inset-0 bg-black/50 z-[100] items-center justify-center p-4">
-        <div id="modalBox" class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 scale-95 opacity-0 transition-all duration-200">
-            <h2 id="modalTitle" class="text-lg font-extrabold text-gray-800 mb-2"></h2>
-            <p id="modalText" class="text-sm text-gray-600 mb-4 hidden"></p>
-            <input id="modalInput" type="text" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-orange-400 mb-4 hidden">
-            <div id="modalButtons" class="flex gap-3"></div>
-        </div>
-    </div>
+</div>
 
     <!-- Scripts (ORDER MATTERS!) -->
     <script src="new-order-logic.js"></script>
