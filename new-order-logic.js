@@ -266,18 +266,19 @@ async function initPage() {
                 } else if (areaData) {
                     deliveryCharges = Number(areaData.customer_delivery_fee) || 0;
                     console.log(`✅ Exact Area Matched: ${customerArea} | Charges: Rs. ${deliveryCharges}`);
-                    
-                    if(areaData.is_active === false) {
-                        console.warn(`⚠️ Warning: ${customerArea} mein abhi delivery OFF hai.`);
-                    }
                 }
             }
 
-            // Session & Customer Profile Data Fetching
+            // 4. Session & Customer Profile Data Fetching (FIXED)
             const { data: { session } } = await _supabase.auth.getSession();
             if(session) {
-                const { data: customerData } = await _supabase.from('customers').select('name, address, city, area').eq('email', session.user.email).single();
+                // ADDED customer_id in select query here
+                const { data: customerData } = await _supabase.from('customers').select('customer_id, name, address, city, area').eq('email', session.user.email).maybeSingle();
                 if (customerData) {
+                    if (customerData.customer_id) { 
+                        customerId = String(customerData.customer_id); // Update live variable
+                        localStorage.setItem('faster_customer_id', customerId); // Sync LocalStorage
+                    }
                     if (customerData.name) { 
                         document.getElementById('editName').value = customerData.name; 
                         localStorage.setItem('faster_name', customerData.name); 
