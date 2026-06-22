@@ -343,7 +343,6 @@ async function confirmOrderFromOverview() {
 
         const userBlock = localStorage.getItem('faster_block') || "";
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
-        const finalCustomerId = (customerId && customerId.trim() !== '' && !isNaN(customerId)) ? customerId : null;
 
         const { error } = await _supabase.from('orders').insert([{
             customer_phone: userPhone, 
