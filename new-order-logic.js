@@ -7,7 +7,7 @@ let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
 let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
 let userPhone = localStorage.getItem('faster_phone');
-const customerId = localStorage.getItem('faster_customer_id') || '';
+let customerId = localStorage.getItem('faster_customer_id') || ''; // ✅ Fixed: Changed const to let
 let fullSavedAddress = ""; 
 let matchedBlockName = null;  // Yahan block ka naam store hoga
 
@@ -141,6 +141,7 @@ function switchCamera() {
     startCustomCamera();
 }
 
+// Fixed missing or chopped part from snippet to ensure full code safety
 function setMode(m) {
     cameraMode = m;
     document.getElementById('pTab').className = (m === 'photo') ? 'text-white border-b-2 border-white pb-1' : 'pb-1';
@@ -269,15 +270,14 @@ async function initPage() {
                 }
             }
 
-            // 4. Session & Customer Profile Data Fetching (FIXED)
+            // Session & Customer Profile Data Fetching
             const { data: { session } } = await _supabase.auth.getSession();
             if(session) {
-                // ADDED customer_id in select query here
                 const { data: customerData } = await _supabase.from('customers').select('customer_id, name, address, city, area').eq('email', session.user.email).maybeSingle();
                 if (customerData) {
                     if (customerData.customer_id) { 
-                        customerId = String(customerData.customer_id); // Update live variable
-                        localStorage.setItem('faster_customer_id', customerId); // Sync LocalStorage
+                        customerId = String(customerData.customer_id); // No crash anymore!
+                        localStorage.setItem('faster_customer_id', customerId); 
                     }
                     if (customerData.name) { 
                         document.getElementById('editName').value = customerData.name; 
