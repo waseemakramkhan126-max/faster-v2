@@ -131,9 +131,22 @@
 
         <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
             
-            <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
+            <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span><i class="fas fa-user-circle mr-1"></i> Customer Info</span>
+
+    <span>
+        <i class="fas fa-user-circle mr-1"></i>
+        Customer Info
+    </span>
+
+    <button
+        onclick="window.location.href='profile.html'"
+        class="bg-blue-600 text-white px-3 py-1 rounded-full text-[10px] font-bold">
+
+        Edit
+
+    </button>
+
                 </h3>
                 <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-1.5 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#0077b9] bg-transparent">
                 <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-1.5 outline-none text-[13px] text-gray-800 resize-none focus:border-[#0077b9] bg-transparent"></textarea>
