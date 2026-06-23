@@ -131,7 +131,7 @@
 
         <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
             
-            <div class="bg-white p-1 rounded-xl shadow-sm border border-gray-100">
+            <div class="bg-white p-0.5 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
 
     <span>
@@ -148,10 +148,10 @@
     </button>
 
                 </h3>
-                <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-1.5 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#0077b9] bg-transparent">
-                <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-1.5 outline-none text-[13px] text-gray-800 resize-none focus:border-[#0077b9] bg-transparent"></textarea>
+                <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-1 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#0077b9] bg-transparent">
+                <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-1 outline-none text-[13px] text-gray-800 resize-none focus:border-[#0077b9] bg-transparent"></textarea>
                 
-                <div id="overviewBlockDisplay" class="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-100 rounded-lg p-2 mt-2 leading-none">
+                <div id="overviewBlockDisplay" class="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-100 rounded-lg p-1 mt-2 leading-none">
                     📍 Block: Checking coordinates...
                 </div>
             </div>
@@ -164,22 +164,22 @@
                 <div id="overviewVoices" class="flex flex-col gap-2 empty:hidden"></div>
             </div>
 
-            <div class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100">
+            <div class="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1"><i class="fas fa-clock mr-1"></i> Schedule Delivery</h3>
                 <p class="text-[10.5px] text-gray-500 mb-3 leading-relaxed">
                     Agar aap apna order baad mein mangwana chahte hain, toh yahan time select karein. 
                     Aapke diye gaye waqt se theek <b class="text-gray-700">30 minute pehle</b> rider order accept karega aur process shuru ho jayega.
                 </p>
-                <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-2 text-[13px] outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9] font-medium">
+                <input type="datetime-local" id="overviewSchedule" class="w-full border border-gray-200 rounded-lg p-1.5 text-[13px] outline-none text-gray-700 bg-gray-50 focus:border-[#0077b9] font-medium">
             </div>
         </div>
 
-        <div class="p-3.5 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2.5 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.04)]">
+        <div class="p-1.5 bg-white border-t border-gray-200 shrink-0 flex flex-col gap-2.5 shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.04)]">
             <div class="flex justify-between items-center px-1">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wide">Delivery Charges:</span>
                 <span class="text-base font-black text-orange-600 tracking-tight" id="overviewDcAmount">Rs. 0</span>
             </div>
-            <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-3 rounded-xl shadow-md uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all transform active:scale-[0.99]">
+            <button onclick="confirmOrderFromOverview()" id="overviewSubmitBtn" class="w-full bg-orange-600 active:bg-orange-700 text-white font-bold py-2 rounded-xl shadow-md uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all transform active:scale-[0.99]">
                 Confirm & Place Order <i class="fas fa-check-circle text-sm ml-0.5"></i>
             </button>
         </div>
