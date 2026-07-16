@@ -65,7 +65,7 @@
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* ---------- VENDOR STRIP (optional) ---------- */
+        /* ---------- VENDOR STRIP ---------- */
         .vendor-strip-wrapper {
             position: relative;
             padding: 8px 0 4px 0;
@@ -170,8 +170,8 @@
             margin-bottom: 4px;
             position: relative;
             overflow: hidden;
-            min-height: 150px;  /* Ensures container is always visible */
-            background: #f8fafc; /* Light background so you can see it */
+            min-height: 150px;
+            background: #f8fafc;
             border-radius: 12px;
         }
         #promoSlider {
@@ -187,7 +187,8 @@
             padding: 8px 2px 12px 2px;
             cursor: grab;
             border-radius: 16px;
-            min-height: 140px;  /* Force height so slides appear */
+            min-height: 140px;
+            position: relative; /* for debug badge */
         }
         #promoSlider:active {
             cursor: grabbing;
@@ -202,13 +203,13 @@
             border-radius: 16px;
             overflow: hidden;
             position: relative;
-            background: #ffffff;  /* White background for each slide */
+            background: #ffffff;
             min-height: 130px;
             max-height: 160px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             transition: 0.3s;
             flex-shrink: 0;
-            border: 1px solid #e2e8f0; /* border so you can see slide even without image */
+            border: 2px solid #f97316; /* visible border for debugging */
         }
         .promo-slide .media-box {
             width: 100%;
@@ -217,7 +218,7 @@
             max-height: 160px;
             overflow: hidden;
             position: relative;
-            background: #f1f5f9; /* fallback bg */
+            background: #e2e8f0;
         }
         .promo-slide .media-box img,
         .promo-slide .media-box video {
@@ -288,6 +289,20 @@
             border: 1px dashed #d1d5db;
         }
 
+        /* Debug badge */
+        .debug-msg {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 50;
+            pointer-events: none;
+        }
+
         /* Fullscreen override */
         .tiktok-fullscreen {
             position: fixed !important; top: 0 !important; left: 0 !important; 
@@ -314,6 +329,7 @@
             border-radius: 0 !important;
             scroll-snap-align: start;
             background: black;
+            border: none !important;
         }
         .tiktok-fullscreen .promo-slide .media-box {
             min-height: 100vh !important;
@@ -700,7 +716,7 @@
         const sound = document.getElementById('notifSound');
 
         // ============================================================
-        // VENDOR STRIP (unchanged)
+        // VENDOR STRIP
         // ============================================================
         let vendorStrip, vendorWrapper;
         let vendorAutoScrollInterval = null;
@@ -933,7 +949,6 @@
                 console.error('❌ Error fetching promotions:', err);
             }
 
-            // If no promos, show empty message
             if (promos.length === 0) {
                 slider.innerHTML = `<div class="promo-empty-msg">No promotions available</div>`;
                 console.log('ℹ️ No promotions to display.');
@@ -941,9 +956,8 @@
             }
 
             promoData = promos;
-            console.log(`🎯 Creating ${promoData.length} promotion slides...`);
+            console.log('🎯 Full promo data:', promoData);
 
-            // Create slides (original + 2 duplicates)
             const cloneCount = 2;
             const totalSlides = promoData.length * (cloneCount + 1);
             for (let i = 0; i < totalSlides; i++) {
@@ -954,13 +968,13 @@
                 slide.dataset.index = i;
                 
                 const imgUrl = promo.promo_url || 'https://picsum.photos/seed/promo' + idx + '/600/300';
-                const tag = promo.tag || 'Offer';
+                const tag = promo.category || 'Offer';
                 const title = promo.title || 'Special Offer';
                 const text = promo.promo_text || '';
                 
                 slide.innerHTML = `
                     <div class="media-box" onclick="handlePromoTap(${i})">
-                        <img src="${imgUrl}" alt="${title}" loading="lazy" onerror="this.src='https://picsum.photos/seed/fallback/600/300'">
+                        <img src="${imgUrl}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
                         <div class="promo-overlay"></div>
                         <div class="promo-text-box">
                             <h3>${title}</h3>
@@ -974,7 +988,12 @@
 
             console.log(`✅ ${slider.children.length} slides appended to slider.`);
 
-            // Force reflow and set initial scroll
+            // Debug badge
+            const debugSpan = document.createElement('div');
+            debugSpan.className = 'debug-msg';
+            debugSpan.innerText = `✅ ${promoData.length} slides loaded`;
+            slider.appendChild(debugSpan);
+
             setTimeout(() => {
                 const firstSlide = slider.querySelector('.promo-slide');
                 if (firstSlide) {
@@ -983,9 +1002,8 @@
                     console.log(`📐 Slide width: ${slideWidth}px, Original width: ${promoOriginalWidth}px`);
                 }
                 slider.scrollLeft = 0;
-            }, 50);
+            }, 100);
 
-            // Scroll listener for infinite loop
             slider.addEventListener('scroll', () => {
                 const maxScroll = slider.scrollWidth - slider.clientWidth;
                 if (slider.scrollLeft >= promoOriginalWidth * 1.5) {
@@ -999,7 +1017,6 @@
                 }
             });
 
-            // Drag handlers
             slider.addEventListener('mousedown', startPromoDrag);
             slider.addEventListener('touchstart', startPromoDragTouch, { passive: true });
             slider.addEventListener('mouseleave', endPromoDrag);
@@ -1089,7 +1106,7 @@
         }
 
         // ============================================================
-        // EXISTING APP FUNCTIONS (unchanged)
+        // EXISTING APP FUNCTIONS
         // ============================================================
         async function initializeApp() {
             if (!navigator.onLine) return;
