@@ -150,7 +150,7 @@
             font-weight: 500;
         }
 
-        /* ---------- PROMO BANNER (FIXED) ---------- */
+        /* ---------- PROMO BANNER ---------- */
         .promo-heading {
             font-size: 14px;
             font-weight: 800;
@@ -188,7 +188,7 @@
             cursor: grab;
             border-radius: 16px;
             min-height: 140px;
-            position: relative; /* for debug badge */
+            position: relative;
         }
         #promoSlider:active {
             cursor: grabbing;
@@ -209,7 +209,7 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             transition: 0.3s;
             flex-shrink: 0;
-            border: 2px solid #f97316; /* visible border for debugging */
+            border: 1px solid #e2e8f0;
         }
         .promo-slide .media-box {
             width: 100%;
@@ -218,7 +218,7 @@
             max-height: 160px;
             overflow: hidden;
             position: relative;
-            background: #e2e8f0;
+            background: #f1f5f9;
         }
         .promo-slide .media-box img,
         .promo-slide .media-box video {
@@ -289,7 +289,7 @@
             border: 1px dashed #d1d5db;
         }
 
-        /* Debug badge */
+        /* Debug badge (keep for now) */
         .debug-msg {
             position: absolute;
             top: 8px;
@@ -904,7 +904,7 @@
         });
 
         // ============================================================
-        // PROMO SLIDER - FIXED VERSION
+        // PROMO SLIDER - NO MOCK DATA, ONLY SUPABASE DATA
         // ============================================================
         let promoData = [];
         let currentPromoIndex = 0;
@@ -956,7 +956,7 @@
             }
 
             promoData = promos;
-            console.log('🎯 Full promo data:', promoData);
+            console.log('🎯 Real promo data from Supabase:', promoData);
 
             const cloneCount = 2;
             const totalSlides = promoData.length * (cloneCount + 1);
@@ -967,31 +967,44 @@
                 slide.className = 'promo-slide';
                 slide.dataset.index = i;
                 
-                const imgUrl = promo.promo_url || 'https://picsum.photos/seed/promo' + idx + '/600/300';
-                const tag = promo.category || 'Offer';
+                // Only use real data from database – no fallback images
+                const imgUrl = promo.promo_url || '';  // empty if not provided
+                const tag = promo.category || '';      // empty if not provided
                 const title = promo.title || 'Special Offer';
                 const text = promo.promo_text || '';
                 
+                // Build image HTML only if url exists
+                let imgHTML = '';
+                if (imgUrl) {
+                    imgHTML = `<img src="${imgUrl}" alt="${title}" loading="lazy" onerror="this.style.display='none'">`;
+                }
+                
+                // Build tag HTML only if category exists
+                let tagHTML = '';
+                if (tag) {
+                    tagHTML = `<span class="promo-tag">${tag}</span>`;
+                }
+                
                 slide.innerHTML = `
                     <div class="media-box" onclick="handlePromoTap(${i})">
-                        <img src="${imgUrl}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
+                        ${imgHTML}
                         <div class="promo-overlay"></div>
                         <div class="promo-text-box">
                             <h3>${title}</h3>
                             <p>${text}</p>
                         </div>
-                        <span class="promo-tag">${tag}</span>
+                        ${tagHTML}
                     </div>
                 `;
                 slider.appendChild(slide);
             }
 
-            console.log(`✅ ${slider.children.length} slides appended to slider.`);
+            console.log(`✅ ${slider.children.length} slides created from real data.`);
 
-            // Debug badge
+            // Debug badge (optional, can be removed later)
             const debugSpan = document.createElement('div');
             debugSpan.className = 'debug-msg';
-            debugSpan.innerText = `✅ ${promoData.length} slides loaded`;
+            debugSpan.innerText = `✅ ${promoData.length} real promos loaded`;
             slider.appendChild(debugSpan);
 
             setTimeout(() => {
