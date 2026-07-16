@@ -150,7 +150,7 @@
             font-weight: 500;
         }
 
-        /* ---------- PROMO BANNER ---------- */
+        /* ---------- PROMO BANNER (FIXED) ---------- */
         .promo-heading {
             font-size: 14px;
             font-weight: 800;
@@ -170,7 +170,9 @@
             margin-bottom: 4px;
             position: relative;
             overflow: hidden;
-            min-height: 140px;
+            min-height: 150px;  /* Ensures container is always visible */
+            background: #f8fafc; /* Light background so you can see it */
+            border-radius: 12px;
         }
         #promoSlider {
             display: flex;
@@ -182,9 +184,10 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
             gap: 12px;
-            padding: 4px 2px 8px 2px;
+            padding: 8px 2px 12px 2px;
             cursor: grab;
             border-radius: 16px;
+            min-height: 140px;  /* Force height so slides appear */
         }
         #promoSlider:active {
             cursor: grabbing;
@@ -196,16 +199,16 @@
         .promo-slide {
             flex: 0 0 85%;
             max-width: 340px;
-            scroll-snap-align: none;
             border-radius: 16px;
             overflow: hidden;
             position: relative;
-            background: #f1f5f9;
+            background: #ffffff;  /* White background for each slide */
             min-height: 130px;
             max-height: 160px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
             transition: 0.3s;
             flex-shrink: 0;
+            border: 1px solid #e2e8f0; /* border so you can see slide even without image */
         }
         .promo-slide .media-box {
             width: 100%;
@@ -214,6 +217,7 @@
             max-height: 160px;
             overflow: hidden;
             position: relative;
+            background: #f1f5f9; /* fallback bg */
         }
         .promo-slide .media-box img,
         .promo-slide .media-box video {
@@ -569,11 +573,9 @@
         </div>
     </header>
 
-    <!-- VENDOR STRIP (optional, hidden if no data) -->
+    <!-- VENDOR STRIP -->
     <div class="vendor-strip-wrapper" id="vendorStripWrapper">
-        <div class="vendor-strip" id="vendorStrip">
-            <!-- Real vendors loaded from Supabase (if any) -->
-        </div>
+        <div class="vendor-strip" id="vendorStrip"></div>
     </div>
 
     <!-- PROMO HEADING -->
@@ -581,18 +583,15 @@
         <i class="fas fa-tags"></i> Promotions & Offers
     </div>
 
-    <!-- PROMO CONTAINER - REAL DATA ONLY -->
+    <!-- PROMO CONTAINER -->
     <div id="promoContainer">
-        <div id="promoSlider" class="no-scrollbar">
-            <!-- Real promotions loaded from Supabase -->
-        </div>
+        <div id="promoSlider" class="no-scrollbar"></div>
         <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()">
             <i class="fas fa-times"></i>
         </button>
     </div>
 
     <main class="p-6 pt-2">
-        <!-- Wallet Mini Display -->
         <div id="walletMiniDisplay" class="mb-5 flex items-center gap-2 min-h-[28px]">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
@@ -605,7 +604,6 @@
             </p>
         </div>
 
-        <!-- Stats Row -->
         <div class="stats-row">
             <div onclick="location.href='new-order.html'" class="stat-start cursor-pointer">
                 <i class="fas fa-plus-circle"></i>
@@ -624,7 +622,6 @@
             </div>
         </div>
 
-        <!-- Recent Chats Section -->
         <div class="mb-4 flex justify-between items-center">
             <h3 class="text-sm font-black text-gray-800"><i class="fas fa-comment-dots text-orange-500 mr-2"></i>Recent Chats</h3>
             <a href="#" class="text-xs font-bold text-orange-500">See All</a>
@@ -703,7 +700,7 @@
         const sound = document.getElementById('notifSound');
 
         // ============================================================
-        // VENDOR STRIP - OPTIONAL (hide if no data)
+        // VENDOR STRIP (unchanged)
         // ============================================================
         let vendorStrip, vendorWrapper;
         let vendorAutoScrollInterval = null;
@@ -732,7 +729,6 @@
                     vendors = data;
                     console.log('✅ Vendors loaded from database:', vendors.length);
                 } else {
-                    // Try 'stores' as fallback
                     const { data: storeData, error: storeErr } = await _supabase
                         .from('stores')
                         .select('*')
@@ -750,24 +746,19 @@
                 console.warn('⚠️ Error fetching vendors:', err);
             }
 
-            // If no vendors, hide the entire vendor strip
             if (vendors.length === 0) {
                 vendorWrapper.classList.add('hidden');
                 return;
             }
 
-            // Show wrapper
             vendorWrapper.classList.remove('hidden');
-
             vendorData = vendors;
 
-            // Build original items
             vendors.forEach((v) => {
                 const item = createVendorItem(v);
                 vendorStrip.appendChild(item);
             });
 
-            // Clone items for infinite loop (duplicate 2 times)
             const cloneCount = 2;
             for (let i = 0; i < cloneCount; i++) {
                 vendors.forEach((v) => {
@@ -776,7 +767,6 @@
                 });
             }
 
-            // Calculate widths
             setTimeout(() => {
                 const firstItem = vendorStrip.querySelector('.vendor-item');
                 if (firstItem) {
@@ -786,7 +776,6 @@
                 vendorStrip.scrollLeft = 0;
             }, 50);
 
-            // Scroll listener for infinite loop
             vendorStrip.addEventListener('scroll', () => {
                 const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
                 if (vendorStrip.scrollLeft >= vendorOriginalWidth * 1.5) {
@@ -800,7 +789,6 @@
                 }
             });
 
-            // Drag handlers
             vendorStrip.addEventListener('mousedown', startVendorDrag);
             vendorStrip.addEventListener('touchstart', startVendorDragTouch, { passive: true });
             vendorStrip.addEventListener('mouseleave', endVendorDrag);
@@ -900,7 +888,7 @@
         });
 
         // ============================================================
-        // PROMO SLIDER - FETCH FROM SUPABASE (REAL DATA)
+        // PROMO SLIDER - FIXED VERSION
         // ============================================================
         let promoData = [];
         let currentPromoIndex = 0;
@@ -919,7 +907,6 @@
 
             let promos = [];
             try {
-                // First try: fetch all promotions with promo_active = true
                 const { data, error } = await _supabase
                     .from('promotions')
                     .select('*')
@@ -930,8 +917,7 @@
                     promos = data;
                     console.log('✅ Promotions loaded (active):', promos.length);
                 } else {
-                    // If none active, try fetching all (maybe column not used)
-                    console.warn('⚠️ No active promotions found, trying to fetch all...');
+                    console.warn('⚠️ No active promotions, fetching all...');
                     const { data: allData, error: allErr } = await _supabase
                         .from('promotions')
                         .select('*')
@@ -940,7 +926,7 @@
                         promos = allData;
                         console.log('✅ Promotions loaded (all):', promos.length);
                     } else {
-                        console.warn('⚠️ No promotions found in database at all.');
+                        console.warn('⚠️ No promotions found in database.');
                     }
                 }
             } catch (err) {
@@ -950,12 +936,14 @@
             // If no promos, show empty message
             if (promos.length === 0) {
                 slider.innerHTML = `<div class="promo-empty-msg">No promotions available</div>`;
+                console.log('ℹ️ No promotions to display.');
                 return;
             }
 
             promoData = promos;
+            console.log(`🎯 Creating ${promoData.length} promotion slides...`);
 
-            // Create slides (original + 2 duplicates for infinite loop)
+            // Create slides (original + 2 duplicates)
             const cloneCount = 2;
             const totalSlides = promoData.length * (cloneCount + 1);
             for (let i = 0; i < totalSlides; i++) {
@@ -965,7 +953,6 @@
                 slide.className = 'promo-slide';
                 slide.dataset.index = i;
                 
-                // Use promo_url or placeholder
                 const imgUrl = promo.promo_url || 'https://picsum.photos/seed/promo' + idx + '/600/300';
                 const tag = promo.tag || 'Offer';
                 const title = promo.title || 'Special Offer';
@@ -985,12 +972,15 @@
                 slider.appendChild(slide);
             }
 
-            // Calculate widths
+            console.log(`✅ ${slider.children.length} slides appended to slider.`);
+
+            // Force reflow and set initial scroll
             setTimeout(() => {
                 const firstSlide = slider.querySelector('.promo-slide');
                 if (firstSlide) {
                     const slideWidth = firstSlide.offsetWidth + 12;
                     promoOriginalWidth = promoData.length * slideWidth;
+                    console.log(`📐 Slide width: ${slideWidth}px, Original width: ${promoOriginalWidth}px`);
                 }
                 slider.scrollLeft = 0;
             }, 50);
@@ -1099,7 +1089,7 @@
         }
 
         // ============================================================
-        // EXISTING APP FUNCTIONS
+        // EXISTING APP FUNCTIONS (unchanged)
         // ============================================================
         async function initializeApp() {
             if (!navigator.onLine) return;
@@ -1320,9 +1310,7 @@
         window.onload = () => {
             setGreeting();
             initializeApp();
-            // Load vendors (optional, will hide if none)
             initVendorStrip();
-            // Load promotions (always)
             fetchPromotions();
         };
     </script>
