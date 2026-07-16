@@ -18,7 +18,7 @@
             user-select: none;
             -webkit-user-select: none;
             padding-top: env(safe-area-inset-top);
-            background-color: #ffffff; /* WHITE BACKGROUND */
+            background-color: #ffffff;
         }
         
         @keyframes order-continuous-pulse {
@@ -86,31 +86,102 @@
         }
         #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* Promo container - same as working old code */
+        /* ---------- PROMO CONTAINER (as per screenshot) ---------- */
         #promoContainer:not(.tiktok-fullscreen) {
-            width: 250px; 
-            height: 150px; 
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 1rem;
-            overflow: hidden;
+            width: 100%;
+            height: auto;
+            padding: 0 16px;
+            margin-top: 8px;
+            border-radius: 0;
+            overflow: visible;
+            background: transparent;
         }
         #promoContainer:not(.tiktok-fullscreen) #promoSlider {
-            height: 100%;
+            height: auto;
+            flex-direction: row !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 12px;
+            padding: 4px 0 8px 0;
+            scroll-snap-type: x mandatory;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            border: none;
         }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
-            height: 100% !important; 
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide {
+            flex: 0 0 180px;
+            min-height: 120px;
+            max-height: 140px;
+            border-radius: 16px;
+            overflow: hidden;
+            scroll-snap-align: start;
+            background: white;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            border: 1px solid #f1f5f9;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box {
+            height: 100% !important;
+            min-height: 120px;
+            max-height: 140px;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
         #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
             height: 100% !important; 
             object-fit: cover;
+            width: 100%;
         }
         #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
-            display: none !important;
+            display: block !important;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 12px;
+            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+            z-index: 3;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-text-box h3 {
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-text-box p {
+            font-size: 9px;
+            color: rgba(255,255,255,0.8);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-tag {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #f97316;
+            color: white;
+            font-size: 7px;
+            font-weight: 800;
+            padding: 2px 10px;
+            border-radius: 30px;
+            z-index: 4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box {
+            position: relative;
         }
 
-        /* ---------- VENDOR STRIP (NEW) ---------- */
+        /* ---------- VENDOR STRIP ---------- */
         .vendor-strip-wrapper {
             position: relative;
             padding: 8px 0 4px 0;
@@ -184,25 +255,154 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .vendor-empty-msg {
+
+        /* ---------- PROMO HEADING ---------- */
+        .promo-heading {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1e293b;
+            padding: 4px 16px 4px 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .promo-heading i {
+            color: #f97316;
+        }
+
+        /* ---------- STATS ROW ---------- */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .stat-start {
+            flex: 2.2;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border-radius: 18px;
+            padding: 6px 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            padding: 16px 0;
-            color: #94a3b8;
+            gap: 8px;
+            box-shadow: 0 6px 24px rgba(249, 115, 22, 0.25);
+            cursor: default;
+            min-height: 50px;
+            transition: 0.2s;
+        }
+        .stat-start i { font-size: 18px; color: white; }
+        .stat-start span {
+            font-weight: 700;
             font-size: 13px;
+            color: white;
+            letter-spacing: 0.3px;
+        }
+        .stat-compact {
+            flex: 1;
+            background: #f8fafc;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+            border: 1px solid #eef2f6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+        .stat-compact .num {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1e293b;
+            line-height: 1.1;
+        }
+        .stat-compact .lbl {
+            font-size: 8px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-top: 1px;
+        }
+        .stat-compact i {
+            font-size: 14px;
+            margin-bottom: 1px;
+        }
+        .stat-compact.orange i { color: #f97316; }
+        .stat-compact.green i { color: #10b981; }
+
+        /* ---------- CHAT SECTION ---------- */
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .chat-item:last-child { border-bottom: none; }
+        .chat-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: white;
+            flex-shrink: 0;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .chat-avatar .online-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            border: 2.5px solid white;
+        }
+        .chat-info {
+            flex: 1;
+            margin-left: 14px;
+        }
+        .chat-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: #0f172a;
+        }
+        .chat-msg {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .chat-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .chat-time {
+            font-size: 10px;
+            color: #94a3b8;
             font-weight: 500;
         }
-
-        /* ---------- Additional tweaks for white background ---------- */
-        body {
-            background-color: #ffffff;
+        .chat-badge {
+            background: #f97316;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 10px;
+            border-radius: 30px;
         }
-        .bg-white/90 {
-            background-color: rgba(255,255,255,0.9) !important;
-        }
-        /* Keep the rest as is */
+        .bg-c1 { background: linear-gradient(135deg, #f472b6, #ec4899); }
+        .bg-c2 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+        .bg-c3 { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
+        .bg-c4 { background: linear-gradient(135deg, #34d399, #10b981); }
     </style>
 </head>
 <body class="text-gray-800">
@@ -275,24 +475,27 @@
         </div>
     </header>
 
-    <!-- ===== VENDOR STRIP (NEW) ===== -->
+    <!-- VENDOR STRIP -->
     <div class="vendor-strip-wrapper" id="vendorStripWrapper">
-        <div class="vendor-strip" id="vendorStrip">
-            <!-- Vendors injected by JS -->
-        </div>
+        <div class="vendor-strip" id="vendorStrip"></div>
     </div>
 
-    <!-- PROMO CONTAINER (original working code) -->
-    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
-        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
+    <!-- PROMO HEADING -->
+    <div class="promo-heading">
+        <i class="fas fa-tags"></i> Promotions & Offers
+    </div>
+
+    <!-- PROMO CONTAINER -->
+    <div id="promoContainer" class="mt-1 relative group">
+        <div id="promoSlider" class="no-scrollbar flex flex-nowrap overflow-x-auto gap-3 px-4 pb-2">
         </div>
         <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
 
-    <main class="p-6 pt-8">
-        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 min-h-[32px]">
+    <main class="p-6 pt-4">
+        <div id="walletMiniDisplay" class="mb-4 flex items-center gap-2 min-h-[28px]">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
             <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
@@ -304,31 +507,82 @@
             </p>
         </div>
 
-        <div class="grid grid-cols-1 gap-4">
-            <div onclick="location.href='new-order.html'" class="action-card bg-slate-900 p-6 rounded-[2rem] shadow-xl flex items-center justify-between border-b-4 border-orange-500 cursor-pointer">
-                <div class="flex items-center gap-4">
-                    <div class="bg-orange-500 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-                        <i class="fas fa-plus text-xl"></i>
-                    </div>
-                    <span class="font-black text-white uppercase tracking-wider">Start New Order</span>
-                </div>
-                <i class="fas fa-arrow-right text-slate-500"></i>
+        <!-- Stats Row - Screenshot Style -->
+        <div class="stats-row">
+            <div onclick="location.href='new-order.html'" class="stat-start cursor-pointer">
+                <i class="fas fa-plus-circle"></i>
+                <span>START NEW ORDER</span>
             </div>
+            <div id="activeOrdersCard" onclick="openActiveOrders()" class="stat-compact orange relative cursor-pointer">
+                <i class="fas fa-clipboard-list"></i>
+                <span class="num">0</span>
+                <span class="lbl">Active</span>
+                <div id="activeChatBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg font-bold animate-bounce">0</div>
+            </div>
+            <div onclick="location.href='completed.html'" class="stat-compact green cursor-pointer">
+                <i class="fas fa-check-circle"></i>
+                <span class="num">15</span>
+                <span class="lbl">Done</span>
+            </div>
+        </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div id="activeOrdersCard" onclick="openActiveOrders()" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer relative">
-                    <div class="bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-blue-100 shadow-inner">
-                        <span>⏱️</span>
-                    </div>
-                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Active Orders</span>
-                    <div id="activeChatBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg font-bold animate-bounce">0</div>
+        <!-- Recent Chats - Screenshot Style -->
+        <div class="mb-4 flex justify-between items-center">
+            <h3 class="text-sm font-black text-gray-800"><i class="fas fa-comment-dots text-orange-500 mr-2"></i>Recent Chats</h3>
+            <a href="#" class="text-xs font-bold text-orange-500">See All</a>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-2">
+            <div class="chat-item">
+                <div class="chat-avatar bg-c1">
+                    <span>SM</span>
+                    <span class="online-dot"></span>
                 </div>
-
-                <div onclick="location.href='completed.html'" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer">
-                    <div class="bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center text-green-500 shadow-inner border border-green-100">
-                        <i class="fas fa-check-double"></i>
-                    </div>
-                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Completed</span>
+                <div class="chat-info">
+                    <div class="chat-name">Sara Mehmood</div>
+                    <div class="chat-msg">Okay, main aa rahi hoon</div>
+                </div>
+                <div class="chat-meta">
+                    <span class="chat-time">10:30</span>
+                    <span class="chat-badge">2</span>
+                </div>
+            </div>
+            <div class="chat-item">
+                <div class="chat-avatar bg-c2">
+                    <span>AA</span>
+                    <span class="online-dot"></span>
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name">Ali Ahmed</div>
+                    <div class="chat-msg">Bhai kal milte hain?</div>
+                </div>
+                <div class="chat-meta">
+                    <span class="chat-time">09:15</span>
+                </div>
+            </div>
+            <div class="chat-item">
+                <div class="chat-avatar bg-c3">
+                    <span>FK</span>
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name">Fatima Khan</div>
+                    <div class="chat-msg">Thank you so much! 💖</div>
+                </div>
+                <div class="chat-meta">
+                    <span class="chat-time">Yesterday</span>
+                </div>
+            </div>
+            <div class="chat-item">
+                <div class="chat-avatar bg-c4">
+                    <span>🏠</span>
+                    <span class="online-dot"></span>
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name">Family Group</div>
+                    <div class="chat-msg">Ammi: Doston ko bhi bula lo</div>
+                </div>
+                <div class="chat-meta">
+                    <span class="chat-time">12:45</span>
                 </div>
             </div>
         </div>
@@ -351,7 +605,7 @@
         const sound = document.getElementById('notifSound');
 
         // ============================================================
-        // VENDOR STRIP (NEW) - OPTIONAL, HIDES IF NO DATA
+        // VENDOR STRIP
         // ============================================================
         let vendorStrip, vendorWrapper;
         let vendorAutoScrollInterval = null;
@@ -362,6 +616,14 @@
         let vendorInteractionTimeout = null;
         let vendorOriginalWidth = 0;
         let vendorData = [];
+
+        // Fallback vendors (only if database empty)
+        const FALLBACK_VENDORS = [
+            { name: 'Rainbow', icon: 'fa-rainbow', color: '#FF8F00' },
+            { name: 'Imtiaz', icon: 'fa-shopping-bag', color: '#7B1FA2' },
+            { name: 'KFC', icon: 'fa-drumstick-bite', color: '#C62828' },
+            { name: "McDonald's", icon: 'fa-burger', color: '#D84315' },
+        ];
 
         async function initVendorStrip() {
             vendorStrip = document.getElementById('vendorStrip');
@@ -380,6 +642,7 @@
                     vendors = data;
                     console.log('✅ Vendors loaded from database:', vendors.length);
                 } else {
+                    // Try stores table
                     const { data: storeData, error: storeErr } = await _supabase
                         .from('stores')
                         .select('*')
@@ -390,11 +653,14 @@
                         vendors = storeData;
                         console.log('✅ Stores loaded from database:', vendors.length);
                     } else {
-                        console.warn('⚠️ No vendors or stores found in database.');
+                        // Use fallback - screenshot vendors
+                        vendors = FALLBACK_VENDORS;
+                        console.log('ℹ️ Using fallback vendors');
                     }
                 }
             } catch (err) {
-                console.warn('⚠️ Error fetching vendors:', err);
+                console.warn('⚠️ Error fetching vendors, using fallback:', err);
+                vendors = FALLBACK_VENDORS;
             }
 
             if (vendors.length === 0) {
@@ -460,9 +726,16 @@
             const icon = v.icon || v.icon_class || 'fa-store';
             const color = v.color || v.theme_color || '#64748b';
             
+            // Emoji fallback for Rainbow, Imtiaz, KFC, McDonald's
+            let emoji = '';
+            if (name.toLowerCase().includes('rainbow')) emoji = '🌈';
+            else if (name.toLowerCase().includes('imtiaz')) emoji = '🛍️';
+            else if (name.toLowerCase().includes('kfc')) emoji = '🍗';
+            else if (name.toLowerCase().includes('mcdonald')) emoji = '🍔';
+            
             item.innerHTML = `
                 <div class="vendor-avatar" style="background: ${color};">
-                    <i class="fas ${icon}"></i>
+                    ${emoji || `<i class="fas ${icon}"></i>`}
                 </div>
                 <span class="vendor-name">${name}</span>
             `;
@@ -539,7 +812,7 @@
         });
 
         // ============================================================
-        // ORIGINAL WORKING PROMOTIONS CODE (unchanged)
+        // ORIGINAL WORKING PROMOTIONS CODE (with horizontal layout)
         // ============================================================
         async function initializeApp() {
             if (!navigator.onLine) return;
@@ -663,8 +936,10 @@
                     .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
                 const card = document.getElementById('activeOrdersCard');
                 const badge = document.getElementById('activeChatBadge');
+                const countEl = card.querySelector('.num');
                 if (activeOrders && activeOrders.length > 0) {
                     card.classList.add('active-order-continuous-glow');
+                    countEl.innerText = activeOrders.length;
                     const orderIds = activeOrders.map(o => o.id);
                     const { data: unreadMsgs } = await _supabase
                         .from('order_chats').select('id').in('order_id', orderIds)
@@ -677,6 +952,7 @@
                     else { badge.classList.add('hidden'); }
                 } else {
                     card.classList.remove('active-order-continuous-glow');
+                    countEl.innerText = '0';
                     badge.classList.add('hidden');
                 }
             } catch (e) { console.error("Active orders UI fail:", e); }
@@ -752,11 +1028,10 @@
         }
 
         // ============================================================
-        // PROMO SLIDER - EXACTLY AS IN ORIGINAL WORKING CODE
+        // PROMO SLIDER - HORIZONTAL LAYOUT (screenshot style)
         // ============================================================
-        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
-        let promosData = [], userInterests = new Set();
-        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
+        let currentSlideIndex = 0, isAutoScrolling = false;
+        let promosData = [];
 
         async function fetchPromotions() {
             if(!navigator.onLine) return; 
@@ -770,39 +1045,49 @@
                     slider.innerHTML = '';
                     promos.forEach((promo, index) => {
                         const slide = document.createElement('div');
-                        slide.className = 'promo-slide overflow-hidden shrink-0';
-                        const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
-                        const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
-                        let mediaHTML = promo.promo_type === 'video'
-                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
-                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
-                        slide.innerHTML = mediaHTML + textHTML;
+                        slide.className = 'promo-slide overflow-hidden shrink-0 rounded-xl bg-white shadow-sm border border-gray-100';
+                        slide.style.flex = '0 0 180px';
+                        slide.style.minHeight = '120px';
+                        slide.style.maxHeight = '140px';
+                        
+                        const imgUrl = promo.promo_url || '';
+                        const title = promo.title || 'Special Offer';
+                        const text = promo.promo_text || '';
+                        const tag = promo.category || 'Offer';
+                        
+                        let mediaHTML = '';
+                        if (promo.promo_type === 'video' && imgUrl) {
+                            mediaHTML = `<video src="${imgUrl}" muted playsinline class="w-full h-full object-cover"></video>`;
+                        } else if (imgUrl) {
+                            mediaHTML = `<img src="${imgUrl}" class="w-full h-full object-cover">`;
+                        } else {
+                            // No image - show gradient background with text
+                            mediaHTML = `<div class="w-full h-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-xs p-2 text-center">${title}</div>`;
+                        }
+                        
+                        slide.innerHTML = `
+                            <div class="media-box relative w-full h-full overflow-hidden" onclick="handleMediaTap(event, ${index})">
+                                ${mediaHTML}
+                                <div class="promo-overlay"></div>
+                                <div class="promo-text-box">
+                                    <h3>${title}</h3>
+                                    <p>${text}</p>
+                                </div>
+                                <span class="promo-tag">${tag}</span>
+                            </div>
+                        `;
                         slider.appendChild(slide);
                     });
                     container.classList.remove('hidden');
-                    slider.addEventListener('scroll', () => {
-                        if (isAutoScrolling) return; 
-                        clearTimeout(slider.scrollTimeout);
-                        slider.scrollTimeout = setTimeout(() => {
-                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
-                            if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                                activateSlide(newIndex, false); 
-                            }
-                        }, 40);
-                    });
-                    activateSlide(0, false);
                 }
             } catch (err) { console.log("Promo Slider Error:", err); }
         }
 
-        function handleMediaTap(e, index, type) {
-            if (e.target.closest('button')) return;
+        function handleMediaTap(e, index) {
+            // Simple tap to show more info or fullscreen
             const container = document.getElementById('promoContainer');
             if (!container.classList.contains('tiktok-fullscreen')) {
                 toggleTikTokFullscreen();
-            } else if (type === 'video') {
-                const vid = document.getElementById(`vid_${index}`);
-                if (vid.paused) vid.play(); else vid.pause();
             }
         }
 
@@ -811,44 +1096,34 @@
             const slider = document.getElementById('promoSlider');
             const isEntering = !container.classList.contains('tiktok-fullscreen');
             container.classList.toggle('tiktok-fullscreen');
-            const vid = document.getElementById(`vid_${currentSlideIndex}`);
-            if (vid) {
-                vid.muted = !isEntering;
-                const icon = document.getElementById(`icon_${vid.id}`);
-                if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
+            // For fullscreen, we need to adjust slider to vertical scroll
+            if (isEntering) {
+                slider.style.flexDirection = 'column';
+                slider.style.gap = '0';
+                slider.style.overflowY = 'auto';
+                slider.style.overflowX = 'hidden';
+                document.querySelectorAll('.promo-slide').forEach(s => {
+                    s.style.flex = '0 0 100vh';
+                    s.style.minHeight = '100vh';
+                    s.style.maxHeight = '100vh';
+                    s.style.borderRadius = '0';
+                });
+                document.getElementById('closeFullscreenBtn').style.display = 'flex';
+                document.querySelector('.promo-heading').style.display = 'none';
+            } else {
+                slider.style.flexDirection = 'row';
+                slider.style.gap = '12px';
+                slider.style.overflowY = 'hidden';
+                slider.style.overflowX = 'auto';
+                document.querySelectorAll('.promo-slide').forEach(s => {
+                    s.style.flex = '0 0 180px';
+                    s.style.minHeight = '120px';
+                    s.style.maxHeight = '140px';
+                    s.style.borderRadius = '12px';
+                });
+                document.getElementById('closeFullscreenBtn').style.display = 'none';
+                document.querySelector('.promo-heading').style.display = 'flex';
             }
-            setTimeout(() => {
-                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
-            }, 50);
-        }
-
-        function activateSlide(index, autoScroll = true) {
-            currentSlideIndex = index;
-            const slider = document.getElementById('promoSlider');
-            if (autoScroll) {
-                isAutoScrolling = true;
-                slider.scrollTop = slider.offsetHeight * index;
-                setTimeout(() => { isAutoScrolling = false; }, 500);
-            }
-            document.querySelectorAll('.promo-video').forEach(v => {
-                v.pause(); v.muted = true;
-            });
-            const promo = promosData[index];
-            if (promo && promo.promo_type === 'video') {
-                const vid = document.getElementById(`vid_${index}`);
-                if (vid) {
-                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
-                    vid.muted = !isFull;
-                    vid.play().catch(e => console.log(e));
-                }
-            }
-        }
-
-        function toggleSliderAudio(e, vidId) {
-            e.stopPropagation();
-            const vid = document.getElementById(vidId);
-            const icon = document.getElementById(`icon_${vidId}`);
-            if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
         }
 
         // ============================================================
@@ -857,8 +1132,8 @@
         window.onload = () => {
             setGreeting();
             initializeApp();
-            initVendorStrip();      // vendor strip (new)
-            fetchPromotions();      // original working promotions
+            initVendorStrip();
+            fetchPromotions();
         };
     </script>
 </body>
