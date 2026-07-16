@@ -10,7 +10,6 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -127,6 +126,28 @@
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(249,115,22,0.3);
         }
+        /* Small speaker button on each slide */
+        .slide-speaker-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .slide-speaker-btn:active { transform: scale(0.9); }
 
         /* -------- FULLSCREEN TIKTOK STYLE -------- */
         .tiktok-fullscreen {
@@ -155,15 +176,17 @@
         }
         .tiktok-fullscreen .promo-slide .media-box {
             height: 100vh !important;
+            width: 100vw !important;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: black;
         }
         .tiktok-fullscreen .promo-slide img,
         .tiktok-fullscreen .promo-slide video {
-            object-fit: contain !important;
-            height: 100vh !important;
             width: 100vw !important;
+            height: 100vh !important;
+            object-fit: cover !important;  /* Fix: Fill screen properly */
         }
         .tiktok-fullscreen .promo-slide .promo-overlay {
             background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%) !important;
@@ -194,27 +217,47 @@
             top: 60px !important;
             right: 24px !important;
         }
-        .tiktok-fullscreen .pause-icon-overlay { opacity: 0 !important; }
-        .tiktok-fullscreen .tiktok-btn { display: flex !important; }
-        #closeFullscreenBtn {
-            display: none;
+        .tiktok-fullscreen .slide-speaker-btn {
+            bottom: 90px !important; /* Move up to avoid overlap with text */
+            right: 20px !important;
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+        }
+
+        /* Fullscreen control buttons (back & speaker) */
+        #fullscreenControls {
             position: fixed;
             top: 48px;
+            left: 20px;
             right: 20px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
             z-index: 999999;
+            pointer-events: none;
+        }
+        #fullscreenControls button {
+            pointer-events: auto;
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(12px);
             color: white;
             border: none;
+            border-radius: 50%;
             width: 44px;
             height: 44px;
-            border-radius: 50%;
             font-size: 20px;
+            display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            transition: background 0.2s;
         }
-        .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
+        #fullscreenControls button:active { background: rgba(255,255,255,0.2); }
+        #fullscreenControls .back-btn { /* close */ }
+        #fullscreenControls .speaker-btn { /* mute/unmute */ }
+        .tiktok-fullscreen #fullscreenControls { display: flex !important; }
+        .tiktok-fullscreen #closeFullscreenBtn { display: none !important; } /* Hide old close button */
 
         /* -------- WHATSAPP-STYLE CHATS -------- */
         .chat-item {
@@ -326,16 +369,23 @@
     </div>
 
     <!-- Header -->
-    <header class="px-6 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-50">
-        <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
-        <div class="relative cursor-pointer p-1 ml-4 flex items-center justify-center" onclick="openNotifications()">
-            <i id="notifBell" class="fas fa-bell text-red-500 text-2xl relative z-10 transition-colors"></i>
-            <div id="notifBadge" class="notif-badge"></div>
+    <header class="px-4 py-3 flex items-center justify-between bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-50">
+        <!-- Left side: Menu + Bell -->
+        <div class="flex items-center gap-4">
+            <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
+            <div class="relative cursor-pointer p-1 flex items-center justify-center" onclick="openNotifications()">
+                <i id="notifBell" class="fas fa-bell text-2xl text-gray-600 transition-colors"></i>
+                <div id="notifBadge" class="notif-badge"></div>
+            </div>
         </div>
-        <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            <p id="appbarGreeting" class="text-[10px] font-black text-gray-400 uppercase tracking-widest"></p>
-            <p id="userName" class="text-[16px] font-black text-slate-800 tracking-tight">...</p>
+
+        <!-- Center: Greeting + Name -->
+        <div class="flex flex-col items-center">
+            <p id="appbarGreeting" class="text-[10px] font-black text-gray-400 uppercase tracking-widest">GOOD EVENING</p>
+            <p id="userName" class="text-[16px] font-black text-slate-800 tracking-tight">Waseem Akram</p>
         </div>
+
+        <!-- Right: Logo -->
         <div class="w-12 h-12 rounded-full border-[3px] border-orange-500 p-0.5 bg-white flex items-center justify-center">
             <img id="appLogo" src="" alt="Logo" class="w-full h-full brand-logo-gol hidden">
             <div id="logoFallback" class="w-full h-full bg-orange-500 rounded-full flex items-center justify-center">
@@ -348,7 +398,7 @@
     <main class="pb-10">
 
         <!-- Wallet Sync -->
-        <div id="walletMiniDisplay" class="px-6 pt-2 flex items-center justify-center gap-2">
+        <div id="walletMiniDisplay" class="px-6 pt-2 flex items-center justify-center gap-2 flex-wrap">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
                 <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
@@ -374,9 +424,11 @@
             <div id="promoContainer" class="hidden relative">
                 <div id="promoSlider" class="flex overflow-x-auto gap-4 no-scrollbar scroll-smooth"></div>
             </div>
-            <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()">
-                <i class="fas fa-times text-xl"></i>
-            </button>
+            <!-- Fullscreen control buttons (will be shown only in fullscreen) -->
+            <div id="fullscreenControls">
+                <button class="back-btn" onclick="toggleTikTokFullscreen()"><i class="fas fa-times"></i></button>
+                <button class="speaker-btn" onclick="toggleFullscreenAudio()"><i id="fullscreenSpeakerIcon" class="fas fa-volume-up"></i></button>
+            </div>
         </div>
 
         <!-- Action Buttons -->
@@ -423,7 +475,7 @@
             </div>
 
             <div id="recentChatsContainer" class="bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm">
-                <!-- Chat 1: Sara (Online, Double Tick Read) -->
+                <!-- Chat 1 -->
                 <div class="chat-item" onclick="openChat('sara')">
                     <div class="chat-avatar bg-c1">
                         <span>SM</span>
@@ -442,8 +494,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Chat 2: Ali (Online, Grey Tick Sent) -->
+                <!-- Chat 2 -->
                 <div class="chat-item" onclick="openChat('ali')">
                     <div class="chat-avatar bg-c2">
                         <span>AA</span>
@@ -462,8 +513,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Chat 3: Fatima (Offline, Double Tick Read) -->
+                <!-- Chat 3 -->
                 <div class="chat-item" onclick="openChat('fatima')">
                     <div class="chat-avatar bg-c3">
                         <span>FK</span>
@@ -481,8 +531,7 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Chat 4: Family Group (Online, Grey Tick Sent) -->
+                <!-- Chat 4 -->
                 <div class="chat-item" onclick="openChat('family')">
                     <div class="chat-avatar bg-c4">
                         <span>🏠</span>
@@ -539,7 +588,7 @@
 
         function openChat(name) {
             alert('Opening chat with ' + name);
-            // Replace with actual navigation: window.location.href = 'chat.html?user='+name;
+            // Replace with actual navigation
         }
 
         // ============================================================
@@ -584,7 +633,6 @@
                 if (!error && wallet) {
                     currentBal = parseFloat(wallet.current_balance || 0);
                 } else {
-                    // fallback: get from latest completed order
                     const { data: orders } = await _supabase
                         .from('orders')
                         .select('balance_amount')
@@ -671,7 +719,6 @@
                     badge.innerText = '0';
                 }
 
-                // Completed count
                 const { count: doneCount } = await _supabase
                     .from('orders')
                     .select('*', { count: 'exact', head: true })
@@ -735,65 +782,63 @@
             if (!navigator.onLine) return;
             const container = document.getElementById('vendorsContainer');
             try {
-                const { data: vendors, error } = await _supabase
+                let vendors = [];
+                const { data, error } = await _supabase
                     .from('vendors')
                     .select('*')
                     .eq('is_active', true)
                     .order('sort_order', { ascending: true })
                     .limit(20);
 
-                if (error || !vendors || vendors.length === 0) {
-                    // fallback: try 'stores' table
+                if (error || !data || data.length === 0) {
                     const { data: stores } = await _supabase
                         .from('stores')
                         .select('*')
                         .eq('is_active', true)
                         .order('sort_order', { ascending: true })
                         .limit(20);
-                    if (stores && stores.length > 0) {
-                        renderVendors(stores);
-                        return;
-                    }
-                    // if still no data, hide the section
+                    if (stores && stores.length > 0) vendors = stores;
+                } else {
+                    vendors = data;
+                }
+
+                if (vendors.length === 0) {
                     container.innerHTML = `<p class="text-xs text-gray-400 italic text-center w-full">No vendors available</p>`;
                     return;
                 }
-                renderVendors(vendors);
+
+                container.innerHTML = '';
+                const colors = ['bg-orange-500', 'bg-purple-600', 'bg-red-600', 'bg-blue-500', 'bg-pink-500', 'bg-green-500', 'bg-yellow-500', 'bg-indigo-500'];
+                vendors.forEach((v, idx) => {
+                    const bg = colors[idx % colors.length];
+                    const logo = v.logo_url || v.image_url || '';
+                    const name = v.name || v.vendor_name || 'Vendor';
+                    const div = document.createElement('div');
+                    div.className = 'flex flex-col items-center gap-2 min-w-[72px] cursor-pointer active:scale-95 transition-transform snap-start';
+                    div.innerHTML = `
+                        <div class="w-16 h-16 rounded-full ${bg} shadow-[0_4px_10px_rgba(0,0,0,0.1)] flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-orange-500">
+                            ${logo ? `<img src="${logo}" class="w-full h-full object-cover" onerror="this.style.display='none'">` : `<span class="text-white font-bold text-2xl">${name.charAt(0)}</span>`}
+                        </div>
+                        <span class="text-[11px] font-bold text-slate-800 text-center leading-tight truncate w-full">${name}</span>
+                    `;
+                    div.addEventListener('click', () => {
+                        alert('Vendor: ' + name);
+                        // navigate to vendor page
+                    });
+                    container.appendChild(div);
+                });
             } catch (err) {
-                console.error("Vendors fetch error:", err);
+                console.error("Vendors error:", err);
                 container.innerHTML = `<p class="text-xs text-gray-400 italic text-center w-full">Failed to load vendors</p>`;
             }
         }
 
-        function renderVendors(vendors) {
-            const container = document.getElementById('vendorsContainer');
-            container.innerHTML = '';
-            const colors = ['bg-orange-500', 'bg-purple-600', 'bg-red-600', 'bg-blue-500', 'bg-pink-500', 'bg-green-500', 'bg-yellow-500', 'bg-indigo-500'];
-            vendors.forEach((v, index) => {
-                const bg = colors[index % colors.length];
-                const logo = v.logo_url || v.image_url || '';
-                const name = v.name || v.vendor_name || 'Vendor';
-                const div = document.createElement('div');
-                div.className = 'flex flex-col items-center gap-2 min-w-[72px] cursor-pointer active:scale-95 transition-transform snap-start';
-                div.innerHTML = `
-                    <div class="w-16 h-16 rounded-full ${bg} shadow-[0_4px_10px_rgba(0,0,0,0.1)] flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-orange-500">
-                        ${logo ? `<img src="${logo}" class="w-full h-full object-cover" onerror="this.style.display='none'">` : `<span class="text-white font-bold text-2xl">${name.charAt(0)}</span>`}
-                    </div>
-                    <span class="text-[11px] font-bold text-slate-800 text-center leading-tight truncate w-full">${name}</span>
-                `;
-                div.addEventListener('click', () => {
-                    alert('Vendor: ' + name);
-                    // navigate to vendor page: window.location.href = 'vendor.html?id='+v.id;
-                });
-                container.appendChild(div);
-            });
-        }
-
         // ============================================================
-        // PROMOTIONS (Supabase)
+        // PROMOTIONS (Supabase) + Fullscreen controls
         // ============================================================
         let promosData = [];
         let currentSlideIndex = 0;
+        let isFullscreen = false;
 
         async function fetchPromotions() {
             if (!navigator.onLine) return;
@@ -817,19 +862,22 @@
                     slide.className = 'promo-slide relative cursor-pointer';
                     slide.setAttribute('data-index', idx);
 
-                    const media = promo.promo_type === 'video'
-                        ? `<video id="vid_${idx}" src="${promo.promo_url}" muted playsinline class="w-full h-full object-cover"></video>`
-                        : `<img src="${promo.promo_url || 'https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'">`;
+                    const isVideo = promo.promo_type === 'video';
+                    const mediaSrc = promo.promo_url || '';
+                    const mediaTag = isVideo
+                        ? `<video id="vid_${idx}" src="${mediaSrc}" muted playsinline class="w-full h-full object-cover"></video>`
+                        : `<img src="${mediaSrc || 'https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'">`;
 
                     slide.innerHTML = `
                         <div class="media-box w-full h-full relative" onclick="handleMediaTap(event, ${idx})">
-                            ${media}
+                            ${mediaTag}
                             <div class="promo-overlay"></div>
                             <div class="promo-text-box">
                                 <h3>${promo.title || 'Special Offer'}</h3>
                                 <p>${promo.promo_text || ''}</p>
                             </div>
                             <span class="promo-tag">${promo.category || 'Offer'}</span>
+                            ${isVideo ? `<button class="slide-speaker-btn" onclick="event.stopPropagation(); toggleSlideAudio(${idx})"><i id="speakerIcon_${idx}" class="fas fa-volume-mute"></i></button>` : ''}
                         </div>
                     `;
                     slider.appendChild(slide);
@@ -837,24 +885,45 @@
 
                 document.getElementById('promoContainer').classList.remove('hidden');
 
-                // Add fullscreen toggle on click
-                document.querySelectorAll('.promo-slide').forEach(el => {
-                    el.addEventListener('click', function(e) {
-                        if (!e.target.closest('.media-box')) return;
-                        const idx = parseInt(this.dataset.index);
-                        handleMediaTap(e, idx);
-                    });
-                });
-
             } catch (err) { console.error("Promotions error:", err); }
         }
 
+        // ---------- Slide audio toggle (for small screen) ----------
+        function toggleSlideAudio(index) {
+            const vid = document.getElementById(`vid_${index}`);
+            if (!vid) return;
+            vid.muted = !vid.muted;
+            const icon = document.getElementById(`speakerIcon_${index}`);
+            if (icon) {
+                icon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+            }
+            // Also update fullscreen speaker icon if active
+            const fsIcon = document.getElementById('fullscreenSpeakerIcon');
+            if (fsIcon && isFullscreen) {
+                fsIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+            }
+        }
+
+        // ---------- Fullscreen speaker toggle ----------
+        function toggleFullscreenAudio() {
+            const vid = document.getElementById(`vid_${currentSlideIndex}`);
+            if (!vid) return;
+            vid.muted = !vid.muted;
+            const icon = document.getElementById('fullscreenSpeakerIcon');
+            if (icon) {
+                icon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+            }
+            // Also update small speaker icon
+            const smallIcon = document.getElementById(`speakerIcon_${currentSlideIndex}`);
+            if (smallIcon) {
+                smallIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+            }
+        }
+
+        // ---------- Fullscreen toggle ----------
         function handleMediaTap(e, index) {
             if (e.target.closest('button')) return;
-            const container = document.getElementById('promoContainer');
-            if (!container.classList.contains('tiktok-fullscreen')) {
-                toggleTikTokFullscreen(index);
-            }
+            toggleTikTokFullscreen(index);
         }
 
         function toggleTikTokFullscreen(targetIndex = 0) {
@@ -864,6 +933,7 @@
 
             container.classList.toggle('tiktok-fullscreen');
             document.body.style.overflow = isEntering ? 'hidden' : 'auto';
+            isFullscreen = isEntering;
 
             if (isEntering) {
                 currentSlideIndex = targetIndex;
@@ -871,17 +941,28 @@
                 slider.style.scrollSnapType = 'y mandatory';
                 setTimeout(() => {
                     slider.scrollTop = window.innerHeight * currentSlideIndex;
-                    // Play video if any
                     const vid = document.getElementById(`vid_${currentSlideIndex}`);
-                    if (vid) { vid.muted = false; vid.play().catch(e => console.log(e)); }
+                    if (vid) {
+                        vid.muted = false;
+                        vid.play().catch(e => console.log(e));
+                        // Update speaker icon state
+                        const fsIcon = document.getElementById('fullscreenSpeakerIcon');
+                        if (fsIcon) {
+                            fsIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+                        }
+                    }
                 }, 100);
             } else {
                 // Exit fullscreen
                 slider.style.scrollSnapType = '';
                 document.querySelectorAll('.promo-slide video').forEach(v => { v.pause(); v.muted = true; });
                 // Reset horizontal scroll
-                const slideWidth = 240 + 16; // width + gap
+                const slideWidth = 240 + 16;
                 slider.scrollLeft = currentSlideIndex * slideWidth;
+                // Reset speaker icons
+                document.querySelectorAll('.slide-speaker-btn i').forEach(icon => {
+                    icon.className = 'fas fa-volume-mute';
+                });
             }
         }
 
