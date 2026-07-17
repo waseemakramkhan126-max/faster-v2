@@ -10,146 +10,56 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         html, body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
             user-select: none;
-            background-color: #ffffff;
+            -webkit-user-select: none;
+            padding-top: env(safe-area-inset-top);
+            background-color: #f9fafb;
         }
         
-        @keyframes order-pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 rgba(249,115,22,0); }
-            50% { transform: scale(1.02); box-shadow: 0 4px 20px rgba(249,115,22,0.3); }
-            100% { transform: scale(1); box-shadow: 0 0 0 rgba(249,115,22,0); }
+        @keyframes order-continuous-pulse {
+            0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
+            50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
+            100% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
         }
-        .active-order-glow { animation: order-pulse 2s ease-in-out infinite !important; }
+        .active-order-continuous-glow { 
+            animation: order-continuous-pulse 2s ease-in-out infinite !important; 
+            border-width: 2px !important; border-color: #22c55e !important; 
+            background-color: #f0fdf4 !important; z-index: 40; 
+        }
 
-        @keyframes bell-ring {
-            0% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.1) rotate(-10deg); }
-            50% { transform: scale(1.2) rotate(10deg); }
-            75% { transform: scale(1.1) rotate(-5deg); }
-            100% { transform: scale(1) rotate(0deg); }
+        @keyframes bell-pulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
+            50% { transform: scale(1.2) rotate(15deg); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); color: #ef4444; }
+            100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
         }
-        .bell-active { animation: bell-ring 0.8s ease-in-out infinite !important; color: #ef4444 !important; }
+        .bell-active { animation: bell-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; color: #ef4444 !important; }
 
         .notif-badge { 
             position: absolute; top: -2px; right: -2px; 
             background: #ef4444; border: 2px solid white; 
             width: 12px; height: 12px; border-radius: 50%; 
-            display: none; 
+            display: none; z-index: 10; 
         }
-        .notif-badge.active { display: block; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+        @keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+        .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
 
-        .sidebar { transition: 0.4s cubic-bezier(0.4,0,0.2,1); transform: translateX(-100%); z-index: 100; }
+        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
         .sidebar.active { transform: translateX(0); }
-        #sidebarOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.4s; }
-        #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
+        .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
+        .action-card { transition: all 0.2s ease; position: relative; }
+        .action-card:active { transform: scale(0.95); }
+        
+        #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
 
-        .brand-logo-gol { object-fit: cover; border-radius: 9999px; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .action-card:active { transform: scale(0.95); }
+        .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
 
-        /* -------- PROMO SLIDER -------- */
-        #promoContainer:not(.tiktok-fullscreen) #promoSlider {
-            display: flex;
-            overflow-x: auto;
-            gap: 16px;
-            padding: 4px 16px 8px 16px;
-            scroll-snap-type: x mandatory;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide {
-            flex: 0 0 240px;
-            height: 150px;
-            scroll-snap-align: start;
-            border-radius: 1.5rem;
-            overflow: hidden;
-            background: #f8fafc;
-            border: 1px solid #f1f5f9;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide img,
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.5), transparent 60%);
-            pointer-events: none;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            z-index: 5;
-            color: white;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box h3 {
-            font-size: 14px;
-            font-weight: 800;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box p {
-            font-size: 11px;
-            font-weight: 500;
-            opacity: 0.9;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-tag {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: #f97316;
-            color: white;
-            font-size: 9px;
-            font-weight: 800;
-            padding: 2px 12px;
-            border-radius: 30px;
-            z-index: 6;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 8px rgba(249,115,22,0.3);
-        }
-        /* Small speaker button on each slide */
-        .slide-speaker-btn {
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            z-index: 10;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(8px);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        .slide-speaker-btn:active { transform: scale(0.9); }
-
-        /* -------- FULLSCREEN TIKTOK STYLE -------- */
         .tiktok-fullscreen {
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 100vh !important; 
@@ -157,193 +67,68 @@
             background-color: black !important;
             border-radius: 0 !important;
         }
-        .tiktok-fullscreen #promoSlider {
-            height: 100vh !important;
-            flex-direction: column !important;
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-            scroll-snap-type: y mandatory !important;
-            gap: 0 !important;
-            padding: 0 !important;
-        }
-        .tiktok-fullscreen .promo-slide {
-            flex: 0 0 100vh !important;
-            height: 100vh !important;
-            width: 100vw !important;
-            scroll-snap-align: start !important;
-            border-radius: 0 !important;
-            border: none !important;
-            background: black !important;
-        }
-        .tiktok-fullscreen .promo-slide .media-box {
-            height: 100vh !important;
-            width: 100vw !important;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: black;
-        }
-        .tiktok-fullscreen .promo-slide img,
-        .tiktok-fullscreen .promo-slide video {
-            width: 100vw !important;
-            height: 100vh !important;
-            object-fit: cover !important;  /* Fix: Fill screen properly */
-        }
-        .tiktok-fullscreen .promo-slide .promo-overlay {
-            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%) !important;
-        }
-        .tiktok-fullscreen .promo-slide .promo-text-box {
-            position: absolute;
-            bottom: 80px;
-            left: 0;
-            right: 0;
-            padding: 0 24px;
-            z-index: 5;
-            color: white;
-            text-shadow: 0 2px 12px rgba(0,0,0,0.9);
-        }
-        .tiktok-fullscreen .promo-slide .promo-text-box h3 {
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 4px;
-        }
-        .tiktok-fullscreen .promo-slide .promo-text-box p {
-            font-size: 16px;
-            font-weight: 400;
-            opacity: 0.9;
-        }
-        .tiktok-fullscreen .promo-slide .promo-tag {
-            font-size: 12px !important;
-            padding: 4px 16px !important;
-            top: 60px !important;
-            right: 24px !important;
-        }
-        .tiktok-fullscreen .slide-speaker-btn {
-            bottom: 90px !important; /* Move up to avoid overlap with text */
-            right: 20px !important;
-            width: 44px;
-            height: 44px;
-            font-size: 20px;
-        }
+        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
+        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
+        .tiktok-fullscreen .media-box { height: 100vh !important; }
+        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
+        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+        .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
+        .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
+        .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
+        
+        .pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+        .pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
+        .is-paused .pause-icon-overlay { opacity: 1; }
 
-        /* Fullscreen control buttons (back & speaker) */
-        #fullscreenControls {
-            position: fixed;
-            top: 48px;
-            left: 20px;
-            right: 20px;
-            display: none;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 999999;
-            pointer-events: none;
+        #sidebarOverlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s;
         }
-        #fullscreenControls button {
-            pointer-events: auto;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(12px);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        #fullscreenControls button:active { background: rgba(255,255,255,0.2); }
-        #fullscreenControls .back-btn { /* close */ }
-        #fullscreenControls .speaker-btn { /* mute/unmute */ }
-        .tiktok-fullscreen #fullscreenControls { display: flex !important; }
-        .tiktok-fullscreen #closeFullscreenBtn { display: none !important; } /* Hide old close button */
+        #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-        /* -------- WHATSAPP-STYLE CHATS -------- */
-        .chat-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
-            cursor: pointer;
-            transition: background 0.15s;
+        #promoContainer:not(.tiktok-fullscreen) {
+            width: 250px; 
+            height: 150px; 
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 1rem;
+            overflow: hidden;
         }
-        .chat-item:hover { background: #f8fafc; }
-        .chat-item:last-child { border-bottom: none; }
-        .chat-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 16px;
-            color: white;
-            flex-shrink: 0;
-            position: relative;
+        #promoContainer:not(.tiktok-fullscreen) #promoSlider {
+            height: 100%;
         }
-        .chat-avatar .online-dot {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 14px;
-            height: 14px;
-            background: #25D366;
-            border-radius: 50%;
-            border: 2.5px solid white;
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
+            height: 100% !important; 
         }
-        .chat-info { flex: 1; margin-left: 14px; overflow: hidden; }
-        .chat-name-row { display: flex; justify-content: space-between; align-items: baseline; }
-        .chat-name { font-weight: 700; font-size: 15px; color: #0f172a; }
-        .chat-time { font-size: 11px; color: #94a3b8; font-weight: 500; }
-        .chat-msg-row { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
-        .chat-msg { font-size: 13px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; display: flex; align-items: center; gap: 4px; }
-        .chat-msg .tick { color: #25D366; font-size: 14px; }
-        .chat-msg .tick.grey { color: #94a3b8; }
-        .chat-badge {
-            background: #25D366;
-            color: white;
-            font-size: 11px;
-            font-weight: 700;
-            min-width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 30px;
-            padding: 0 6px;
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
+        #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
+            height: 100% !important; 
+            object-fit: container;
         }
-        .chat-status-text { font-size: 11px; color: #94a3b8; font-weight: 500; }
-        .bg-c1 { background: linear-gradient(135deg, #f472b6, #ec4899); }
-        .bg-c2 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
-        .bg-c3 { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
-        .bg-c4 { background: linear-gradient(135deg, #34d399, #10b981); }
+        #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
+            display: none !important;
+        }
     </style>
 </head>
-<body>
+<body class="text-gray-800">
 
-    <!-- Offline Banner -->
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2 z-50">
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
         <i class="fas fa-wifi-slash"></i> No Internet Connection
     </div>
 
-    <!-- Notification Sound -->
     <audio id="notifSound" src="https://hkabhikizdlbavfkualt.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
 
-    <!-- Sidebar Overlay -->
     <div id="sidebarOverlay" onclick="toggleMenu()"></div>
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col">
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
         <div class="flex justify-between items-center mb-8 mt-2">
             <div class="flex items-center gap-3">
-                <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden border-2 border-orange-500">
+                <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden">
                 <h2 class="text-xl font-black text-blue-800 tracking-tighter">Faster <span class="text-blue-500 italic">App</span></h2>
             </div>
             <i class="fas fa-times text-xl text-gray-400 cursor-pointer p-2 active:scale-90 transition-transform" onclick="toggleMenu()"></i>
         </div>
+
         <nav class="space-y-3 flex-1">
             <div onclick="location.href='profile.html'" class="p-1 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
@@ -352,6 +137,7 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
+
             <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
@@ -359,206 +145,92 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-orange-300"></i>
             </div>
+
             <a href="csr-chat.html" class="flex items-center gap-4 p-1 hover:bg-gray-50 rounded-2xl transition font-bold text-gray-600 border border-transparent active:border-gray-200 cursor-pointer">
                 <i class="fas fa-comment-dots text-green-500 text-2xl"></i>
                 <span>CSR Help</span>
             </a>
         </nav>
+
         <button onclick="logout()" class="w-full bg-red-50 text-red-600 font-black py-2 rounded-2xl flex items-center justify-center gap-2 mt-auto uppercase tracking-widest text-xs active:bg-red-100 transition border border-red-100 shadow-sm mb-4">
             <i class="fas fa-power-off"></i> Logout Account
         </button>
     </div>
 
-    <!-- Header -->
-    <header class="px-4 py-3 flex items-center justify-between bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-50">
-        <!-- Left side: Menu + Bell -->
-        <div class="flex items-center gap-4">
-            <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
-            <div class="relative cursor-pointer p-1 flex items-center justify-center" onclick="openNotifications()">
-                <i id="notifBell" class="fas fa-bell text-2xl text-gray-600 transition-colors"></i>
+    <header class="px-4 flex justify-between items-center bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe" style="height: 56px;">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-bars-staggered text-base text-gray-700 cursor-pointer active:scale-90 transition p-1" onclick="toggleMenu()"></i>
+            <div class="relative cursor-pointer p-1 flex items-center justify-center w-8 h-8" onclick="openNotifications()">
+                <i id="notifBell" class="fas fa-bell text-base text-gray-400 transition-colors"></i>
                 <div id="notifBadge" class="notif-badge"></div>
             </div>
         </div>
 
-        <!-- Center: Greeting + Name -->
-        <div class="flex flex-col items-center">
-            <p id="appbarGreeting" class="text-[10px] font-black text-gray-400 uppercase tracking-widest">GOOD EVENING</p>
-            <p id="userName" class="text-[16px] font-black text-slate-800 tracking-tight">Waseem Akram</p>
+        <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style="line-height:1.15;">
+            <p id="appbarGreeting" class="text-[9px] font-black text-gray-400 uppercase tracking-widest"></p>
+            <p id="userName" class="text-sm font-black text-gray-800 tracking-tighter">...</p>
         </div>
 
-        <!-- Right: Logo -->
-        <div class="w-12 h-12 rounded-full border-[3px] border-orange-500 p-0.5 bg-white flex items-center justify-center">
+        <div class="w-11 h-11">
             <img id="appLogo" src="" alt="Logo" class="w-full h-full brand-logo-gol hidden">
-            <div id="logoFallback" class="w-full h-full bg-orange-500 rounded-full flex items-center justify-center">
-                <span class="text-white text-xs font-bold italic">Faster</span>
+            <div id="logoFallback" class="w-11 h-11 bg-orange-500 rounded-full flex items-center justify-center shadow-md">
+                <i class="fas fa-rocket text-white text-[10px] animate-pulse"></i>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="pb-10">
+    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
+        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
+        </div>
+        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
 
-        <!-- Wallet Sync -->
-        <div id="walletMiniDisplay" class="px-6 pt-2 flex items-center justify-center gap-2 flex-wrap">
+    <main class="p-6 pt-8">
+        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 min-h-[32px]">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
+            
             <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
                 <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
             </p>
+            
             <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
                 <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
             </p>
         </div>
 
-        <!-- Vendors from Supabase -->
-        <div class="pt-4 px-2">
-            <div id="vendorsContainer" class="flex overflow-x-auto gap-5 no-scrollbar px-4 pb-2 snap-x">
-                <p class="text-xs text-gray-400 italic text-center w-full">Loading vendors...</p>
-            </div>
-        </div>
-
-        <!-- Promotions & Offers -->
-        <div class="mt-6 px-6 relative group">
-            <div class="flex items-center gap-2 mb-3">
-                <i class="fas fa-tags text-orange-500 text-xl transform -rotate-90"></i>
-                <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Promotions & Offers</h2>
-            </div>
-            <div id="promoContainer" class="hidden relative">
-                <div id="promoSlider" class="flex overflow-x-auto gap-4 no-scrollbar scroll-smooth"></div>
-            </div>
-            <!-- Fullscreen control buttons (will be shown only in fullscreen) -->
-            <div id="fullscreenControls">
-                <button class="back-btn" onclick="toggleTikTokFullscreen()"><i class="fas fa-times"></i></button>
-                <button class="speaker-btn" onclick="toggleFullscreenAudio()"><i id="fullscreenSpeakerIcon" class="fas fa-volume-up"></i></button>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="mt-8 px-6 flex items-stretch gap-3">
-            <!-- Start New Order -->
-            <div onclick="location.href='new-order.html'" class="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 rounded-[2rem] p-4 flex items-center justify-center gap-3 shadow-[0_8px_20px_-6px_rgba(249,115,22,0.6)] cursor-pointer active:scale-95 transition-transform border border-orange-400">
-                <div class="bg-white text-orange-500 w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg">
-                    <i class="fas fa-plus"></i>
+        <div class="grid grid-cols-1 gap-4">
+            <div onclick="location.href='new-order.html'" class="action-card bg-slate-900 p-6 rounded-[2rem] shadow-xl flex items-center justify-between border-b-4 border-orange-500 cursor-pointer">
+                <div class="flex items-center gap-4">
+                    <div class="bg-orange-500 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+                        <i class="fas fa-plus text-xl"></i>
+                    </div>
+                    <span class="font-black text-white uppercase tracking-wider">Start New Order</span>
                 </div>
-                <span class="font-black text-white text-sm uppercase tracking-wider leading-tight text-left">Start New<br>Order</span>
+                <i class="fas fa-arrow-right text-slate-500"></i>
             </div>
 
-            <!-- Active Orders -->
-            <div id="activeOrdersCard" onclick="openActiveOrders()" class="w-[85px] bg-white border border-gray-100 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
-                <div class="text-orange-500 relative mb-1 h-8 flex items-center">
-                    <i class="fas fa-clipboard-list text-2xl"></i>
-                    <div class="absolute -top-1 -right-2 bg-orange-500 text-white text-[10px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-sm">
-                        <span id="activeCountBadge">0</span>
+            <div class="grid grid-cols-2 gap-4">
+                <div id="activeOrdersCard" onclick="openActiveOrders()" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer relative">
+                    <div class="bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-blue-100 shadow-inner">
+                        <span>⏱️</span>
                     </div>
+                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Active Orders</span>
+                    <div id="activeChatBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg font-bold animate-bounce">0</div>
                 </div>
-                <span class="font-black text-gray-400 text-[9px] uppercase tracking-widest">Active</span>
-            </div>
 
-            <!-- Completed -->
-            <div onclick="location.href='completed.html'" class="w-[85px] bg-white border border-gray-100 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
-                <div class="text-emerald-500 relative mb-1 h-8 flex items-center">
-                    <div class="bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
-                        <i class="fas fa-check text-xs"></i>
+                <div onclick="location.href='completed.html'" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer">
+                    <div class="bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center text-green-500 shadow-inner border border-green-100">
+                        <i class="fas fa-check-double"></i>
                     </div>
-                </div>
-                <span class="font-black text-slate-800 text-sm leading-none"><span id="doneCountBadge">0</span></span>
-                <span class="font-bold text-gray-400 text-[9px] uppercase tracking-widest mt-0.5">Done</span>
-            </div>
-        </div>
-
-        <!-- Recent Chats (WhatsApp Style) -->
-        <div class="mt-8 px-6">
-            <div class="flex justify-between items-center mb-4">
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-comment-dots text-orange-500 text-lg"></i>
-                    <h2 class="text-lg font-extrabold text-slate-800">Recent Chats</h2>
-                </div>
-                <a href="active-orders.html" class="text-orange-500 font-bold text-xs uppercase tracking-wide cursor-pointer hover:underline">See All</a>
-            </div>
-
-            <div id="recentChatsContainer" class="bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm">
-                <!-- Chat 1 -->
-                <div class="chat-item" onclick="openChat('sara')">
-                    <div class="chat-avatar bg-c1">
-                        <span>SM</span>
-                        <span class="online-dot"></span>
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name-row">
-                            <span class="chat-name">Sara Mehmood</span>
-                            <span class="chat-time">10:30</span>
-                        </div>
-                        <div class="chat-msg-row">
-                            <span class="chat-msg">
-                                <i class="fas fa-check-double tick"></i> Okay, main aa rahi hoon
-                            </span>
-                            <span class="chat-badge">2</span>
-                        </div>
-                    </div>
-                </div>
-                <!-- Chat 2 -->
-                <div class="chat-item" onclick="openChat('ali')">
-                    <div class="chat-avatar bg-c2">
-                        <span>AA</span>
-                        <span class="online-dot"></span>
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name-row">
-                            <span class="chat-name">Ali Ahmed</span>
-                            <span class="chat-time">09:15</span>
-                        </div>
-                        <div class="chat-msg-row">
-                            <span class="chat-msg">
-                                <i class="fas fa-check tick grey"></i> Bhai kal milte hain?
-                            </span>
-                            <span class="chat-status-text">Online</span>
-                        </div>
-                    </div>
-                </div>
-                <!-- Chat 3 -->
-                <div class="chat-item" onclick="openChat('fatima')">
-                    <div class="chat-avatar bg-c3">
-                        <span>FK</span>
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name-row">
-                            <span class="chat-name">Fatima Khan</span>
-                            <span class="chat-time">Yesterday</span>
-                        </div>
-                        <div class="chat-msg-row">
-                            <span class="chat-msg">
-                                <i class="fas fa-check-double tick"></i> Thank you so much! 💖
-                            </span>
-                            <span class="chat-status-text">Last seen yesterday</span>
-                        </div>
-                    </div>
-                </div>
-                <!-- Chat 4 -->
-                <div class="chat-item" onclick="openChat('family')">
-                    <div class="chat-avatar bg-c4">
-                        <span>🏠</span>
-                        <span class="online-dot"></span>
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-name-row">
-                            <span class="chat-name">Family Group</span>
-                            <span class="chat-time">12:45</span>
-                        </div>
-                        <div class="chat-msg-row">
-                            <span class="chat-msg">
-                                <i class="fas fa-check tick grey"></i> Ammi: Doston ko bhi bula lo
-                            </span>
-                            <span class="chat-status-text">Online</span>
-                        </div>
-                    </div>
+                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Completed</span>
                 </div>
             </div>
         </div>
     </main>
 
     <script>
-        // ============================================================
-        // SUPABASE CONFIG
-        // ============================================================
         const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
         const _supabase = supabase.createClient(SB_URL, SB_KEY);
@@ -567,45 +239,24 @@
         const customerId = localStorage.getItem('faster_customer_id') || '';
         const userName = localStorage.getItem('faster_name') || 'Customer';
         
-        if (!userPhone && window.location.protocol !== 'file:') {
+        const isLocalPreview = window.location.protocol === 'file:';
+        if (!userPhone && !isLocalPreview) {
             window.location.replace('index.html');
         }
 
         const sound = document.getElementById('notifSound');
 
-        // ============================================================
-        // UI HELPERS
-        // ============================================================
-        function setGreeting() {
-            const hour = new Date().getHours();
-            let text = hour < 12 ? 'GOOD MORNING' : (hour < 17 ? 'GOOD AFTERNOON' : 'GOOD EVENING');
-            document.getElementById('appbarGreeting').innerText = text;
-        }
-
-        function toggleMenu() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
-        function openChat(name) {
-            alert('Opening chat with ' + name);
-            // Replace with actual navigation
-        }
-
-        // ============================================================
-        // APP INITIALIZATION
-        // ============================================================
         async function initializeApp() {
             if (!navigator.onLine) return;
             document.getElementById('userName').innerText = userName;
 
             try {
                 const { data: settings } = await _supabase.from('app_settings').select('logo_url').eq('id', 1).single();
-                if (settings?.logo_url) {
-                    document.getElementById('appLogo').src = settings.logo_url;
-                    document.getElementById('sideLogo').src = settings.logo_url;
-                    document.getElementById('appLogo').classList.remove('hidden');
-                    document.getElementById('sideLogo').classList.remove('hidden');
+                if (settings && settings.logo_url) {
+                    const imgH = document.getElementById('appLogo');
+                    const imgS = document.getElementById('sideLogo');
+                    imgH.src = imgS.src = settings.logo_url;
+                    imgH.classList.remove('hidden'); imgS.classList.remove('hidden');
                     document.getElementById('logoFallback').classList.add('hidden');
                 }
             } catch (err) { console.error("Logo Error:", err); }
@@ -616,63 +267,69 @@
             setupRealtime();
         }
 
-        // ============================================================
-        // WALLET BALANCE
-        // ============================================================
         async function fetchWalletBalance() {
             if (!navigator.onLine) return;
-            const loading = document.getElementById('walletLoading');
-            loading.classList.remove('hidden');
+            document.getElementById('walletLoading').classList.remove('hidden');
             try {
                 let currentBal = 0;
-                const { data: wallet, error } = await _supabase
+                let foundWallet = false;
+
+                const { data: walletData, error: walErr } = await _supabase
                     .from('wallets')
                     .select('current_balance')
                     .eq('customer_id', customerId)
-                    .maybeSingle();
+                    .maybeSingle(); 
+                
+                if (!walErr && walletData) {
+                    currentBal = parseFloat(walletData.current_balance || 0);
+                    foundWallet = true;
+                }
 
-                if (!error && wallet) {
-                    currentBal = parseFloat(wallet.current_balance || 0);
-                } else {
-                    const { data: orders } = await _supabase
+                if (!foundWallet) {
+                    const { data: orders, error: ordErr } = await _supabase
                         .from('orders')
                         .select('balance_amount')
                         .eq('customer_id', customerId)
                         .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
                         .order('updated_at', { ascending: false })
-                        .limit(1);
-                    if (orders?.length) currentBal = parseFloat(orders[0].balance_amount || 0);
+                        .limit(1); 
+                    
+                    if (!ordErr && orders && orders.length > 0) {
+                        currentBal = parseFloat(orders[0].balance_amount || 0);
+                    }
                 }
 
-                const pendBox = document.getElementById('homePendBox');
-                const remBox = document.getElementById('homeRemBox');
-                const pendSpan = document.getElementById('homePend');
-                const remSpan = document.getElementById('homeRem');
+                const hPend = document.getElementById('homePend'); const pBox = document.getElementById('homePendBox');
+                const hRem = document.getElementById('homeRem'); const rBox = document.getElementById('homeRemBox');
 
-                if (currentBal > 0) {
-                    pendSpan.innerText = `Rs. ${currentBal}`;
-                    pendBox.classList.remove('hidden');
-                    remBox.classList.add('hidden');
-                } else if (currentBal < 0) {
-                    remSpan.innerText = `Rs. ${Math.abs(currentBal)}`;
-                    remBox.classList.remove('hidden');
-                    pendBox.classList.add('hidden');
-                } else {
-                    pendBox.classList.add('hidden');
-                    remBox.classList.add('hidden');
+                if (currentBal > 0) { 
+                    hPend.innerText = `Rs. ${currentBal}`; 
+                    pBox.classList.remove('hidden'); 
+                    rBox.classList.add('hidden'); 
                 }
-            } catch (e) { console.error("Wallet error:", e); }
-            loading.classList.add('hidden');
+                else if (currentBal < 0) { 
+                    hRem.innerText = `Rs. ${Math.abs(currentBal)}`; 
+                    rBox.classList.remove('hidden'); 
+                    pBox.classList.add('hidden'); 
+                }
+                else { 
+                    pBox.classList.add('hidden'); 
+                    rBox.classList.add('hidden'); 
+                }
+            } catch (e) { 
+                console.error("Wallet error", e); 
+            } finally { 
+                document.getElementById('walletLoading').classList.add('hidden'); 
+            }
         }
 
-        // ============================================================
-        // NOTIFICATIONS
-        // ============================================================
+        // PERFECTED: Checks exactly the 5 requested tables based on correct columns
         async function checkNotifications() {
             if (!navigator.onLine) return;
             try {
                 const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
-                const [orders, notifs, promos, topups, withdraws] = await Promise.all([
+                
+                const [orderRes, notifRes, promoRes, topupRes, withdrawRes] = await Promise.all([
                     _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
                     _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
                     _supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('promo_active', true).gt('created_at', lastRead),
@@ -680,17 +337,23 @@
                     _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('created_at', lastRead)
                 ]);
 
-                const total = (orders.count||0) + (notifs.count||0) + (promos.count||0) + (topups.count||0) + (withdraws.count||0);
+                const totalUpdates = (orderRes.count || 0) + 
+                                     (notifRes.count || 0) + 
+                                     (promoRes.count || 0) + 
+                                     (topupRes.count || 0) + 
+                                     (withdrawRes.count || 0);
+
                 const bell = document.getElementById('notifBell');
                 const badge = document.getElementById('notifBadge');
-                if (total > 0) {
-                    badge.classList.add('active');
-                    bell.classList.add('bell-active');
-                } else {
-                    badge.classList.remove('active');
-                    bell.classList.remove('bell-active');
+                
+                if (totalUpdates > 0) { 
+                    badge.classList.add('active'); 
+                    bell.classList.add('bell-active'); 
+                } else { 
+                    badge.classList.remove('active'); 
+                    bell.classList.remove('bell-active'); 
                 }
-            } catch (e) { console.error("Notification error:", e); }
+            } catch (e) { console.error("Notification sync failed", e); }
         }
 
         function openNotifications() {
@@ -698,36 +361,31 @@
             window.location.href = 'notifications.html';
         }
 
-        // ============================================================
-        // ACTIVE ORDERS & COMPLETED COUNTS
-        // ============================================================
         async function updateActiveOrdersCard() {
             if (!navigator.onLine) return;
             try {
-                const { data: active, error: actErr } = await _supabase
-                    .from('orders')
-                    .select('id, updated_at')
-                    .eq('customer_id', customerId)
+                const { data: activeOrders } = await _supabase
+                    .from('orders').select('id, updated_at').eq('customer_id', customerId)
                     .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
-
                 const card = document.getElementById('activeOrdersCard');
-                const badge = document.getElementById('activeCountBadge');
-                if (active && active.length > 0) {
-                    card.classList.add('active-order-glow');
-                    badge.innerText = active.length;
+                const badge = document.getElementById('activeChatBadge');
+                if (activeOrders && activeOrders.length > 0) {
+                    card.classList.add('active-order-continuous-glow');
+                    const orderIds = activeOrders.map(o => o.id);
+                    const { data: unreadMsgs } = await _supabase
+                        .from('order_chats').select('id').in('order_id', orderIds)
+                        .neq('sender_phone', userPhone).neq('status', 'seen');
+                    let unreadMsgCount = unreadMsgs ? unreadMsgs.length : 0;
+                    let lastVisit = localStorage.getItem('last_active_orders_visit') || '2000-01-01T00:00:00.000Z';
+                    let unseenStatusCount = activeOrders.filter(o => o.updated_at > lastVisit).length;
+                    let totalAlerts = unreadMsgCount + unseenStatusCount;
+                    if (totalAlerts > 0) { badge.innerText = totalAlerts; badge.classList.remove('hidden'); }
+                    else { badge.classList.add('hidden'); }
                 } else {
-                    card.classList.remove('active-order-glow');
-                    badge.innerText = '0';
+                    card.classList.remove('active-order-continuous-glow');
+                    badge.classList.add('hidden');
                 }
-
-                const { count: doneCount } = await _supabase
-                    .from('orders')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('customer_id', customerId)
-                    .in('status', ['completed']);
-                document.getElementById('doneCountBadge').innerText = doneCount || 0;
-
-            } catch (e) { console.error("Orders update error:", e); }
+            } catch (e) { console.error("Active orders UI fail:", e); }
         }
 
         function openActiveOrders() {
@@ -735,22 +393,47 @@
             window.location.href = 'active-orders.html';
         }
 
-        // ============================================================
-        // REALTIME
-        // ============================================================
+        function toggleMenu() { 
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+        
+        async function logout() { 
+          if(confirm("Are you sure you want to logout?")) { 
+            await _supabase.auth.signOut();
+             localStorage.clear();
+             // 👇 Yeh line add karo
+            localStorage.setItem('faster_logged_out', 'true');
+           setTimeout(() => { window.location.replace("index.html"); }, 500);
+         } 
+     }
+
+        function setGreeting() {
+            const hour = new Date().getHours();
+            let text = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
+            document.getElementById('appbarGreeting').innerText = text;
+        }
+
+        // PERFECTED REALTIME LISTENER: Plays ringtone and triggers red bell on any match
         function setupRealtime() {
-            _supabase.removeAllChannels();
+            _supabase.removeAllChannels(); 
             _supabase.channel('customer-home-live')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => updateActiveOrdersCard())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-                    updateActiveOrdersCard();
-                    checkNotifications();
-                    fetchWalletBalance();
-                    if (payload.new && String(payload.new.customer_id) === customerId) {
-                        sound.play().catch(e => console.log("Sound error:", e));
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => { 
+                    updateActiveOrdersCard(); 
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => { 
+                    updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        if (payload.new && String(payload.new.customer_id) === customerId) {
+                            sound.play().catch(e => console.log("Sound error:", e));
+                        }
                     }
                 })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => fetchWalletBalance())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => { 
+                    fetchWalletBalance(); 
+                })
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
                     if (payload.new && (payload.new.customer_phone === userPhone || payload.new.phone === userPhone)) {
                         checkNotifications();
@@ -776,218 +459,108 @@
                 .subscribe();
         }
 
-        // ============================================================
-        // VENDORS (Supabase)
-        // ============================================================
-        async function fetchVendors() {
-            if (!navigator.onLine) return;
-            const container = document.getElementById('vendorsContainer');
-            try {
-                let vendors = [];
-                const { data, error } = await _supabase
-                    .from('vendors')
-                    .select('*')
-                    .eq('is_active', true)
-                    .order('sort_order', { ascending: true })
-                    .limit(20);
-
-                if (error || !data || data.length === 0) {
-                    const { data: stores } = await _supabase
-                        .from('stores')
-                        .select('*')
-                        .eq('is_active', true)
-                        .order('sort_order', { ascending: true })
-                        .limit(20);
-                    if (stores && stores.length > 0) vendors = stores;
-                } else {
-                    vendors = data;
-                }
-
-                if (vendors.length === 0) {
-                    container.innerHTML = `<p class="text-xs text-gray-400 italic text-center w-full">No vendors available</p>`;
-                    return;
-                }
-
-                container.innerHTML = '';
-                const colors = ['bg-orange-500', 'bg-purple-600', 'bg-red-600', 'bg-blue-500', 'bg-pink-500', 'bg-green-500', 'bg-yellow-500', 'bg-indigo-500'];
-                vendors.forEach((v, idx) => {
-                    const bg = colors[idx % colors.length];
-                    const logo = v.logo_url || v.image_url || '';
-                    const name = v.name || v.vendor_name || 'Vendor';
-                    const div = document.createElement('div');
-                    div.className = 'flex flex-col items-center gap-2 min-w-[72px] cursor-pointer active:scale-95 transition-transform snap-start';
-                    div.innerHTML = `
-                        <div class="w-16 h-16 rounded-full ${bg} shadow-[0_4px_10px_rgba(0,0,0,0.1)] flex items-center justify-center overflow-hidden border-2 border-transparent hover:border-orange-500">
-                            ${logo ? `<img src="${logo}" class="w-full h-full object-cover" onerror="this.style.display='none'">` : `<span class="text-white font-bold text-2xl">${name.charAt(0)}</span>`}
-                        </div>
-                        <span class="text-[11px] font-bold text-slate-800 text-center leading-tight truncate w-full">${name}</span>
-                    `;
-                    div.addEventListener('click', () => {
-                        alert('Vendor: ' + name);
-                        // navigate to vendor page
-                    });
-                    container.appendChild(div);
-                });
-            } catch (err) {
-                console.error("Vendors error:", err);
-                container.innerHTML = `<p class="text-xs text-gray-400 italic text-center w-full">Failed to load vendors</p>`;
-            }
-        }
-
-        // ============================================================
-        // PROMOTIONS (Supabase) + Fullscreen controls
-        // ============================================================
-        let promosData = [];
-        let currentSlideIndex = 0;
-        let isFullscreen = false;
-
-        async function fetchPromotions() {
-            if (!navigator.onLine) return;
-            try {
-                const { data: promos, error } = await _supabase
-                    .from('promotions')
-                    .select('*')
-                    .eq('promo_active', true)
-                    .order('sort_order', { ascending: true });
-
-                if (error || !promos || promos.length === 0) {
-                    document.getElementById('promoContainer').classList.add('hidden');
-                    return;
-                }
-
-                promosData = promos;
-                const slider = document.getElementById('promoSlider');
-                slider.innerHTML = '';
-                promos.forEach((promo, idx) => {
-                    const slide = document.createElement('div');
-                    slide.className = 'promo-slide relative cursor-pointer';
-                    slide.setAttribute('data-index', idx);
-
-                    const isVideo = promo.promo_type === 'video';
-                    const mediaSrc = promo.promo_url || '';
-                    const mediaTag = isVideo
-                        ? `<video id="vid_${idx}" src="${mediaSrc}" muted playsinline class="w-full h-full object-cover"></video>`
-                        : `<img src="${mediaSrc || 'https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/240x150/f3f4f6/888?text=Promo'">`;
-
-                    slide.innerHTML = `
-                        <div class="media-box w-full h-full relative" onclick="handleMediaTap(event, ${idx})">
-                            ${mediaTag}
-                            <div class="promo-overlay"></div>
-                            <div class="promo-text-box">
-                                <h3>${promo.title || 'Special Offer'}</h3>
-                                <p>${promo.promo_text || ''}</p>
-                            </div>
-                            <span class="promo-tag">${promo.category || 'Offer'}</span>
-                            ${isVideo ? `<button class="slide-speaker-btn" onclick="event.stopPropagation(); toggleSlideAudio(${idx})"><i id="speakerIcon_${idx}" class="fas fa-volume-mute"></i></button>` : ''}
-                        </div>
-                    `;
-                    slider.appendChild(slide);
-                });
-
-                document.getElementById('promoContainer').classList.remove('hidden');
-
-            } catch (err) { console.error("Promotions error:", err); }
-        }
-
-        // ---------- Slide audio toggle (for small screen) ----------
-        function toggleSlideAudio(index) {
-            const vid = document.getElementById(`vid_${index}`);
-            if (!vid) return;
-            vid.muted = !vid.muted;
-            const icon = document.getElementById(`speakerIcon_${index}`);
-            if (icon) {
-                icon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-            }
-            // Also update fullscreen speaker icon if active
-            const fsIcon = document.getElementById('fullscreenSpeakerIcon');
-            if (fsIcon && isFullscreen) {
-                fsIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-            }
-        }
-
-        // ---------- Fullscreen speaker toggle ----------
-        function toggleFullscreenAudio() {
-            const vid = document.getElementById(`vid_${currentSlideIndex}`);
-            if (!vid) return;
-            vid.muted = !vid.muted;
-            const icon = document.getElementById('fullscreenSpeakerIcon');
-            if (icon) {
-                icon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-            }
-            // Also update small speaker icon
-            const smallIcon = document.getElementById(`speakerIcon_${currentSlideIndex}`);
-            if (smallIcon) {
-                smallIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-            }
-        }
-
-        // ---------- Fullscreen toggle ----------
-        function handleMediaTap(e, index) {
-            if (e.target.closest('button')) return;
-            toggleTikTokFullscreen(index);
-        }
-
-        function toggleTikTokFullscreen(targetIndex = 0) {
-            const container = document.getElementById('promoContainer');
-            const slider = document.getElementById('promoSlider');
-            const isEntering = !container.classList.contains('tiktok-fullscreen');
-
-            container.classList.toggle('tiktok-fullscreen');
-            document.body.style.overflow = isEntering ? 'hidden' : 'auto';
-            isFullscreen = isEntering;
-
-            if (isEntering) {
-                currentSlideIndex = targetIndex;
-                // Switch to vertical snap
-                slider.style.scrollSnapType = 'y mandatory';
-                setTimeout(() => {
-                    slider.scrollTop = window.innerHeight * currentSlideIndex;
-                    const vid = document.getElementById(`vid_${currentSlideIndex}`);
-                    if (vid) {
-                        vid.muted = false;
-                        vid.play().catch(e => console.log(e));
-                        // Update speaker icon state
-                        const fsIcon = document.getElementById('fullscreenSpeakerIcon');
-                        if (fsIcon) {
-                            fsIcon.className = vid.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-                        }
-                    }
-                }, 100);
-            } else {
-                // Exit fullscreen
-                slider.style.scrollSnapType = '';
-                document.querySelectorAll('.promo-slide video').forEach(v => { v.pause(); v.muted = true; });
-                // Reset horizontal scroll
-                const slideWidth = 240 + 16;
-                slider.scrollLeft = currentSlideIndex * slideWidth;
-                // Reset speaker icons
-                document.querySelectorAll('.slide-speaker-btn i').forEach(icon => {
-                    icon.className = 'fas fa-volume-mute';
-                });
-            }
-        }
-
-        // ============================================================
-        // LOGOUT
-        // ============================================================
-        async function logout() {
-            if (confirm("Are you sure you want to logout?")) {
-                await _supabase.auth.signOut();
-                localStorage.clear();
-                localStorage.setItem('faster_logged_out', 'true');
-                setTimeout(() => window.location.replace("index.html"), 500);
-            }
-        }
-
-        // ============================================================
-        // WINDOW ONLOAD
-        // ============================================================
         window.onload = () => {
             setGreeting();
             initializeApp();
-            fetchVendors();
             fetchPromotions();
         };
+
+        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
+        let promosData = [], userInterests = new Set();
+        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
+
+        async function fetchPromotions() {
+            if(!navigator.onLine) return; 
+            try {
+                const { data: promos, error } = await _supabase.from('promotions').select('*').eq('promo_active', true).order('sort_order', { ascending: true });
+                if (error) throw error;
+                if (promos && promos.length > 0) {
+                    promosData = promos; 
+                    const slider = document.getElementById('promoSlider');
+                    const container = document.getElementById('promoContainer');
+                    slider.innerHTML = '';
+                    promos.forEach((promo, index) => {
+                        const slide = document.createElement('div');
+                        slide.className = 'promo-slide overflow-hidden shrink-0';
+                        const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
+                        const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
+                        let mediaHTML = promo.promo_type === 'video'
+                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
+                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
+                        slide.innerHTML = mediaHTML + textHTML;
+                        slider.appendChild(slide);
+                    });
+                    container.classList.remove('hidden');
+                    slider.addEventListener('scroll', () => {
+                        if (isAutoScrolling) return; 
+                        clearTimeout(slider.scrollTimeout);
+                        slider.scrollTimeout = setTimeout(() => {
+                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
+                            if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
+                                activateSlide(newIndex, false); 
+                            }
+                        }, 40);
+                    });
+                    activateSlide(0, false);
+                }
+            } catch (err) { console.log("Promo Slider Error:", err); }
+        }
+
+        function handleMediaTap(e, index, type) {
+            if (e.target.closest('button')) return;
+            const container = document.getElementById('promoContainer');
+            if (!container.classList.contains('tiktok-fullscreen')) {
+                toggleTikTokFullscreen();
+            } else if (type === 'video') {
+                const vid = document.getElementById(`vid_${index}`);
+                if (vid.paused) vid.play(); else vid.pause();
+            }
+        }
+
+        function toggleTikTokFullscreen() {
+            const container = document.getElementById('promoContainer');
+            const slider = document.getElementById('promoSlider');
+            const isEntering = !container.classList.contains('tiktok-fullscreen');
+            container.classList.toggle('tiktok-fullscreen');
+            const vid = document.getElementById(`vid_${currentSlideIndex}`);
+            if (vid) {
+                vid.muted = !isEntering;
+                const icon = document.getElementById(`icon_${vid.id}`);
+                if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
+            }
+            setTimeout(() => {
+                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
+            }, 50);
+        }
+
+        function activateSlide(index, autoScroll = true) {
+            currentSlideIndex = index;
+            const slider = document.getElementById('promoSlider');
+            if (autoScroll) {
+                isAutoScrolling = true;
+                slider.scrollTop = slider.offsetHeight * index;
+                setTimeout(() => { isAutoScrolling = false; }, 500);
+            }
+            document.querySelectorAll('.promo-video').forEach(v => {
+                v.pause(); v.muted = true;
+            });
+            const promo = promosData[index];
+            if (promo && promo.promo_type === 'video') {
+                const vid = document.getElementById(`vid_${index}`);
+                if (vid) {
+                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
+                    vid.muted = !isFull;
+                    vid.play().catch(e => console.log(e));
+                }
+            }
+        }
+
+        function toggleSliderAudio(e, vidId) {
+            e.stopPropagation();
+            const vid = document.getElementById(vidId);
+            const icon = document.getElementById(`icon_${vidId}`);
+            if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
+        }
     </script>
 </body>
 </html>
