@@ -245,13 +245,11 @@ async function initVendorStrip() {
         vendorData = data;
         vendorWrapper.classList.remove('hidden');
 
-        // صرف ایک بار ڈالیں - کوئی کلون نہیں
         data.forEach((v) => {
             const item = createVendorItem(v);
             vendorStrip.appendChild(item);
         });
 
-        // اسکرول ایونٹ جو آخر تک پہنچنے پر ری سیٹ کرے
         vendorStrip.addEventListener('scroll', () => {
             const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
             if (vendorStrip.scrollLeft >= maxScroll - 10) {
@@ -279,6 +277,7 @@ async function initVendorStrip() {
     }
 }
 
+// 🔥 یہاں تبدیلی کی گئی ہے – وینڈر کلک پر vendor-products.html کھلے گا
 function createVendorItem(v, isClone = false) {
     const item = document.createElement('div');
     item.className = 'vendor-item';
@@ -305,11 +304,12 @@ function createVendorItem(v, isClone = false) {
         </div>
         <span class="vendor-name">${name}</span>
     `;
+
+    // ✅ وینڈر کلک پر vendor-products.html کھلے گا
     item.addEventListener('click', () => {
-        console.log('Vendor clicked:', name);
-        alert(`Opening ${name}...`);
-        // window.location.href = 'vendor-products.html?id='+v.id;
+        window.location.href = 'vendor-products.html?id=' + v.id;
     });
+
     return item;
 }
 
