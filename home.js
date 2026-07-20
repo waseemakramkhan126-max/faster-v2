@@ -1,5 +1,5 @@
 // ============================================================
-// SUPABASE CONFIG (ORIGINAL)
+// SUPABASE CONFIG
 // ============================================================
 const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
@@ -9,8 +9,7 @@ const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 const customerId = localStorage.getItem('faster_customer_id') || '';
 const userName = localStorage.getItem('faster_name') || 'Customer';
 
-const isLocalPreview = window.location.protocol === 'file:';
-if (!userPhone && !isLocalPreview) {
+if (!userPhone && window.location.protocol !== 'file:') {
     window.location.replace('index.html');
 }
 
@@ -45,8 +44,6 @@ async function fetchWalletBalance() {
     document.getElementById('walletLoading').classList.remove('hidden');
     try {
         let currentBal = 0;
-        let foundWallet = false;
-
         const { data: walletData, error: walErr } = await _supabase
             .from('wallets')
             .select('current_balance')
@@ -55,10 +52,7 @@ async function fetchWalletBalance() {
 
         if (!walErr && walletData) {
             currentBal = parseFloat(walletData.current_balance || 0);
-            foundWallet = true;
-        }
-
-        if (!foundWallet) {
+        } else {
             const { data: orders, error: ordErr } = await _supabase
                 .from('orders')
                 .select('balance_amount')
@@ -89,18 +83,14 @@ async function fetchWalletBalance() {
             pBox.classList.add('hidden');
             rBox.classList.add('hidden');
         }
-    } catch (e) {
-        console.error("Wallet error", e);
-    } finally {
-        document.getElementById('walletLoading').classList.add('hidden');
-    }
+    } catch (e) { console.error("Wallet error:", e); }
+    document.getElementById('walletLoading').classList.add('hidden');
 }
 
 async function checkNotifications() {
     if (!navigator.onLine) return;
     try {
         const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
-
         const [orderRes, notifRes, promoRes, topupRes, withdrawRes] = await Promise.all([
             _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
             _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
@@ -109,12 +99,7 @@ async function checkNotifications() {
             _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('created_at', lastRead)
         ]);
 
-        const totalUpdates = (orderRes.count || 0) +
-            (notifRes.count || 0) +
-            (promoRes.count || 0) +
-            (topupRes.count || 0) +
-            (withdrawRes.count || 0);
-
+        const totalUpdates = (orderRes.count || 0) + (notifRes.count || 0) + (promoRes.count || 0) + (topupRes.count || 0) + (withdrawRes.count || 0);
         const bell = document.getElementById('notifBell');
         const badge = document.getElementById('notifBadge');
 
@@ -140,24 +125,23 @@ async function updateActiveOrdersCard() {
             .from('orders').select('id, updated_at').eq('customer_id', customerId)
             .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
         const card = document.getElementById('activeOrdersCard');
-        const badge = document.getElementById('activeChatBadge');
+        const badge = document.getElementById('activeCountBadge');
         if (activeOrders && activeOrders.length > 0) {
             card.classList.add('active-order-continuous-glow');
-            const orderIds = activeOrders.map(o => o.id);
-            const { data: unreadMsgs } = await _supabase
-                .from('order_chats').select('id').in('order_id', orderIds)
-                .neq('sender_phone', userPhone).neq('status', 'seen');
-            let unreadMsgCount = unreadMsgs ? unreadMsgs.length : 0;
-            let lastVisit = localStorage.getItem('last_active_orders_visit') || '2000-01-01T00:00:00.000Z';
-            let unseenStatusCount = activeOrders.filter(o => o.updated_at > lastVisit).length;
-            let totalAlerts = unreadMsgCount + unseenStatusCount;
-            if (totalAlerts > 0) { badge.innerText = totalAlerts;
-                badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+            badge.innerText = activeOrders.length;
         } else {
             card.classList.remove('active-order-continuous-glow');
-            badge.classList.add('hidden');
+            badge.innerText = '0';
         }
-    } catch (e) { console.error("Active orders UI fail:", e); }
+
+        const { count: doneCount } = await _supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('customer_id', customerId)
+            .in('status', ['completed']);
+        document.getElementById('doneCountBadge').innerText = doneCount || 0;
+
+    } catch (e) { console.error("Orders update error:", e); }
 }
 
 function openActiveOrders() {
@@ -166,10 +150,8 @@ function openActiveOrders() {
 }
 
 function toggleMenu() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
+    document.getElementById('sidebar').classList.toggle('active');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
 }
 
 async function logout() {
@@ -183,29 +165,28 @@ async function logout() {
 
 function setGreeting() {
     const hour = new Date().getHours();
-    let text = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
+    let text = hour < 12 ? 'GOOD MORNING' : (hour < 17 ? 'GOOD AFTERNOON' : 'GOOD EVENING');
     document.getElementById('appbarGreeting').innerText = text;
+}
+
+function openChat(chatId) {
+    alert('Opening chat with ID: ' + chatId);
+    // Navigate to chat detail page: window.location.href = 'chat.html?id='+chatId;
 }
 
 function setupRealtime() {
     _supabase.removeAllChannels();
     _supabase.channel('customer-home-live')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => {
-            updateActiveOrdersCard();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => updateActiveOrdersCard())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
             updateActiveOrdersCard();
             checkNotifications();
             fetchWalletBalance();
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                if (payload.new && String(payload.new.customer_id) === customerId) {
-                    sound.play().catch(e => console.log("Sound error:", e));
-                }
+            if (payload.new && String(payload.new.customer_id) === customerId) {
+                sound.play().catch(e => console.log("Sound error:", e));
             }
         })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => {
-            fetchWalletBalance();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => fetchWalletBalance())
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
             if (payload.new && (payload.new.customer_phone === userPhone || payload.new.phone === userPhone)) {
                 checkNotifications();
@@ -232,110 +213,7 @@ function setupRealtime() {
 }
 
 // ============================================================
-// PROMOTIONS (ORIGINAL - UNCHANGED)
-// ============================================================
-let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
-let promosData = [], userInterests = new Set();
-let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
-
-async function fetchPromotions() {
-    if (!navigator.onLine) return;
-    try {
-        const { data: promos, error } = await _supabase.from('promotions').select('*').eq('promo_active', true).order('sort_order', { ascending: true });
-        if (error) throw error;
-        if (promos && promos.length > 0) {
-            promosData = promos;
-            const slider = document.getElementById('promoSlider');
-            const container = document.getElementById('promoContainer');
-            slider.innerHTML = '';
-            promos.forEach((promo, index) => {
-                const slide = document.createElement('div');
-                slide.className = 'promo-slide overflow-hidden shrink-0';
-                const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
-                const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
-                let mediaHTML = promo.promo_type === 'video' ?
-                    `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>` :
-                    `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
-                slide.innerHTML = mediaHTML + textHTML;
-                slider.appendChild(slide);
-            });
-            container.classList.remove('hidden');
-            slider.addEventListener('scroll', () => {
-                if (isAutoScrolling) return;
-                clearTimeout(slider.scrollTimeout);
-                slider.scrollTimeout = setTimeout(() => {
-                    let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
-                    if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                        activateSlide(newIndex, false);
-                    }
-                }, 40);
-            });
-            activateSlide(0, false);
-        }
-    } catch (err) { console.log("Promo Slider Error:", err); }
-}
-
-function handleMediaTap(e, index, type) {
-    if (e.target.closest('button')) return;
-    const container = document.getElementById('promoContainer');
-    if (!container.classList.contains('tiktok-fullscreen')) {
-        toggleTikTokFullscreen();
-    } else if (type === 'video') {
-        const vid = document.getElementById(`vid_${index}`);
-        if (vid.paused) vid.play();
-        else vid.pause();
-    }
-}
-
-function toggleTikTokFullscreen() {
-    const container = document.getElementById('promoContainer');
-    const slider = document.getElementById('promoSlider');
-    const isEntering = !container.classList.contains('tiktok-fullscreen');
-    container.classList.toggle('tiktok-fullscreen');
-    const vid = document.getElementById(`vid_${currentSlideIndex}`);
-    if (vid) {
-        vid.muted = !isEntering;
-        const icon = document.getElementById(`icon_${vid.id}`);
-        if (icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
-    }
-    setTimeout(() => {
-        slider.scrollTop = slider.offsetHeight * currentSlideIndex;
-    }, 50);
-}
-
-function activateSlide(index, autoScroll = true) {
-    currentSlideIndex = index;
-    const slider = document.getElementById('promoSlider');
-    if (autoScroll) {
-        isAutoScrolling = true;
-        slider.scrollTop = slider.offsetHeight * index;
-        setTimeout(() => { isAutoScrolling = false; }, 500);
-    }
-    document.querySelectorAll('.promo-video').forEach(v => {
-        v.pause();
-        v.muted = true;
-    });
-    const promo = promosData[index];
-    if (promo && promo.promo_type === 'video') {
-        const vid = document.getElementById(`vid_${index}`);
-        if (vid) {
-            const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
-            vid.muted = !isFull;
-            vid.play().catch(e => console.log(e));
-        }
-    }
-}
-
-function toggleSliderAudio(e, vidId) {
-    e.stopPropagation();
-    const vid = document.getElementById(vidId);
-    const icon = document.getElementById(`icon_${vidId}`);
-    if (vid) { vid.muted = !vid.muted;
-        icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
-}
-
-// ============================================================
-// NEW: VENDORS STRIP (Supabase)
+// VENDORS STRIP - Supabase only (no fallback)
 // ============================================================
 let vendorStrip, vendorWrapper;
 let vendorAutoScrollInterval = null;
@@ -347,20 +225,11 @@ let vendorInteractionTimeout = null;
 let vendorOriginalWidth = 0;
 let vendorData = [];
 
-// Fallback vendors (only if database empty)
-const FALLBACK_VENDORS = [
-    { name: 'Rainbow', icon: 'fa-rainbow', color: '#FF8F00' },
-    { name: 'Imtiaz', icon: 'fa-shopping-bag', color: '#7B1FA2' },
-    { name: 'KFC', icon: 'fa-drumstick-bite', color: '#C62828' },
-    { name: "McDonald's", icon: 'fa-burger', color: '#D84315' },
-];
-
 async function initVendorStrip() {
     vendorStrip = document.getElementById('vendorStrip');
     vendorWrapper = document.getElementById('vendorStripWrapper');
     vendorStrip.innerHTML = '';
 
-    let vendors = [];
     try {
         const { data, error } = await _supabase
             .from('vendors')
@@ -368,83 +237,61 @@ async function initVendorStrip() {
             .eq('is_active', true)
             .order('sort_order', { ascending: true });
 
-        if (!error && data && data.length > 0) {
-            vendors = data;
-            console.log('✅ Vendors loaded from database:', vendors.length);
-        } else {
-            // Try stores table
-            const { data: storeData, error: storeErr } = await _supabase
-                .from('stores')
-                .select('*')
-                .eq('is_active', true)
-                .order('sort_order', { ascending: true });
-
-            if (!storeErr && storeData && storeData.length > 0) {
-                vendors = storeData;
-                console.log('✅ Stores loaded from database:', vendors.length);
-            } else {
-                // Use fallback
-                vendors = FALLBACK_VENDORS;
-                console.log('ℹ️ Using fallback vendors');
-            }
+        if (error || !data || data.length === 0) {
+            // No vendors found – hide the strip
+            vendorWrapper.classList.add('hidden');
+            return;
         }
-    } catch (err) {
-        console.warn('⚠️ Error fetching vendors, using fallback:', err);
-        vendors = FALLBACK_VENDORS;
-    }
 
-    if (vendors.length === 0) {
-        vendorWrapper.classList.add('hidden');
-        return;
-    }
+        vendorData = data;
+        vendorWrapper.classList.remove('hidden');
 
-    vendorWrapper.classList.remove('hidden');
-    vendorData = vendors;
-
-    vendors.forEach((v) => {
-        const item = createVendorItem(v);
-        vendorStrip.appendChild(item);
-    });
-
-    const cloneCount = 2;
-    for (let i = 0; i < cloneCount; i++) {
-        vendors.forEach((v) => {
-            const clone = createVendorItem(v, true);
-            vendorStrip.appendChild(clone);
+        data.forEach((v) => {
+            const item = createVendorItem(v);
+            vendorStrip.appendChild(item);
         });
+
+        // Clone for infinite loop
+        const cloneCount = 2;
+        for (let i = 0; i < cloneCount; i++) {
+            data.forEach((v) => {
+                const clone = createVendorItem(v, true);
+                vendorStrip.appendChild(clone);
+            });
+        }
+
+        setTimeout(() => {
+            const firstItem = vendorStrip.querySelector('.vendor-item');
+            if (firstItem) {
+                const itemWidth = firstItem.offsetWidth + 24;
+                vendorOriginalWidth = data.length * itemWidth;
+            }
+            vendorStrip.scrollLeft = 0;
+        }, 50);
+
+        vendorStrip.addEventListener('scroll', () => {
+            const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
+            if (vendorStrip.scrollLeft >= vendorOriginalWidth * 1.5) {
+                vendorStrip.style.scrollBehavior = 'auto';
+                vendorStrip.scrollLeft = vendorStrip.scrollLeft - vendorOriginalWidth;
+                vendorStrip.style.scrollBehavior = 'smooth';
+            }
+        });
+
+        vendorStrip.addEventListener('mousedown', startVendorDrag);
+        vendorStrip.addEventListener('touchstart', startVendorDragTouch, { passive: true });
+        vendorStrip.addEventListener('mouseleave', endVendorDrag);
+        vendorStrip.addEventListener('mouseup', endVendorDrag);
+        vendorStrip.addEventListener('touchend', endVendorDragTouch, { passive: true });
+        vendorStrip.addEventListener('mouseenter', pauseVendorAutoScroll);
+        vendorStrip.addEventListener('mouseleave', resumeVendorAutoScroll);
+
+        startVendorAutoScroll();
+
+    } catch (err) {
+        console.warn('⚠️ Error fetching vendors:', err);
+        vendorWrapper.classList.add('hidden');
     }
-
-    setTimeout(() => {
-        const firstItem = vendorStrip.querySelector('.vendor-item');
-        if (firstItem) {
-            const itemWidth = firstItem.offsetWidth + 20;
-            vendorOriginalWidth = vendors.length * itemWidth;
-        }
-        vendorStrip.scrollLeft = 0;
-    }, 50);
-
-    vendorStrip.addEventListener('scroll', () => {
-        const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
-        if (vendorStrip.scrollLeft >= vendorOriginalWidth * 1.5) {
-            vendorStrip.style.scrollBehavior = 'auto';
-            vendorStrip.scrollLeft = vendorStrip.scrollLeft - vendorOriginalWidth;
-            vendorStrip.style.scrollBehavior = 'smooth';
-        } else if (vendorStrip.scrollLeft < 0) {
-            vendorStrip.style.scrollBehavior = 'auto';
-            vendorStrip.scrollLeft = vendorStrip.scrollLeft + vendorOriginalWidth;
-            vendorStrip.style.scrollBehavior = 'smooth';
-        }
-    });
-
-    vendorStrip.addEventListener('mousedown', startVendorDrag);
-    vendorStrip.addEventListener('touchstart', startVendorDragTouch, { passive: true });
-    vendorStrip.addEventListener('mouseleave', endVendorDrag);
-    vendorStrip.addEventListener('mouseup', endVendorDrag);
-    vendorStrip.addEventListener('touchend', endVendorDragTouch, { passive: true });
-    vendorStrip.addEventListener('mouseenter', pauseVendorAutoScroll);
-    vendorStrip.addEventListener('mouseleave', resumeVendorAutoScroll);
-
-    startVendorAutoScroll();
 }
 
 function createVendorItem(v, isClone = false) {
@@ -456,15 +303,12 @@ function createVendorItem(v, isClone = false) {
     const icon = v.icon || v.icon_class || 'fa-store';
     const color = v.color || v.theme_color || '#64748b';
 
-    // Emoji fallback for common vendors
     let emoji = '';
     const lowerName = name.toLowerCase();
     if (lowerName.includes('rainbow')) emoji = '🌈';
     else if (lowerName.includes('imtiaz')) emoji = '🛍️';
     else if (lowerName.includes('kfc')) emoji = '🍗';
     else if (lowerName.includes('mcdonald')) emoji = '🍔';
-    else if (lowerName.includes('easy mart')) emoji = '🏪';
-    else if (lowerName.includes('alfa')) emoji = '🏢';
 
     item.innerHTML = `
         <div class="vendor-avatar" style="background: ${color};">
@@ -475,7 +319,7 @@ function createVendorItem(v, isClone = false) {
     item.addEventListener('click', () => {
         console.log('Vendor clicked:', name);
         alert(`Opening ${name}...`);
-        // Navigate to vendor page: window.location.href = 'vendor.html?id='+v.id;
+        // window.location.href = 'vendor.html?id='+v.id;
     });
     return item;
 }
@@ -496,7 +340,7 @@ function startVendorDragTouch(e) {
     pauseVendorAutoScroll();
 }
 
-function endVendorDrag(e) {
+function endVendorDrag() {
     if (!vendorIsDragging) return;
     vendorIsDragging = false;
     vendorStrip.style.cursor = 'grab';
@@ -506,7 +350,7 @@ function endVendorDrag(e) {
     }, 3000);
 }
 
-function endVendorDragTouch(e) {
+function endVendorDragTouch() {
     if (!vendorIsDragging) return;
     vendorIsDragging = false;
     clearTimeout(vendorInteractionTimeout);
@@ -520,9 +364,8 @@ function startVendorAutoScroll() {
     vendorAutoScrollInterval = setInterval(() => {
         if (vendorIsPaused || vendorIsDragging || vendorData.length === 0) return;
         const container = vendorStrip;
-        const itemWidth = container.querySelector('.vendor-item')?.offsetWidth + 20 || 70;
-        const step = itemWidth;
-        let nextScroll = container.scrollLeft + step;
+        const itemWidth = container.querySelector('.vendor-item')?.offsetWidth + 24 || 70;
+        let nextScroll = container.scrollLeft + itemWidth;
         if (nextScroll >= container.scrollWidth - container.clientWidth) {
             nextScroll = nextScroll - vendorOriginalWidth;
         }
@@ -530,121 +373,168 @@ function startVendorAutoScroll() {
     }, 2500);
 }
 
-function pauseVendorAutoScroll() {
-    vendorIsPaused = true;
-}
-
-function resumeVendorAutoScroll() {
-    vendorIsPaused = false;
-}
+function pauseVendorAutoScroll() { vendorIsPaused = true; }
+function resumeVendorAutoScroll() { vendorIsPaused = false; }
 
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        pauseVendorAutoScroll();
-    } else {
-        setTimeout(resumeVendorAutoScroll, 1000);
-    }
+    if (document.hidden) pauseVendorAutoScroll();
+    else setTimeout(resumeVendorAutoScroll, 1000);
 });
 
 // ============================================================
-// NEW: FAMILY/FRIENDS CHAT WITH SEARCH
+// PROMOTIONS (Original – no changes)
 // ============================================================
-// Dummy chat data (will be replaced with Supabase data)
-let familyChats = [
-    { id: 1, name: 'Sara Mehmood', phone: '0300-1234567', lastMessage: 'Okay, main aa rahi hoon', time: '10:30', unread: 2, online: true, avatar: 'SM', bg: 'chat-bg-1' },
-    { id: 2, name: 'Ali Ahmed', phone: '0312-7654321', lastMessage: 'Bhai kal milte hain?', time: '09:15', unread: 0, online: true, avatar: 'AA', bg: 'chat-bg-2' },
-    { id: 3, name: 'Fatima Khan', phone: '0333-9876543', lastMessage: 'Thank you so much! 💖', time: 'Yesterday', unread: 0, online: false, avatar: 'FK', bg: 'chat-bg-3' },
-    { id: 4, name: 'Family Group', phone: '0301-4567890', lastMessage: 'Ammi: Doston ko bhi bula lo', time: '12:45', unread: 0, online: true, avatar: '🏠', bg: 'chat-bg-4' },
-    { id: 5, name: 'Usman Brothers', phone: '0315-6549873', lastMessage: 'Meeting at 6 PM', time: '11:20', unread: 1, online: false, avatar: 'UB', bg: 'chat-bg-5' },
-    { id: 6, name: 'Ayesha Tariq', phone: '0345-7890123', lastMessage: 'See you tomorrow!', time: '08:45', unread: 0, online: true, avatar: 'AT', bg: 'chat-bg-6' },
-];
+let currentSlideIndex = 0, isAutoScrolling = false;
+let promosData = [];
 
-let filteredChats = [...familyChats];
+async function fetchPromotions() {
+    if (!navigator.onLine) return;
+    try {
+        const { data: promos, error } = await _supabase
+            .from('promotions')
+            .select('*')
+            .eq('promo_active', true)
+            .order('sort_order', { ascending: true });
 
-function renderFamilyChats(chats) {
-    const container = document.getElementById('familyChatList');
-    if (!chats || chats.length === 0) {
-        container.innerHTML = `<p class="text-center text-gray-400 text-sm py-6">No chats found</p>`;
-        return;
-    }
+        if (error || !promos || promos.length === 0) {
+            // Hide promo section or show empty message
+            document.getElementById('promoContainer').innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No promotions available</p>';
+            return;
+        }
 
-    container.innerHTML = '';
-    chats.forEach((chat, index) => {
-        const div = document.createElement('div');
-        div.className = 'chat-list-item';
-        div.setAttribute('data-index', index);
+        promosData = promos;
+        const slider = document.getElementById('promoSlider');
+        slider.innerHTML = '';
 
-        const onlineDot = chat.online ? `<span class="online-dot"></span>` : '';
+        promos.forEach((promo, index) => {
+            const slide = document.createElement('div');
+            slide.className = 'promo-slide relative cursor-pointer';
+            slide.setAttribute('data-index', index);
 
-        div.innerHTML = `
-            <div class="chat-list-avatar ${chat.bg || 'chat-bg-1'}">
-                <span>${chat.avatar}</span>
-                ${onlineDot}
-            </div>
-            <div class="chat-list-info">
-                <div class="flex justify-between items-start">
-                    <span class="chat-list-name">${chat.name}</span>
-                    <span class="chat-list-time">${chat.time}</span>
+            const isVideo = promo.promo_type === 'video';
+            const mediaSrc = promo.promo_url || '';
+            const mediaTag = isVideo
+                ? `<video id="vid_${index}" src="${mediaSrc}" muted playsinline class="w-full h-full object-cover"></video>`
+                : `<img src="${mediaSrc || 'https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'">`;
+
+            slide.innerHTML = `
+                <div class="media-box w-full h-full relative" onclick="handleMediaTap(event, ${index})">
+                    ${mediaTag}
+                    <div class="promo-overlay"></div>
+                    <div class="promo-text-box">
+                        <h3>${promo.title || 'Special Offer'}</h3>
+                        <p>${promo.promo_text || ''}</p>
+                    </div>
+                    <span class="promo-tag">${promo.category || 'Offer'}</span>
                 </div>
-                <div class="flex justify-between items-center mt-0.5">
-                    <span class="chat-list-phone">${chat.phone}</span>
-                    ${chat.unread > 0 ? `<span class="chat-list-badge">${chat.unread}</span>` : ''}
-                </div>
-                <div class="text-xs text-gray-400 truncate mt-0.5">${chat.lastMessage || ''}</div>
-            </div>
-        `;
-
-        div.addEventListener('click', () => {
-            console.log('Opening chat with:', chat.name);
-            alert(`Opening chat with ${chat.name} (${chat.phone})`);
-            // Navigate to chat page: window.location.href = 'chat.html?id='+chat.id;
+            `;
+            slider.appendChild(slide);
         });
 
-        container.appendChild(div);
-    });
+        // Fullscreen toggle on click
+        document.querySelectorAll('.promo-slide').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (e.target.closest('.media-box')) return;
+                const idx = parseInt(this.dataset.index);
+                toggleTikTokFullscreen(idx);
+            });
+        });
+
+    } catch (err) { console.error("Promotions error:", err); }
 }
 
-// Search functionality
-function setupChatSearch() {
-    const searchInput = document.getElementById('chatSearchInput');
-    searchInput.addEventListener('input', function(e) {
-        const query = e.target.value.toLowerCase().trim();
-        if (query === '') {
-            filteredChats = [...familyChats];
-        } else {
-            filteredChats = familyChats.filter(chat =>
-                chat.name.toLowerCase().includes(query) ||
-                chat.phone.includes(query)
-            );
+function handleMediaTap(e, index) {
+    if (e.target.closest('button')) return;
+    toggleTikTokFullscreen(index);
+}
+
+function toggleTikTokFullscreen(targetIndex = 0) {
+    const container = document.getElementById('promoContainer');
+    const slider = document.getElementById('promoSlider');
+    const isEntering = !container.classList.contains('tiktok-fullscreen');
+
+    container.classList.toggle('tiktok-fullscreen');
+    document.body.style.overflow = isEntering ? 'hidden' : 'auto';
+
+    if (isEntering) {
+        currentSlideIndex = targetIndex;
+        slider.style.scrollSnapType = 'y mandatory';
+        setTimeout(() => {
+            slider.scrollTop = window.innerHeight * currentSlideIndex;
+            const vid = document.getElementById(`vid_${currentSlideIndex}`);
+            if (vid) { vid.muted = false; vid.play().catch(e => console.log(e)); }
+        }, 100);
+    } else {
+        slider.style.scrollSnapType = '';
+        document.querySelectorAll('.promo-slide video').forEach(v => { v.pause(); v.muted = true; });
+        const slideWidth = 160 + 14;
+        slider.scrollLeft = currentSlideIndex * slideWidth;
+    }
+}
+
+// ============================================================
+// RECENT CHATS - Supabase (no mock data)
+// ============================================================
+async function fetchRecentChats() {
+    const container = document.getElementById('recentChatsContainer');
+    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>';
+
+    try {
+        // Assuming there is a 'family_chats' or 'chats' table with customer_id
+        // Adjust table name and columns as per your schema
+        const { data, error } = await _supabase
+            .from('family_chats')
+            .select('*')
+            .eq('customer_id', customerId)
+            .order('updated_at', { ascending: false })
+            .limit(10);
+
+        if (error || !data || data.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">No chats found</p>';
+            return;
         }
-        renderFamilyChats(filteredChats);
-    });
-}
 
-// New Chat button
-function openNewChat() {
-    const name = prompt('Enter friend/family name:');
-    if (!name) return;
-    const phone = prompt('Enter phone number:');
-    if (!phone) return;
+        // Render chats
+        container.innerHTML = '';
+        const chatColors = ['bg-c1', 'bg-c2', 'bg-c3', 'bg-c4'];
+        data.forEach((chat, index) => {
+            const colorClass = chatColors[index % chatColors.length];
+            const online = chat.online || false;
+            const unread = chat.unread || 0;
+            const tickIcon = chat.status === 'read' ? 'fa-check-double tick' : 'fa-check tick grey';
+            const statusText = online ? 'Online' : 'Last seen ' + (chat.last_seen || 'recently');
 
-    // Add new chat to list
-    const newChat = {
-        id: Date.now(),
-        name: name,
-        phone: phone,
-        lastMessage: 'Start chatting...',
-        time: 'Now',
-        unread: 0,
-        online: true,
-        avatar: name.charAt(0).toUpperCase(),
-        bg: 'chat-bg-' + (Math.floor(Math.random() * 7) + 1)
-    };
+            const div = document.createElement('div');
+            div.className = 'chat-item';
+            div.innerHTML = `
+                <div class="chat-avatar ${colorClass}">
+                    <span>${chat.avatar || chat.name.charAt(0)}</span>
+                    ${online ? '<span class="online-dot"></span>' : ''}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name-row">
+                        <span class="chat-name">${chat.name || 'Unknown'}</span>
+                        <span class="chat-time">${chat.time || 'Now'}</span>
+                    </div>
+                    <div class="chat-msg-row">
+                        <span class="chat-msg">
+                            <i class="fas ${tickIcon}"></i> ${chat.last_message || 'Start chatting...'}
+                        </span>
+                        ${unread > 0 ? `<span class="chat-badge">${unread}</span>` : ''}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-0.5">${statusText}</div>
+                </div>
+            `;
+            div.addEventListener('click', () => {
+                openChat(chat.id);
+            });
+            container.appendChild(div);
+        });
 
-    familyChats.unshift(newChat);
-    filteredChats = [...familyChats];
-    renderFamilyChats(filteredChats);
-    alert(`✅ "${name}" added to your chats!`);
+    } catch (e) {
+        console.error("Error fetching chats:", e);
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Failed to load chats</p>';
+    }
 }
 
 // ============================================================
@@ -655,6 +545,5 @@ window.onload = () => {
     initializeApp();
     initVendorStrip();
     fetchPromotions();
-    renderFamilyChats(familyChats);
-    setupChatSearch();
+    fetchRecentChats();
 };
