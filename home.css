@@ -7,10 +7,10 @@ html, body {
     user-select: none;
     -webkit-user-select: none;
     padding-top: env(safe-area-inset-top);
-    background-color: #f9fafb;
+    background-color: #ffffff;
 }
 
-/* ===== ORIGINAL ANIMATIONS & STYLES (UNCHANGED) ===== */
+/* ===== ORIGINAL ANIMATIONS ===== */
 @keyframes order-continuous-pulse {
     0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
     50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
@@ -33,42 +33,18 @@ html, body {
     position: absolute; top: -2px; right: -2px; 
     background: #ef4444; border: 2px solid white; 
     width: 12px; height: 12px; border-radius: 50%; 
-    display: none; z-index: 10; 
+    display: none; 
 }
-@keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes badge-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
 .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
 
 .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
 .sidebar.active { transform: translateX(0); }
 .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
-.action-card { transition: all 0.2s ease; position: relative; }
-.action-card:active { transform: scale(0.95); }
 
 #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
-
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
-
-.tiktok-fullscreen {
-    position: fixed !important; top: 0 !important; left: 0 !important; 
-    width: 100vw !important; height: 100vh !important; 
-    z-index: 99999 !important; margin: 0 !important; 
-    background-color: black !important;
-    border-radius: 0 !important;
-}
-.tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
-.tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
-.tiktok-fullscreen .media-box { height: 100vh !important; }
-.tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
-.tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
-.tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
-.tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
-.tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
-
-.pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
-.pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
-.is-paused .pause-icon-overlay { opacity: 1; }
 
 #sidebarOverlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
@@ -76,45 +52,22 @@ html, body {
 }
 #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
 
-#promoContainer:not(.tiktok-fullscreen) {
-    width: 250px; 
-    height: 150px; 
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 1rem;
-    overflow: hidden;
-}
-#promoContainer:not(.tiktok-fullscreen) #promoSlider {
-    height: 100%;
-}
-#promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
-    height: 100% !important; 
-}
-#promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
-#promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
-    height: 100% !important; 
-    object-fit: container;
-}
-#promoContainer:not(.tiktok-fullscreen) .promo-text-box {
-    display: none !important;
-}
-
-/* ===== NEW: Vendor Strip ===== */
+/* ===== VENDOR STRIP ===== */
 .vendor-strip-wrapper {
     position: relative;
-    padding: 8px 0 4px 0;
+    padding: 12px 0 8px 0;
     background: #ffffff;
     border-bottom: 1px solid #f1f5f9;
     overflow: hidden;
-    min-height: 70px;
+    min-height: 80px;
 }
 .vendor-strip-wrapper.hidden {
     display: none;
 }
 .vendor-strip {
     display: flex;
-    gap: 20px;
-    padding: 0 16px;
+    gap: 24px;
+    padding: 0 20px;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-behavior: smooth;
@@ -135,83 +88,133 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     cursor: pointer;
     transition: 0.2s;
-    min-width: 56px;
+    min-width: 64px;
     padding: 4px 2px;
 }
 .vendor-item:active {
     transform: scale(0.92);
 }
 .vendor-avatar {
-    width: 52px;
-    height: 52px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 28px;
     color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
     transition: 0.3s;
-    border: 2px solid rgba(255, 255, 255, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.9);
     flex-shrink: 0;
 }
 .vendor-item:hover .vendor-avatar {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 .vendor-name {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     color: #1e293b;
     text-align: center;
     line-height: 1.2;
-    max-width: 60px;
+    max-width: 64px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.vendor-empty-msg {
+
+/* ===== PROMO SLIDER ===== */
+#promoSlider {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow-x: auto;
+    gap: 14px;
+    scroll-snap-type: x mandatory;
+    padding: 2px 0 6px 0;
+}
+.promo-slide {
+    flex: 0 0 160px;
+    height: 100px;
+    scroll-snap-align: start;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    position: relative;
+}
+.promo-slide .media-box {
     width: 100%;
-    padding: 16px 0;
-    color: #94a3b8;
-    font-size: 13px;
+    height: 100%;
+    position: relative;
+}
+.promo-slide img,
+.promo-slide video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.promo-slide .promo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.4), transparent 60%);
+    pointer-events: none;
+}
+.promo-slide .promo-text-box {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    z-index: 5;
+    color: white;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.promo-slide .promo-text-box h3 {
+    font-size: 11px;
+    font-weight: 800;
+}
+.promo-slide .promo-text-box p {
+    font-size: 9px;
     font-weight: 500;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.promo-slide .promo-tag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #f97316;
+    color: white;
+    font-size: 7px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 30px;
+    z-index: 6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(249,115,22,0.3);
 }
 
-/* ===== NEW: Family/Friends Chat Section ===== */
-.chat-section-wrapper {
-    background: #ffffff;
-    padding: 8px 0 4px 0;
-}
-
-.search-bar-container input::placeholder {
-    color: #a0aec0;
-    font-weight: 400;
-}
-
-.chat-list-item {
+/* ===== RECENT CHATS (WhatsApp Style) ===== */
+.chat-item {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: 10px 0;
     border-bottom: 1px solid #f1f5f9;
     cursor: pointer;
     transition: background 0.15s;
 }
-.chat-list-item:last-child {
-    border-bottom: none;
-}
-.chat-list-item:hover {
-    background: #f8fafc;
-}
-.chat-list-avatar {
-    width: 44px;
-    height: 44px;
+.chat-item:hover { background: #f8fafc; }
+.chat-item:last-child { border-bottom: none; }
+.chat-avatar {
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -222,41 +225,59 @@ html, body {
     flex-shrink: 0;
     position: relative;
 }
-.chat-list-avatar .online-dot {
+.chat-avatar .online-dot {
     position: absolute;
     bottom: 0;
     right: 0;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     background: #25D366;
     border-radius: 50%;
     border: 2.5px solid white;
 }
-.chat-list-info {
+.chat-info {
     flex: 1;
     margin-left: 14px;
     overflow: hidden;
 }
-.chat-list-name {
+.chat-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.chat-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 15px;
     color: #0f172a;
 }
-.chat-list-phone {
+.chat-time {
     font-size: 11px;
     color: #94a3b8;
     font-weight: 500;
-    margin-top: 1px;
 }
-.chat-list-time {
-    font-size: 10px;
-    color: #94a3b8;
-    font-weight: 500;
+.chat-msg-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
 }
-.chat-list-badge {
-    background: #f97316;
+.chat-msg {
+    font-size: 13px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.chat-msg .tick { color: #25D366; font-size: 14px; }
+.chat-msg .tick.grey { color: #94a3b8; }
+.chat-badge {
+    background: #25D366;
     color: white;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     min-width: 20px;
     height: 20px;
@@ -266,19 +287,187 @@ html, body {
     border-radius: 30px;
     padding: 0 6px;
 }
-.chat-list-empty {
-    text-align: center;
-    color: #94a3b8;
-    font-size: 13px;
-    padding: 20px 0;
-}
+.chat-status-text { font-size: 11px; color: #94a3b8; font-weight: 500; }
 
-/* Color classes for chat avatars */
-.chat-bg-1 { background: linear-gradient(135deg, #f472b6, #ec4899); }
-.chat-bg-2 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
-.chat-bg-3 { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
-.chat-bg-4 { background: linear-gradient(135deg, #34d399, #10b981); }
-.chat-bg-5 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
-.chat-bg-6 { background: linear-gradient(135deg, #fb923c, #f97316); }
-.chat-bg-7 { background: linear-gradient(135deg, #f87171, #ef4444); }
-.chat-bg-8 { background: linear-gradient(135deg, #c084fc, #8b5cf6); }
+/* Chat Avatar Colors */
+.bg-c1 { background: linear-gradient(135deg, #f472b6, #ec4899); }
+.bg-c2 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+.bg-c3 { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
+.bg-c4 { background: linear-gradient(135deg, #34d399, #10b981); }
+
+/* ===== FULLSCREEN TIKTOK STYLE (Original) ===== */
+.tiktok-fullscreen {
+    position: fixed !important; top: 0 !important; left: 0 !important;
+    width: 100vw !important; height: 100vh !important;
+    z-index: 99999 !important; background: black !important;
+    border-radius: 0 !important; padding: 0 !important;
+}
+.tiktok-fullscreen #promoSlider {
+    height: 100vh !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scroll-snap-type: y mandatory !important;
+    gap: 0 !important;
+    padding: 0 !important;
+}
+.tiktok-fullscreen .promo-slide {
+    flex: 0 0 100vh !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    scroll-snap-align: start !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: black !important;
+}
+.tiktok-fullscreen .promo-slide .media-box {
+    height: 100vh !important;
+    width: 100vw !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: black;
+}
+.tiktok-fullscreen .promo-slide img,
+.tiktok-fullscreen .promo-slide video {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+}
+.tiktok-fullscreen .promo-slide .promo-overlay {
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%) !important;
+}
+.tiktok-fullscreen .promo-slide .promo-text-box {
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    padding: 0 24px;
+    z-index: 5;
+    color: white;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+}
+.tiktok-fullscreen .promo-slide .promo-text-box h3 {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+.tiktok-fullscreen .promo-slide .promo-text-box p {
+    font-size: 16px;
+    font-weight: 400;
+    opacity: 0.9;
+}
+.tiktok-fullscreen .promo-slide .promo-tag {
+    font-size: 12px !important;
+    padding: 4px 16px !important;
+    top: 60px !important;
+    right: 24px !important;
+}
+.tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
+
+#closeFullscreenBtn {
+    display: none;
+    position: fixed;
+    top: 48px;
+    right: 20px;
+    z-index: 999999;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 20px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
+
+/* ===== PROMO CONTAINER (Original) ===== */
+#promoContainer:not(.tiktok-fullscreen) {
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+    border: none;
+}
+#promoContainer:not(.tiktok-fullscreen) #promoSlider {
+    height: auto;
+    flex-direction: row !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 14px;
+    scroll-snap-type: x mandatory;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide {
+    flex: 0 0 160px;
+    height: 100px;
+    scroll-snap-align: start;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide video,
+#promoContainer:not(.tiktok-fullscreen) .promo-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box {
+    display: block !important;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    z-index: 5;
+    color: white;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box h3 {
+    font-size: 11px;
+    font-weight: 800;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box p {
+    font-size: 9px;
+    font-weight: 500;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.4), transparent 60%);
+    pointer-events: none;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-tag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #f97316;
+    color: white;
+    font-size: 7px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 30px;
+    z-index: 6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+}
