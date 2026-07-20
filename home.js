@@ -214,7 +214,7 @@ function setupRealtime() {
 }
 
 // ============================================================
-// VENDORS STRIP - اب کوئی ڈپلیکیٹ نہیں (سنگل سیٹ، خودکار ری سیٹ)
+// VENDORS STRIP - کوئی ڈپلیکیٹ نہیں، صرف اصلی ڈیٹا
 // ============================================================
 let vendorStrip, vendorWrapper;
 let vendorAutoScrollInterval = null;
@@ -245,5 +245,334 @@ async function initVendorStrip() {
         vendorData = data;
         vendorWrapper.classList.remove('hidden');
 
-        // صرف ایک بار ڈالیں (کوئی کلون نہیں)
-        data.forEach((v
+        // صرف ایک بار ڈالیں - کوئی کلون نہیں
+        data.forEach((v) => {
+            const item = createVendorItem(v);
+            vendorStrip.appendChild(item);
+        });
+
+        // اسکرول ایونٹ جو آخر تک پہنچنے پر ری سیٹ کرے
+        vendorStrip.addEventListener('scroll', () => {
+            const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
+            if (vendorStrip.scrollLeft >= maxScroll - 10) {
+                vendorStrip.style.scrollBehavior = 'auto';
+                vendorStrip.scrollLeft = 0;
+                setTimeout(() => {
+                    vendorStrip.style.scrollBehavior = 'smooth';
+                }, 50);
+            }
+        });
+
+        vendorStrip.addEventListener('mousedown', startVendorDrag);
+        vendorStrip.addEventListener('touchstart', startVendorDragTouch, { passive: true });
+        vendorStrip.addEventListener('mouseleave', endVendorDrag);
+        vendorStrip.addEventListener('mouseup', endVendorDrag);
+        vendorStrip.addEventListener('touchend', endVendorDragTouch, { passive: true });
+        vendorStrip.addEventListener('mouseenter', pauseVendorAutoScroll);
+        vendorStrip.addEventListener('mouseleave', resumeVendorAutoScroll);
+
+        startVendorAutoScroll();
+
+    } catch (err) {
+        console.warn('⚠️ Error fetching vendors:', err);
+        vendorWrapper.classList.add('hidden');
+    }
+}
+
+function createVendorItem(v, isClone = false) {
+    const item = document.createElement('div');
+    item.className = 'vendor-item';
+    if (isClone) item.dataset.clone = true;
+
+    const name = v.name || 'Store';
+    const logo = v.logo_url || '';
+    const color = v.category === 'Fast Food' ? '#C62828' :
+                  v.category === 'Groceries' ? '#4CAF50' :
+                  v.category === 'Electronics' ? '#1E88E5' : '#64748b';
+
+    let emoji = '';
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('rainbow')) emoji = '🌈';
+    else if (lowerName.includes('imtiaz')) emoji = '🛍️';
+    else if (lowerName.includes('kfc')) emoji = '🍗';
+    else if (lowerName.includes('mcdonald')) emoji = '🍔';
+    else if (lowerName.includes('pizza')) emoji = '🍕';
+    else emoji = name.charAt(0);
+
+    item.innerHTML = `
+        <div class="vendor-avatar" style="background: ${color};">
+            ${logo ? `<img src="${logo}" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'">` : `<span class="text-2xl">${emoji}</span>`}
+        </div>
+        <span class="vendor-name">${name}</span>
+    `;
+    item.addEventListener('click', () => {
+        console.log('Vendor clicked:', name);
+        alert(`Opening ${name}...`);
+        // window.location.href = 'vendor.html?id='+v.id;
+    });
+    return item;
+}
+
+function startVendorDrag(e) {
+    vendorIsDragging = true;
+    vendorStartX = e.pageX - vendorStrip.offsetLeft;
+    vendorScrollLeft = vendorStrip.scrollLeft;
+    vendorStrip.style.cursor = 'grabbing';
+    pauseVendorAutoScroll();
+}
+
+function startVendorDragTouch(e) {
+    const touch = e.touches[0];
+    vendorIsDragging = true;
+    vendorStartX = touch.pageX - vendorStrip.offsetLeft;
+    vendorScrollLeft = vendorStrip.scrollLeft;
+    pauseVendorAutoScroll();
+}
+
+function endVendorDrag() {
+    if (!vendorIsDragging) return;
+    vendorIsDragging = false;
+    vendorStrip.style.cursor = 'grab';
+    clearTimeout(vendorInteractionTimeout);
+    vendorInteractionTimeout = setTimeout(() => {
+        if (!vendorIsDragging) resumeVendorAutoScroll();
+    }, 3000);
+}
+
+function endVendorDragTouch() {
+    if (!vendorIsDragging) return;
+    vendorIsDragging = false;
+    clearTimeout(vendorInteractionTimeout);
+    vendorInteractionTimeout = setTimeout(() => {
+        if (!vendorIsDragging) resumeVendorAutoScroll();
+    }, 3000);
+}
+
+function startVendorAutoScroll() {
+    if (vendorAutoScrollInterval) clearInterval(vendorAutoScrollInterval);
+    vendorAutoScrollInterval = setInterval(() => {
+        if (vendorIsPaused || vendorIsDragging || vendorData.length === 0) return;
+        const container = vendorStrip;
+        const itemWidth = container.querySelector('.vendor-item')?.offsetWidth + 24 || 70;
+        let nextScroll = container.scrollLeft + itemWidth;
+        if (nextScroll >= container.scrollWidth - container.clientWidth) {
+            nextScroll = 0;
+        }
+        container.scrollTo({ left: nextScroll, behavior: 'smooth' });
+    }, 2500);
+}
+
+function pauseVendorAutoScroll() { vendorIsPaused = true; }
+function resumeVendorAutoScroll() { vendorIsPaused = false; }
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pauseVendorAutoScroll();
+    else setTimeout(resumeVendorAutoScroll, 1000);
+});
+
+// ============================================================
+// PROMOTIONS (Original – unchanged)
+// ============================================================
+let currentSlideIndex = 0, isAutoScrolling = false;
+let promosData = [];
+
+async function fetchPromotions() {
+    if (!navigator.onLine) return;
+    try {
+        const { data: promos, error } = await _supabase
+            .from('promotions')
+            .select('*')
+            .eq('promo_active', true)
+            .order('sort_order', { ascending: true });
+
+        if (error || !promos || promos.length === 0) {
+            document.getElementById('promoSlider').innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No promotions available</p>';
+            return;
+        }
+
+        promosData = promos;
+        const slider = document.getElementById('promoSlider');
+        slider.innerHTML = '';
+
+        promos.forEach((promo, index) => {
+            const slide = document.createElement('div');
+            slide.className = 'promo-slide relative cursor-pointer';
+            slide.setAttribute('data-index', index);
+
+            const isVideo = promo.promo_type === 'video';
+            const mediaSrc = promo.promo_url || '';
+            const mediaTag = isVideo
+                ? `<video id="vid_${index}" src="${mediaSrc}" muted playsinline class="w-full h-full object-cover"></video>`
+                : `<img src="${mediaSrc || 'https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'">`;
+
+            slide.innerHTML = `
+                <div class="media-box w-full h-full relative" onclick="handleMediaTap(event, ${index})">
+                    ${mediaTag}
+                    <div class="promo-overlay"></div>
+                    <div class="promo-text-box">
+                        <h3>${promo.title || 'Special Offer'}</h3>
+                        <p>${promo.promo_text || ''}</p>
+                    </div>
+                    <span class="promo-tag">${promo.category || 'Offer'}</span>
+                </div>
+            `;
+            slider.appendChild(slide);
+        });
+
+        document.querySelectorAll('.promo-slide').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (e.target.closest('.media-box')) return;
+                const idx = parseInt(this.dataset.index);
+                toggleTikTokFullscreen(idx);
+            });
+        });
+
+    } catch (err) { console.error("Promotions error:", err); }
+}
+
+function handleMediaTap(e, index) {
+    if (e.target.closest('button')) return;
+    toggleTikTokFullscreen(index);
+}
+
+function toggleTikTokFullscreen(targetIndex = 0) {
+    const container = document.getElementById('promoContainer');
+    const slider = document.getElementById('promoSlider');
+    const isEntering = !container.classList.contains('tiktok-fullscreen');
+
+    container.classList.toggle('tiktok-fullscreen');
+    document.body.style.overflow = isEntering ? 'hidden' : 'auto';
+
+    if (isEntering) {
+        currentSlideIndex = targetIndex;
+        slider.style.scrollSnapType = 'y mandatory';
+        setTimeout(() => {
+            slider.scrollTop = window.innerHeight * currentSlideIndex;
+            const vid = document.getElementById(`vid_${currentSlideIndex}`);
+            if (vid) { vid.muted = false; vid.play().catch(e => console.log(e)); }
+        }, 100);
+    } else {
+        slider.style.scrollSnapType = '';
+        document.querySelectorAll('.promo-slide video').forEach(v => { v.pause(); v.muted = true; });
+        const slideWidth = 160 + 14;
+        slider.scrollLeft = currentSlideIndex * slideWidth;
+    }
+}
+
+// ============================================================
+// FAMILY CHATS - Supabase (real data)
+// ============================================================
+async function fetchRecentChats() {
+    const container = document.getElementById('recentChatsContainer');
+    container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>';
+
+    try {
+        const { data: conversations, error: convErr } = await _supabase
+            .from('family_conversations')
+            .select('*')
+            .contains('participants', [userPhone])
+            .order('updated_at', { ascending: false });
+
+        if (convErr || !conversations || conversations.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">No conversations found</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        const chatColors = ['bg-c1', 'bg-c2', 'bg-c3', 'bg-c4'];
+
+        for (let i = 0; i < conversations.length; i++) {
+            const conv = conversations[i];
+            const colorClass = chatColors[i % chatColors.length];
+            
+            const otherParticipants = conv.participants.filter(p => p !== userPhone);
+            const otherPhone = otherParticipants[0] || 'Unknown';
+            
+            let otherName = otherPhone;
+            try {
+                const { data: userData } = await _supabase
+                    .from('customers')
+                    .select('name')
+                    .eq('phone', otherPhone)
+                    .single();
+                if (userData) otherName = userData.name;
+            } catch (e) {}
+
+            const { data: latestMsg, error: msgErr } = await _supabase
+                .from('family_messages')
+                .select('*')
+                .eq('conversation_id', conv.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            const lastMsg = (latestMsg && latestMsg.length > 0) ? latestMsg[0] : null;
+            const messageText = lastMsg?.message || 'Start chatting...';
+            const time = lastMsg ? formatTime(lastMsg.created_at) : 'Now';
+            const status = lastMsg?.status || 'sent';
+            
+            const { count: unreadCount } = await _supabase
+                .from('family_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+                .neq('sender_phone', userPhone)
+                .neq('status', 'read');
+
+            const tickIcon = status === 'read' ? 'fa-check-double tick' : 'fa-check tick grey';
+            const online = false;
+
+            const div = document.createElement('div');
+            div.className = 'chat-item';
+            div.innerHTML = `
+                <div class="chat-avatar ${colorClass}">
+                    <span>${otherName.charAt(0).toUpperCase()}</span>
+                    ${online ? '<span class="online-dot"></span>' : ''}
+                </div>
+                <div class="chat-info">
+                    <div class="chat-name-row">
+                        <span class="chat-name">${otherName}</span>
+                        <span class="chat-time">${time}</span>
+                    </div>
+                    <div class="chat-msg-row">
+                        <span class="chat-msg">
+                            <i class="fas ${tickIcon}"></i> ${messageText}
+                        </span>
+                        ${unreadCount > 0 ? `<span class="chat-badge">${unreadCount}</span>` : ''}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-0.5">${otherPhone}</div>
+                </div>
+            `;
+            div.addEventListener('click', () => {
+                openChat(conv.id);
+            });
+            container.appendChild(div);
+        }
+
+    } catch (e) {
+        console.error("Error fetching chats:", e);
+        container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Failed to load chats</p>';
+    }
+}
+
+function formatTime(timestamp) {
+    if (!timestamp) return 'Now';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+    if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diff < 172800000) return 'Yesterday';
+    return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
+// ============================================================
+// WINDOW ONLOAD
+// ============================================================
+window.onload = () => {
+    setGreeting();
+    initializeApp();
+    initVendorStrip();
+    fetchPromotions();
+    fetchRecentChats();
+};
