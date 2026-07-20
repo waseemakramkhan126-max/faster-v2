@@ -7,12 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- External CSS -->
     <link rel="stylesheet" href="home.css">
 </head>
-<body class="text-gray-800">
+<body>
 
-    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2">
+    <!-- Offline Banner -->
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2 z-50">
         <i class="fas fa-wifi-slash"></i> No Internet Connection
     </div>
 
@@ -20,15 +20,14 @@
 
     <div id="sidebarOverlay" onclick="toggleMenu()"></div>
 
-    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col pt-safe">
+    <div id="sidebar" class="sidebar fixed top-0 left-0 h-full w-[60%] max-w-[300px] bg-white z-50 shadow-2xl p-6 flex flex-col">
         <div class="flex justify-between items-center mb-8 mt-2">
             <div class="flex items-center gap-3">
-                <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden">
+                <img id="sideLogo" src="" class="w-10 h-10 brand-logo-gol hidden border-2 border-orange-500">
                 <h2 class="text-xl font-black text-blue-800 tracking-tighter">Faster <span class="text-blue-500 italic">App</span></h2>
             </div>
             <i class="fas fa-times text-xl text-gray-400 cursor-pointer p-2 active:scale-90 transition-transform" onclick="toggleMenu()"></i>
         </div>
-
         <nav class="space-y-3 flex-1">
             <div onclick="location.href='profile.html'" class="p-1 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
@@ -37,7 +36,6 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
-
             <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
@@ -45,126 +43,107 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-orange-300"></i>
             </div>
-
             <a href="csr-chat.html" class="flex items-center gap-4 p-1 hover:bg-gray-50 rounded-2xl transition font-bold text-gray-600 border border-transparent active:border-gray-200 cursor-pointer">
                 <i class="fas fa-comment-dots text-green-500 text-2xl"></i>
                 <span>CSR Help</span>
             </a>
         </nav>
-
         <button onclick="logout()" class="w-full bg-red-50 text-red-600 font-black py-2 rounded-2xl flex items-center justify-center gap-2 mt-auto uppercase tracking-widest text-xs active:bg-red-100 transition border border-red-100 shadow-sm mb-4">
             <i class="fas fa-power-off"></i> Logout Account
         </button>
     </div>
 
-    <header class="px-4 flex justify-between items-center bg-white/90 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 pt-safe" style="height: 56px;">
-        <div class="flex items-center gap-3">
-            <i class="fas fa-bars-staggered text-base text-gray-700 cursor-pointer active:scale-90 transition p-1" onclick="toggleMenu()"></i>
-            <div class="relative cursor-pointer p-1 flex items-center justify-center w-8 h-8" onclick="openNotifications()">
-                <i id="notifBell" class="fas fa-bell text-base text-gray-400 transition-colors"></i>
+    <!-- Header -->
+    <header class="px-6 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
+        <div class="flex items-center gap-4">
+            <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
+            <div class="relative cursor-pointer p-1 flex items-center justify-center" onclick="openNotifications()">
+                <i id="notifBell" class="fas fa-bell text-2xl text-gray-500 transition-colors"></i>
                 <div id="notifBadge" class="notif-badge"></div>
             </div>
         </div>
-
-        <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style="line-height:1.15;">
-            <p id="appbarGreeting" class="text-[9px] font-black text-gray-400 uppercase tracking-widest"></p>
-            <p id="userName" class="text-sm font-black text-gray-800 tracking-tighter">...</p>
+        <div class="flex flex-col items-center">
+            <p id="appbarGreeting" class="text-[10px] font-black text-gray-400 uppercase tracking-widest">GOOD EVENING</p>
+            <p id="userName" class="text-[16px] font-black text-slate-800 tracking-tight">Customer</p>
         </div>
-
-        <div class="w-11 h-11">
+        <div class="w-12 h-12 rounded-full border-[3px] border-orange-500 p-0.5 bg-white flex items-center justify-center">
             <img id="appLogo" src="" alt="Logo" class="w-full h-full brand-logo-gol hidden">
-            <div id="logoFallback" class="w-11 h-11 bg-orange-500 rounded-full flex items-center justify-center shadow-md">
-                <i class="fas fa-rocket text-white text-[10px] animate-pulse"></i>
+            <div id="logoFallback" class="w-full h-full bg-orange-500 rounded-full flex items-center justify-center">
+                <span class="text-white text-xs font-bold italic">Faster</span>
             </div>
         </div>
     </header>
 
-    <!-- NEW: Vendors Strip -->
+    <!-- Vendors Strip (Supabase) -->
     <div class="vendor-strip-wrapper" id="vendorStripWrapper">
-        <div class="vendor-strip" id="vendorStrip">
-            <!-- Vendors injected by JS -->
+        <div class="vendor-strip" id="vendorStrip"></div>
+    </div>
+
+    <!-- Promotions & Offers -->
+    <div class="mt-4 px-6">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-tags text-orange-500 text-lg transform -rotate-90"></i>
+            <h2 class="text-base font-extrabold text-slate-800 tracking-tight">Promotions & Offers</h2>
+        </div>
+        <div id="promoContainer" class="relative">
+            <div id="promoSlider" class="flex overflow-x-auto gap-4 no-scrollbar scroll-smooth pb-2"></div>
         </div>
     </div>
 
-    <!-- PROMO CONTAINER (Original) -->
-    <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
-        <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
-        </div>
-        <button id="closeFullscreenBtn" onclick="toggleTikTokFullscreen()" class="absolute top-4 right-4 w-10 h-10 bg-black/50 text-white rounded-full flex items-center justify-center z-50 backdrop-blur-md shadow-lg active:scale-90 hidden">
-            <i class="fas fa-times text-xl"></i>
-        </button>
-    </div>
-
-    
-    <!-- ORIGINAL MAIN CONTENT (Unchanged) -->
-    <main class="p-6 pt-4">
-        <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 min-h-[32px]">
-            <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
-            
-            <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
-                <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
-            </p>
-            
-            <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
-                <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
-            </p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4">
-            <div onclick="location.href='new-order.html'" class="action-card bg-slate-900 p-6 rounded-[2rem] shadow-xl flex items-center justify-between border-b-4 border-orange-500 cursor-pointer">
-                <div class="flex items-center gap-4">
-                    <div class="bg-orange-500 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-                        <i class="fas fa-plus text-xl"></i>
-                    </div>
-                    <span class="font-black text-white uppercase tracking-wider">Start New Order</span>
-                </div>
-                <i class="fas fa-arrow-right text-slate-500"></i>
+    <!-- Action Buttons -->
+    <div class="mt-6 px-6 flex items-stretch gap-3">
+        <div onclick="location.href='new-order.html'" class="flex-1 bg-slate-800 rounded-[2rem] p-4 flex items-center justify-center gap-3 shadow-lg cursor-pointer active:scale-95 transition-transform border border-slate-700">
+            <div class="bg-orange-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-orange-500/30">
+                <i class="fas fa-plus"></i>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div id="activeOrdersCard" onclick="openActiveOrders()" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer relative">
-                    <div class="bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-blue-100 shadow-inner">
-                        <span>⏱️</span>
-                    </div>
-                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Active Orders</span>
-                    <div id="activeChatBadge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-lg font-bold animate-bounce">0</div>
-                </div>
-
-                <div onclick="location.href='completed.html'" class="action-card bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col gap-4 cursor-pointer">
-                    <div class="bg-green-50 w-10 h-10 rounded-xl flex items-center justify-center text-green-500 shadow-inner border border-green-100">
-                        <i class="fas fa-check-double"></i>
-                    </div>
-                    <span class="font-black text-gray-700 text-xs uppercase tracking-tight">Completed</span>
-                </div>
-                <!-- NEW: Family/Friends Chat with Search -->
-    <div class="chat-section-wrapper px-4 mt-4">
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
-                <i class="fas fa-users text-orange-500"></i> Family & Friends
-            </h2>
-            <button onclick="openNewChat()" class="bg-orange-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition-transform flex items-center gap-1">
-                <i class="fas fa-plus-circle"></i> New Chat
-            </button>
+            <span class="font-black text-white text-sm uppercase tracking-wider leading-tight text-left">Start New<br>Order</span>
         </div>
-
-        <!-- Search Bar -->
-        <div class="search-bar-container relative mb-3">
-            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input type="text" id="chatSearchInput" placeholder="Search by name or phone number..." class="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 pl-10 pr-4 text-sm outline-none focus:border-orange-400 transition">
+        <div id="activeOrdersCard" onclick="openActiveOrders()" class="w-[85px] bg-white border border-gray-200 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
+            <div class="text-orange-500 relative mb-0.5">
+                <i class="fas fa-clock text-2xl"></i>
+                <div class="absolute -top-1 -right-2 bg-orange-500 text-white text-[10px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-sm">
+                    <span id="activeCountBadge">0</span>
+                </div>
+            </div>
+            <span class="font-black text-gray-500 text-[9px] uppercase tracking-widest">Active</span>
         </div>
+        <div onclick="location.href='completed.html'" class="w-[85px] bg-white border border-gray-200 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
+            <div class="text-emerald-500">
+                <div class="bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm">
+                    <i class="fas fa-check text-sm"></i>
+                </div>
+            </div>
+            <span class="font-black text-slate-800 text-lg leading-none"><span id="doneCountBadge">0</span></span>
+            <span class="font-bold text-gray-400 text-[9px] uppercase tracking-widest mt-0.5">Done</span>
+        </div>
+    </div>
 
-        <!-- Chat List -->
-        <div id="familyChatList" class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <!-- Chats injected by JS -->
+    <!-- Recent Chats (Real Supabase Data) -->
+    <div class="mt-8 px-6">
+        <div class="flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-comment-dots text-orange-500 text-lg"></i>
+                <h2 class="text-base font-extrabold text-slate-800">Recent Chats</h2>
+            </div>
+            <a href="active-orders.html" class="text-orange-500 font-bold text-xs uppercase tracking-wide cursor-pointer hover:underline">See All</a>
+        </div>
+        <div id="recentChatsContainer" class="bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm">
+            <!-- Chats will be loaded here -->
             <p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>
         </div>
     </div>
 
-            </div>
-        </div>
-    </main>
+    <!-- Wallet Display (hidden by default) -->
+    <div id="walletMiniDisplay" class="hidden px-6 pt-2 flex items-center justify-center gap-2 flex-wrap">
+        <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
+        <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
+            <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
+        </p>
+        <p id="homeRemBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase border border-emerald-200 shadow-sm transition-all">
+            <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
+        </p>
+    </div>
 
-    <!-- External JS -->
     <script src="home.js"></script>
 </body>
 </html>
