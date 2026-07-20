@@ -7,108 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        
-        html, body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            overscroll-behavior-y: none;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            -webkit-user-select: none;
-            padding-top: env(safe-area-inset-top);
-            background-color: #f9fafb;
-        }
-        
-        @keyframes order-continuous-pulse {
-            0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
-            50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
-            100% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
-        }
-        .active-order-continuous-glow { 
-            animation: order-continuous-pulse 2s ease-in-out infinite !important; 
-            border-width: 2px !important; border-color: #22c55e !important; 
-            background-color: #f0fdf4 !important; z-index: 40; 
-        }
-
-        @keyframes bell-pulse {
-            0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
-            50% { transform: scale(1.2) rotate(15deg); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); color: #ef4444; }
-            100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
-        }
-        .bell-active { animation: bell-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; color: #ef4444 !important; }
-
-        .notif-badge { 
-            position: absolute; top: -2px; right: -2px; 
-            background: #ef4444; border: 2px solid white; 
-            width: 12px; height: 12px; border-radius: 50%; 
-            display: none; z-index: 10; 
-        }
-        @keyframes badge-pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
-        .notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
-
-        .sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
-        .sidebar.active { transform: translateX(0); }
-        .brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
-        .action-card { transition: all 0.2s ease; position: relative; }
-        .action-card:active { transform: scale(0.95); }
-        
-        #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
-
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .promo-slide { flex: 0 0 100%; width: 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; position: relative; }
-
-        .tiktok-fullscreen {
-            position: fixed !important; top: 0 !important; left: 0 !important; 
-            width: 100vw !important; height: 100vh !important; 
-            z-index: 99999 !important; margin: 0 !important; 
-            background-color: black !important;
-            border-radius: 0 !important;
-        }
-        .tiktok-fullscreen #promoSlider { height: 100vh !important; border-radius: 0 !important; border: none !important; width: 100vw !important; }
-        .tiktok-fullscreen .promo-slide { height: 100vh !important; display: flex; flex-direction: column; justify-content: center; width: 100vw !important;}
-        .tiktok-fullscreen .media-box { height: 100vh !important; }
-        .tiktok-fullscreen video, .tiktok-fullscreen img { height: 100vh !important; object-fit: contain !important; }
-        .tiktok-fullscreen .promo-text-box { position: absolute; bottom: 3rem; left: 0; right: 0; background: transparent !important; color: white !important; z-index: 40; text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
-        .tiktok-fullscreen .promo-text-box h3 { color: #f97316 !important; }
-        .tiktok-fullscreen .promo-text-box p { color: #f3f4f6 !important; }
-        .tiktok-fullscreen #closeFullscreenBtn { display: flex !important; }
-        
-        .pause-icon-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
-        .pause-icon-overlay i { font-size: 4rem; color: rgba(255,255,255,0.8); filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); margin: auto; }
-        .is-paused .pause-icon-overlay { opacity: 1; }
-
-        #sidebarOverlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
-            opacity: 0; pointer-events: none; transition: opacity 0.4s;
-        }
-        #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
-
-        #promoContainer:not(.tiktok-fullscreen) {
-            width: 250px; 
-            height: 150px; 
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 1rem;
-            overflow: hidden;
-        }
-        #promoContainer:not(.tiktok-fullscreen) #promoSlider {
-            height: 100%;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box { 
-            height: 100% !important; 
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide video, 
-        #promoContainer:not(.tiktok-fullscreen) .promo-slide img { 
-            height: 100% !important; 
-            object-fit: container;
-        }
-        #promoContainer:not(.tiktok-fullscreen) .promo-text-box {
-            display: none !important;
-        }
-    </style>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="home.css">
 </head>
 <body class="text-gray-800">
 
@@ -179,6 +79,14 @@
         </div>
     </header>
 
+    <!-- NEW: Vendors Strip -->
+    <div class="vendor-strip-wrapper" id="vendorStripWrapper">
+        <div class="vendor-strip" id="vendorStrip">
+            <!-- Vendors injected by JS -->
+        </div>
+    </div>
+
+    <!-- PROMO CONTAINER (Original) -->
     <div id="promoContainer" class="hidden mt-4 relative group bg-white shadow-lg border border-white">
         <div id="promoSlider" class="flex flex-col overflow-y-auto snap-y snap-mandatory no-scrollbar bg-white rounded-[2rem] shadow-xl border border-white scroll-smooth transition-all">
         </div>
@@ -187,7 +95,32 @@
         </button>
     </div>
 
-    <main class="p-6 pt-8">
+    <!-- NEW: Family/Friends Chat with Search -->
+    <div class="chat-section-wrapper px-4 mt-4">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-black text-slate-800 flex items-center gap-2">
+                <i class="fas fa-users text-orange-500"></i> Family & Friends
+            </h2>
+            <button onclick="openNewChat()" class="bg-orange-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition-transform flex items-center gap-1">
+                <i class="fas fa-plus-circle"></i> New Chat
+            </button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar-container relative mb-3">
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input type="text" id="chatSearchInput" placeholder="Search by name or phone number..." class="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3 pl-10 pr-4 text-sm outline-none focus:border-orange-400 transition">
+        </div>
+
+        <!-- Chat List -->
+        <div id="familyChatList" class="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <!-- Chats injected by JS -->
+            <p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>
+        </div>
+    </div>
+
+    <!-- ORIGINAL MAIN CONTENT (Unchanged) -->
+    <main class="p-6 pt-4">
         <div id="walletMiniDisplay" class="mb-6 flex items-center gap-2 min-h-[32px]">
             <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
             
@@ -230,337 +163,7 @@
         </div>
     </main>
 
-    <script>
-        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
-        const _supabase = supabase.createClient(SB_URL, SB_KEY);
-        
-        const userPhone = (localStorage.getItem('faster_phone') || "").trim();
-        const customerId = localStorage.getItem('faster_customer_id') || '';
-        const userName = localStorage.getItem('faster_name') || 'Customer';
-        
-        const isLocalPreview = window.location.protocol === 'file:';
-        if (!userPhone && !isLocalPreview) {
-            window.location.replace('index.html');
-        }
-
-        const sound = document.getElementById('notifSound');
-
-        async function initializeApp() {
-            if (!navigator.onLine) return;
-            document.getElementById('userName').innerText = userName;
-
-            try {
-                const { data: settings } = await _supabase.from('app_settings').select('logo_url').eq('id', 1).single();
-                if (settings && settings.logo_url) {
-                    const imgH = document.getElementById('appLogo');
-                    const imgS = document.getElementById('sideLogo');
-                    imgH.src = imgS.src = settings.logo_url;
-                    imgH.classList.remove('hidden'); imgS.classList.remove('hidden');
-                    document.getElementById('logoFallback').classList.add('hidden');
-                }
-            } catch (err) { console.error("Logo Error:", err); }
-
-            checkNotifications();
-            updateActiveOrdersCard();
-            fetchWalletBalance();
-            setupRealtime();
-        }
-
-        async function fetchWalletBalance() {
-            if (!navigator.onLine) return;
-            document.getElementById('walletLoading').classList.remove('hidden');
-            try {
-                let currentBal = 0;
-                let foundWallet = false;
-
-                const { data: walletData, error: walErr } = await _supabase
-                    .from('wallets')
-                    .select('current_balance')
-                    .eq('customer_id', customerId)
-                    .maybeSingle(); 
-                
-                if (!walErr && walletData) {
-                    currentBal = parseFloat(walletData.current_balance || 0);
-                    foundWallet = true;
-                }
-
-                if (!foundWallet) {
-                    const { data: orders, error: ordErr } = await _supabase
-                        .from('orders')
-                        .select('balance_amount')
-                        .eq('customer_id', customerId)
-                        .in('status', ['completed', 'canceled', 'CANCELLED', 'cancelled'])
-                        .order('updated_at', { ascending: false })
-                        .limit(1); 
-                    
-                    if (!ordErr && orders && orders.length > 0) {
-                        currentBal = parseFloat(orders[0].balance_amount || 0);
-                    }
-                }
-
-                const hPend = document.getElementById('homePend'); const pBox = document.getElementById('homePendBox');
-                const hRem = document.getElementById('homeRem'); const rBox = document.getElementById('homeRemBox');
-
-                if (currentBal > 0) { 
-                    hPend.innerText = `Rs. ${currentBal}`; 
-                    pBox.classList.remove('hidden'); 
-                    rBox.classList.add('hidden'); 
-                }
-                else if (currentBal < 0) { 
-                    hRem.innerText = `Rs. ${Math.abs(currentBal)}`; 
-                    rBox.classList.remove('hidden'); 
-                    pBox.classList.add('hidden'); 
-                }
-                else { 
-                    pBox.classList.add('hidden'); 
-                    rBox.classList.add('hidden'); 
-                }
-            } catch (e) { 
-                console.error("Wallet error", e); 
-            } finally { 
-                document.getElementById('walletLoading').classList.add('hidden'); 
-            }
-        }
-
-        // PERFECTED: Checks exactly the 5 requested tables based on correct columns
-        async function checkNotifications() {
-            if (!navigator.onLine) return;
-            try {
-                const lastRead = localStorage.getItem('last_notif_read') || '2000-01-01T00:00:00.000Z';
-                
-                const [orderRes, notifRes, promoRes, topupRes, withdrawRes] = await Promise.all([
-                    _supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
-                    _supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('customer_phone', userPhone).gt('created_at', lastRead),
-                    _supabase.from('promotions').select('*', { count: 'exact', head: true }).eq('promo_active', true).gt('created_at', lastRead),
-                    _supabase.from('topup_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('updated_at', lastRead),
-                    _supabase.from('withdraw_requests').select('*', { count: 'exact', head: true }).eq('customer_id', customerId).gt('created_at', lastRead)
-                ]);
-
-                const totalUpdates = (orderRes.count || 0) + 
-                                     (notifRes.count || 0) + 
-                                     (promoRes.count || 0) + 
-                                     (topupRes.count || 0) + 
-                                     (withdrawRes.count || 0);
-
-                const bell = document.getElementById('notifBell');
-                const badge = document.getElementById('notifBadge');
-                
-                if (totalUpdates > 0) { 
-                    badge.classList.add('active'); 
-                    bell.classList.add('bell-active'); 
-                } else { 
-                    badge.classList.remove('active'); 
-                    bell.classList.remove('bell-active'); 
-                }
-            } catch (e) { console.error("Notification sync failed", e); }
-        }
-
-        function openNotifications() {
-            localStorage.setItem('last_notif_read', new Date().toISOString());
-            window.location.href = 'notifications.html';
-        }
-
-        async function updateActiveOrdersCard() {
-            if (!navigator.onLine) return;
-            try {
-                const { data: activeOrders } = await _supabase
-                    .from('orders').select('id, updated_at').eq('customer_id', customerId)
-                    .not('status', 'in', '("completed","canceled","CANCELLED","cancelled")');
-                const card = document.getElementById('activeOrdersCard');
-                const badge = document.getElementById('activeChatBadge');
-                if (activeOrders && activeOrders.length > 0) {
-                    card.classList.add('active-order-continuous-glow');
-                    const orderIds = activeOrders.map(o => o.id);
-                    const { data: unreadMsgs } = await _supabase
-                        .from('order_chats').select('id').in('order_id', orderIds)
-                        .neq('sender_phone', userPhone).neq('status', 'seen');
-                    let unreadMsgCount = unreadMsgs ? unreadMsgs.length : 0;
-                    let lastVisit = localStorage.getItem('last_active_orders_visit') || '2000-01-01T00:00:00.000Z';
-                    let unseenStatusCount = activeOrders.filter(o => o.updated_at > lastVisit).length;
-                    let totalAlerts = unreadMsgCount + unseenStatusCount;
-                    if (totalAlerts > 0) { badge.innerText = totalAlerts; badge.classList.remove('hidden'); }
-                    else { badge.classList.add('hidden'); }
-                } else {
-                    card.classList.remove('active-order-continuous-glow');
-                    badge.classList.add('hidden');
-                }
-            } catch (e) { console.error("Active orders UI fail:", e); }
-        }
-
-        function openActiveOrders() {
-            localStorage.setItem('last_active_orders_visit', new Date().toISOString());
-            window.location.href = 'active-orders.html';
-        }
-
-        function toggleMenu() { 
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        }
-        
-        async function logout() { 
-          if(confirm("Are you sure you want to logout?")) { 
-            await _supabase.auth.signOut();
-             localStorage.clear();
-             // 👇 Yeh line add karo
-            localStorage.setItem('faster_logged_out', 'true');
-           setTimeout(() => { window.location.replace("index.html"); }, 500);
-         } 
-     }
-
-        function setGreeting() {
-            const hour = new Date().getHours();
-            let text = hour < 12 ? 'Good Morning' : (hour < 17 ? 'Good Afternoon' : 'Good Evening');
-            document.getElementById('appbarGreeting').innerText = text;
-        }
-
-        // PERFECTED REALTIME LISTENER: Plays ringtone and triggers red bell on any match
-        function setupRealtime() {
-            _supabase.removeAllChannels(); 
-            _supabase.channel('customer-home-live')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => { 
-                    updateActiveOrdersCard(); 
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => { 
-                    updateActiveOrdersCard(); checkNotifications(); fetchWalletBalance(); 
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        if (payload.new && String(payload.new.customer_id) === customerId) {
-                            sound.play().catch(e => console.log("Sound error:", e));
-                        }
-                    }
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'wallets' }, () => { 
-                    fetchWalletBalance(); 
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-                    if (payload.new && (payload.new.customer_phone === userPhone || payload.new.phone === userPhone)) {
-                        checkNotifications();
-                        sound.play().catch(e => console.log("Sound error:", e));
-                    }
-                })
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'promotions' }, () => {
-                    checkNotifications();
-                    sound.play().catch(e => console.log("Sound error:", e));
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'topup_requests' }, (payload) => {
-                    if (payload.new && String(payload.new.customer_id) === customerId) {
-                        checkNotifications();
-                        sound.play().catch(e => console.log("Sound error:", e));
-                    }
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'withdraw_requests' }, (payload) => {
-                    if (payload.new && String(payload.new.customer_id) === customerId) {
-                        checkNotifications();
-                        sound.play().catch(e => console.log("Sound error:", e));
-                    }
-                })
-                .subscribe();
-        }
-
-        window.onload = () => {
-            setGreeting();
-            initializeApp();
-            fetchPromotions();
-        };
-
-        let currentSlideIndex = 0, slideTimer, isAutoScrolling = false;
-        let promosData = [], userInterests = new Set();
-        let slideStartTime = 0, consecutiveInterestShown = 0, consecutiveSwipes = 0;
-
-        async function fetchPromotions() {
-            if(!navigator.onLine) return; 
-            try {
-                const { data: promos, error } = await _supabase.from('promotions').select('*').eq('promo_active', true).order('sort_order', { ascending: true });
-                if (error) throw error;
-                if (promos && promos.length > 0) {
-                    promosData = promos; 
-                    const slider = document.getElementById('promoSlider');
-                    const container = document.getElementById('promoContainer');
-                    slider.innerHTML = '';
-                    promos.forEach((promo, index) => {
-                        const slide = document.createElement('div');
-                        slide.className = 'promo-slide overflow-hidden shrink-0';
-                        const overlay = `<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none"></div>`;
-                        const textHTML = `<div class="promo-text-box p-4 bg-gradient-to-br from-white to-orange-50 relative z-30"><div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></span><h3 class="font-black text-orange-600 text-[10px] uppercase tracking-widest">${promo.title || 'Special Offer'}</h3></div><p class="text-xs text-gray-700 font-bold leading-tight line-clamp-2">${promo.promo_text || ''}</p></div>`;
-                        let mediaHTML = promo.promo_type === 'video'
-                            ? `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'video')"><video id="vid_${index}" src="${promo.promo_url}" preload="${index === 0 ? 'auto' : 'none'}" muted playsinline class="promo-video w-full h-full object-cover bg-black"></video>${overlay}<div id="pause_overlay_${index}" class="pause-icon-overlay"><i class="fas fa-play"></i></div><button onclick="toggleSliderAudio(event, 'vid_${index}')" class="absolute bottom-2 right-2 w-7 h-7 bg-black/40 text-white rounded-full flex items-center justify-center z-40 backdrop-blur-md border border-white/20 shadow-lg"><i id="icon_vid_${index}" class="fas fa-volume-mute text-[9px]"></i></button></div>`
-                            : `<div class="media-box relative w-full transition-all" onclick="handleMediaTap(event, ${index}, 'image')"><img src="${promo.promo_url}" class="w-full h-full object-cover">${overlay}</div>`;
-                        slide.innerHTML = mediaHTML + textHTML;
-                        slider.appendChild(slide);
-                    });
-                    container.classList.remove('hidden');
-                    slider.addEventListener('scroll', () => {
-                        if (isAutoScrolling) return; 
-                        clearTimeout(slider.scrollTimeout);
-                        slider.scrollTimeout = setTimeout(() => {
-                            let newIndex = Math.round(slider.scrollTop / slider.offsetHeight);
-                            if (newIndex !== currentSlideIndex && newIndex >= 0 && newIndex < promos.length) {
-                                activateSlide(newIndex, false); 
-                            }
-                        }, 40);
-                    });
-                    activateSlide(0, false);
-                }
-            } catch (err) { console.log("Promo Slider Error:", err); }
-        }
-
-        function handleMediaTap(e, index, type) {
-            if (e.target.closest('button')) return;
-            const container = document.getElementById('promoContainer');
-            if (!container.classList.contains('tiktok-fullscreen')) {
-                toggleTikTokFullscreen();
-            } else if (type === 'video') {
-                const vid = document.getElementById(`vid_${index}`);
-                if (vid.paused) vid.play(); else vid.pause();
-            }
-        }
-
-        function toggleTikTokFullscreen() {
-            const container = document.getElementById('promoContainer');
-            const slider = document.getElementById('promoSlider');
-            const isEntering = !container.classList.contains('tiktok-fullscreen');
-            container.classList.toggle('tiktok-fullscreen');
-            const vid = document.getElementById(`vid_${currentSlideIndex}`);
-            if (vid) {
-                vid.muted = !isEntering;
-                const icon = document.getElementById(`icon_${vid.id}`);
-                if(icon) icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]';
-            }
-            setTimeout(() => {
-                slider.scrollTop = slider.offsetHeight * currentSlideIndex;
-            }, 50);
-        }
-
-        function activateSlide(index, autoScroll = true) {
-            currentSlideIndex = index;
-            const slider = document.getElementById('promoSlider');
-            if (autoScroll) {
-                isAutoScrolling = true;
-                slider.scrollTop = slider.offsetHeight * index;
-                setTimeout(() => { isAutoScrolling = false; }, 500);
-            }
-            document.querySelectorAll('.promo-video').forEach(v => {
-                v.pause(); v.muted = true;
-            });
-            const promo = promosData[index];
-            if (promo && promo.promo_type === 'video') {
-                const vid = document.getElementById(`vid_${index}`);
-                if (vid) {
-                    const isFull = document.getElementById('promoContainer').classList.contains('tiktok-fullscreen');
-                    vid.muted = !isFull;
-                    vid.play().catch(e => console.log(e));
-                }
-            }
-        }
-
-        function toggleSliderAudio(e, vidId) {
-            e.stopPropagation();
-            const vid = document.getElementById(vidId);
-            const icon = document.getElementById(`icon_${vidId}`);
-            if (vid) { vid.muted = !vid.muted; icon.className = vid.muted ? 'fas fa-volume-mute text-[9px]' : 'fas fa-volume-up text-[9px]'; }
-        }
-    </script>
+    <!-- External JS -->
+    <script src="home.js"></script>
 </body>
 </html>
