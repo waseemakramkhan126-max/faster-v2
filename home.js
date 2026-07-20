@@ -308,7 +308,7 @@ function createVendorItem(v, isClone = false) {
     item.addEventListener('click', () => {
         console.log('Vendor clicked:', name);
         alert(`Opening ${name}...`);
-        // window.location.href = 'vendor.html?id='+v.id;
+        // window.location.href = 'vendor-products.html?id='+v.id;
     });
     return item;
 }
