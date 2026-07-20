@@ -28,7 +28,8 @@ async function initializeApp() {
             const imgH = document.getElementById('appLogo');
             const imgS = document.getElementById('sideLogo');
             imgH.src = imgS.src = settings.logo_url;
-            imgH.classList.remove('hidden'); imgS.classList.remove('hidden');
+            imgH.classList.remove('hidden');
+            imgS.classList.remove('hidden');
             document.getElementById('logoFallback').classList.add('hidden');
         }
     } catch (err) { console.error("Logo Error:", err); }
@@ -169,9 +170,9 @@ function setGreeting() {
     document.getElementById('appbarGreeting').innerText = text;
 }
 
-function openChat(chatId) {
-    alert('Opening chat with ID: ' + chatId);
-    // Navigate to chat detail page: window.location.href = 'chat.html?id='+chatId;
+function openChat(conversationId) {
+    alert('Opening chat ID: ' + conversationId);
+    // window.location.href = 'chat.html?conversation=' + conversationId;
 }
 
 function setupRealtime() {
@@ -238,7 +239,6 @@ async function initVendorStrip() {
             .order('sort_order', { ascending: true });
 
         if (error || !data || data.length === 0) {
-            // No vendors found – hide the strip
             vendorWrapper.classList.add('hidden');
             return;
         }
@@ -299,20 +299,25 @@ function createVendorItem(v, isClone = false) {
     item.className = 'vendor-item';
     if (isClone) item.dataset.clone = true;
 
-    const name = v.name || v.vendor_name || 'Store';
-    const icon = v.icon || v.icon_class || 'fa-store';
-    const color = v.color || v.theme_color || '#64748b';
+    const name = v.name || 'Store';
+    const logo = v.logo_url || '';
+    const color = v.category === 'Fast Food' ? '#C62828' :
+                  v.category === 'Groceries' ? '#4CAF50' :
+                  v.category === 'Electronics' ? '#1E88E5' : '#64748b';
 
+    // Emoji fallback
     let emoji = '';
     const lowerName = name.toLowerCase();
     if (lowerName.includes('rainbow')) emoji = '🌈';
     else if (lowerName.includes('imtiaz')) emoji = '🛍️';
     else if (lowerName.includes('kfc')) emoji = '🍗';
     else if (lowerName.includes('mcdonald')) emoji = '🍔';
+    else if (lowerName.includes('pizza')) emoji = '🍕';
+    else emoji = name.charAt(0);
 
     item.innerHTML = `
         <div class="vendor-avatar" style="background: ${color};">
-            ${emoji || `<i class="fas ${icon}"></i>`}
+            ${logo ? `<img src="${logo}" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'">` : `<span class="text-2xl">${emoji}</span>`}
         </div>
         <span class="vendor-name">${name}</span>
     `;
@@ -382,7 +387,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ============================================================
-// PROMOTIONS (Original – no changes)
+// PROMOTIONS (Original – unchanged)
 // ============================================================
 let currentSlideIndex = 0, isAutoScrolling = false;
 let promosData = [];
@@ -397,8 +402,7 @@ async function fetchPromotions() {
             .order('sort_order', { ascending: true });
 
         if (error || !promos || promos.length === 0) {
-            // Hide promo section or show empty message
-            document.getElementById('promoContainer').innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No promotions available</p>';
+            document.getElementById('promoSlider').innerHTML = '<p class="text-center text-gray-400 text-sm py-4">No promotions available</p>';
             return;
         }
 
@@ -431,7 +435,6 @@ async function fetchPromotions() {
             slider.appendChild(slide);
         });
 
-        // Fullscreen toggle on click
         document.querySelectorAll('.promo-slide').forEach(el => {
             el.addEventListener('click', function(e) {
                 if (e.target.closest('.media-box')) return;
@@ -473,68 +476,117 @@ function toggleTikTokFullscreen(targetIndex = 0) {
 }
 
 // ============================================================
-// RECENT CHATS - Supabase (no mock data)
+// FAMILY CHATS - Supabase (real data)
 // ============================================================
 async function fetchRecentChats() {
     const container = document.getElementById('recentChatsContainer');
     container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>';
 
     try {
-        // Assuming there is a 'family_chats' or 'chats' table with customer_id
-        // Adjust table name and columns as per your schema
-        const { data, error } = await _supabase
-            .from('family_chats')
+        // Step 1: Get all conversations where current user is a participant
+        const { data: conversations, error: convErr } = await _supabase
+            .from('family_conversations')
             .select('*')
-            .eq('customer_id', customerId)
-            .order('updated_at', { ascending: false })
-            .limit(10);
+            .contains('participants', [userPhone])
+            .order('updated_at', { ascending: false });
 
-        if (error || !data || data.length === 0) {
-            container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">No chats found</p>';
+        if (convErr || !conversations || conversations.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">No conversations found</p>';
             return;
         }
 
-        // Render chats
+        // Step 2: For each conversation, get the latest message
         container.innerHTML = '';
         const chatColors = ['bg-c1', 'bg-c2', 'bg-c3', 'bg-c4'];
-        data.forEach((chat, index) => {
-            const colorClass = chatColors[index % chatColors.length];
-            const online = chat.online || false;
-            const unread = chat.unread || 0;
-            const tickIcon = chat.status === 'read' ? 'fa-check-double tick' : 'fa-check tick grey';
-            const statusText = online ? 'Online' : 'Last seen ' + (chat.last_seen || 'recently');
+
+        for (let i = 0; i < conversations.length; i++) {
+            const conv = conversations[i];
+            const colorClass = chatColors[i % chatColors.length];
+            
+            // Get participants except current user
+            const otherParticipants = conv.participants.filter(p => p !== userPhone);
+            const otherPhone = otherParticipants[0] || 'Unknown';
+            
+            // Get other user's name from customers table
+            let otherName = otherPhone;
+            try {
+                const { data: userData } = await _supabase
+                    .from('customers')
+                    .select('name')
+                    .eq('phone', otherPhone)
+                    .single();
+                if (userData) otherName = userData.name;
+            } catch (e) {}
+
+            // Get latest message
+            const { data: latestMsg, error: msgErr } = await _supabase
+                .from('family_messages')
+                .select('*')
+                .eq('conversation_id', conv.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            const lastMsg = (latestMsg && latestMsg.length > 0) ? latestMsg[0] : null;
+            const messageText = lastMsg?.message || 'Start chatting...';
+            const time = lastMsg ? formatTime(lastMsg.created_at) : 'Now';
+            const status = lastMsg?.status || 'sent';
+            
+            // Unread count
+            const { count: unreadCount } = await _supabase
+                .from('family_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('conversation_id', conv.id)
+                .neq('sender_phone', userPhone)
+                .neq('status', 'read');
+
+            const tickIcon = status === 'read' ? 'fa-check-double tick' : 'fa-check tick grey';
+            const online = false; // We'll implement online status separately
 
             const div = document.createElement('div');
             div.className = 'chat-item';
             div.innerHTML = `
                 <div class="chat-avatar ${colorClass}">
-                    <span>${chat.avatar || chat.name.charAt(0)}</span>
+                    <span>${otherName.charAt(0).toUpperCase()}</span>
                     ${online ? '<span class="online-dot"></span>' : ''}
                 </div>
                 <div class="chat-info">
                     <div class="chat-name-row">
-                        <span class="chat-name">${chat.name || 'Unknown'}</span>
-                        <span class="chat-time">${chat.time || 'Now'}</span>
+                        <span class="chat-name">${otherName}</span>
+                        <span class="chat-time">${time}</span>
                     </div>
                     <div class="chat-msg-row">
                         <span class="chat-msg">
-                            <i class="fas ${tickIcon}"></i> ${chat.last_message || 'Start chatting...'}
+                            <i class="fas ${tickIcon}"></i> ${messageText}
                         </span>
-                        ${unread > 0 ? `<span class="chat-badge">${unread}</span>` : ''}
+                        ${unreadCount > 0 ? `<span class="chat-badge">${unreadCount}</span>` : ''}
                     </div>
-                    <div class="text-xs text-gray-400 mt-0.5">${statusText}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">${otherPhone}</div>
                 </div>
             `;
             div.addEventListener('click', () => {
-                openChat(chat.id);
+                openChat(conv.id);
             });
             container.appendChild(div);
-        });
+        }
 
     } catch (e) {
         console.error("Error fetching chats:", e);
         container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Failed to load chats</p>';
     }
+}
+
+// Helper: Format time
+function formatTime(timestamp) {
+    if (!timestamp) return 'Now';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+    if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diff < 172800000) return 'Yesterday';
+    return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
 // ============================================================
