@@ -214,7 +214,7 @@ function setupRealtime() {
 }
 
 // ============================================================
-// VENDORS STRIP - Supabase only (no fallback)
+// VENDORS STRIP - اب کوئی ڈپلیکیٹ نہیں (سنگل سیٹ، خودکار ری سیٹ)
 // ============================================================
 let vendorStrip, vendorWrapper;
 let vendorAutoScrollInterval = null;
@@ -223,7 +223,6 @@ let vendorIsDragging = false;
 let vendorStartX = 0;
 let vendorScrollLeft = 0;
 let vendorInteractionTimeout = null;
-let vendorOriginalWidth = 0;
 let vendorData = [];
 
 async function initVendorStrip() {
@@ -246,38 +245,24 @@ async function initVendorStrip() {
         vendorData = data;
         vendorWrapper.classList.remove('hidden');
 
+        // صرف ایک بار ڈالیں (کوئی کلون نہیں)
         data.forEach((v) => {
             const item = createVendorItem(v);
             vendorStrip.appendChild(item);
         });
 
-        // Clone for infinite loop
-        const cloneCount = 2;
-        for (let i = 0; i < cloneCount; i++) {
-            data.forEach((v) => {
-                const clone = createVendorItem(v, true);
-                vendorStrip.appendChild(clone);
-            });
-        }
-
-        setTimeout(() => {
-            const firstItem = vendorStrip.querySelector('.vendor-item');
-            if (firstItem) {
-                const itemWidth = firstItem.offsetWidth + 24;
-                vendorOriginalWidth = data.length * itemWidth;
-            }
-            vendorStrip.scrollLeft = 0;
-        }, 50);
-
+        // Auto-scroll ری سیٹ کرنے کے لیے اسکرول ایونٹ
         vendorStrip.addEventListener('scroll', () => {
             const maxScroll = vendorStrip.scrollWidth - vendorStrip.clientWidth;
-            if (vendorStrip.scrollLeft >= vendorOriginalWidth * 1.5) {
+            // اگر آخر تک پہنچ جائیں تو چپکے سے شروع پر واپس جائیں
+            if (vendorStrip.scrollLeft >= maxScroll - 10) {
                 vendorStrip.style.scrollBehavior = 'auto';
-                vendorStrip.scrollLeft = vendorStrip.scrollLeft - vendorOriginalWidth;
+                vendorStrip.scrollLeft = 0;
                 vendorStrip.style.scrollBehavior = 'smooth';
             }
         });
 
+        // ڈریگ اور آٹو اسکرول
         vendorStrip.addEventListener('mousedown', startVendorDrag);
         vendorStrip.addEventListener('touchstart', startVendorDragTouch, { passive: true });
         vendorStrip.addEventListener('mouseleave', endVendorDrag);
@@ -305,7 +290,6 @@ function createVendorItem(v, isClone = false) {
                   v.category === 'Groceries' ? '#4CAF50' :
                   v.category === 'Electronics' ? '#1E88E5' : '#64748b';
 
-    // Emoji fallback
     let emoji = '';
     const lowerName = name.toLowerCase();
     if (lowerName.includes('rainbow')) emoji = '🌈';
@@ -371,8 +355,9 @@ function startVendorAutoScroll() {
         const container = vendorStrip;
         const itemWidth = container.querySelector('.vendor-item')?.offsetWidth + 24 || 70;
         let nextScroll = container.scrollLeft + itemWidth;
+        // اگر آخر تک پہنچ جائے تو 0 پر سیٹ کریں
         if (nextScroll >= container.scrollWidth - container.clientWidth) {
-            nextScroll = nextScroll - vendorOriginalWidth;
+            nextScroll = 0;
         }
         container.scrollTo({ left: nextScroll, behavior: 'smooth' });
     }, 2500);
@@ -483,7 +468,6 @@ async function fetchRecentChats() {
     container.innerHTML = '<p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>';
 
     try {
-        // Step 1: Get all conversations where current user is a participant
         const { data: conversations, error: convErr } = await _supabase
             .from('family_conversations')
             .select('*')
@@ -495,7 +479,6 @@ async function fetchRecentChats() {
             return;
         }
 
-        // Step 2: For each conversation, get the latest message
         container.innerHTML = '';
         const chatColors = ['bg-c1', 'bg-c2', 'bg-c3', 'bg-c4'];
 
@@ -503,11 +486,9 @@ async function fetchRecentChats() {
             const conv = conversations[i];
             const colorClass = chatColors[i % chatColors.length];
             
-            // Get participants except current user
             const otherParticipants = conv.participants.filter(p => p !== userPhone);
             const otherPhone = otherParticipants[0] || 'Unknown';
             
-            // Get other user's name from customers table
             let otherName = otherPhone;
             try {
                 const { data: userData } = await _supabase
@@ -518,7 +499,6 @@ async function fetchRecentChats() {
                 if (userData) otherName = userData.name;
             } catch (e) {}
 
-            // Get latest message
             const { data: latestMsg, error: msgErr } = await _supabase
                 .from('family_messages')
                 .select('*')
@@ -531,7 +511,6 @@ async function fetchRecentChats() {
             const time = lastMsg ? formatTime(lastMsg.created_at) : 'Now';
             const status = lastMsg?.status || 'sent';
             
-            // Unread count
             const { count: unreadCount } = await _supabase
                 .from('family_messages')
                 .select('*', { count: 'exact', head: true })
@@ -540,7 +519,7 @@ async function fetchRecentChats() {
                 .neq('status', 'read');
 
             const tickIcon = status === 'read' ? 'fa-check-double tick' : 'fa-check tick grey';
-            const online = false; // We'll implement online status separately
+            const online = false;
 
             const div = document.createElement('div');
             div.className = 'chat-item';
@@ -575,7 +554,6 @@ async function fetchRecentChats() {
     }
 }
 
-// Helper: Format time
 function formatTime(timestamp) {
     if (!timestamp) return 'Now';
     const date = new Date(timestamp);
