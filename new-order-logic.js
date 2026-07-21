@@ -395,8 +395,12 @@ function addToDraft(type, content) {
         if(typeof content !== 'string') {
             document.getElementById('orderInput').value = "";
             handleInput(document.getElementById('orderInput'));
-         if (isAIEnabled)}
-        getAiReply(val);
+        }
+
+        // ✅ AI call with toggle condition
+        if (isAIEnabled) {
+            getAiReply(val);
+        }
     }
     else if (type === 'image') {
         const objUrl = URL.createObjectURL(content.file);
@@ -404,10 +408,11 @@ function addToDraft(type, content) {
             <img src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1">
             ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
         `;
-         let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
-         if (isAIEnabled){
-        // ✅ یہ لائن شامل کی گئی (تصویر کے لیے AI کال)
-        sendMediaToAI(content.file, promptText);
+        
+        let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
+        if (isAIEnabled) {
+            sendMediaToAI(content.file, promptText);
+        }
     } 
     else if (type === 'voice') {
         const objUrl = URL.createObjectURL(content);
@@ -497,22 +502,23 @@ function addToDraft(type, content) {
             });
 
         }, 150);
-         if (isAIEnabled){
-           // ✅ یہ لائن شامل کی گئی (آواز کے لیے AI کال)
-        sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
+
+        if (isAIEnabled) {
+            sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
+        }
     }
     else if (type === 'doc') {
         b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
-         if (isAIEnabled){
-         // ✅ یہ لائن شامل کی گئی (دستاویز کے لیے AI کال)
-        sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
+        if (isAIEnabled) {
+            sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
+        }
     }
     else if (type === 'video') {
         const objUrl = URL.createObjectURL(content);
         b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
-         if (isAIEnabled){
-           // ✅ یہ لائن شامل کی گئی (ویڈیو کے لیے AI کال)
-        sendMediaToAI(content, "Is video ko check karein.");
+        if (isAIEnabled) {
+            sendMediaToAI(content, "Is video ko check karein.");
+        }
     }
 
     let pressTimer;
