@@ -3,6 +3,33 @@ const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
+// ==========================================
+// AI TOGGLE STATE (LocalStorage se load karein)
+// ==========================================
+let isAIEnabled = true; // Default ON
+if (localStorage.getItem('faster_ai_toggle') === 'false') {
+    isAIEnabled = false;
+}
+
+// ٹوگل بٹن دبانے پر چلنے والا فنکشن
+function toggleAI() {
+    const toggleCheckbox = document.getElementById('aiToggle');
+    isAIEnabled = toggleCheckbox.checked;
+    
+    // حالت localStorage میں محفوظ کریں
+    localStorage.setItem('faster_ai_toggle', isAIEnabled ? 'true' : 'false');
+    
+    // لیبل اپ ڈیٹ کریں
+    const label = document.getElementById('aiStatusLabel');
+    if (isAIEnabled) {
+        label.textContent = 'AI ON';
+        label.className = 'text-[10px] font-bold text-white';
+    } else {
+        label.textContent = 'AI OFF';
+        label.className = 'text-[10px] font-bold text-gray-300';
+    }
+}
+
 let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
 let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
@@ -298,6 +325,14 @@ async function initPage() {
     } catch (e) { console.error("Data fetch error:", e); }
 }
 initPage();
+// پیج لوڈ پر ٹوگل کی حالت سیٹ کریں
+document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.getElementById('aiToggle');
+    if (toggle) {
+        toggle.checked = isAIEnabled;
+        toggleAI(); // لیبل کو اپ ڈیٹ کرنے کے لیے
+    }
+});
 
 function toggleAttachMenu() {
     document.getElementById('attachMenu').classList.toggle('active');
@@ -360,7 +395,7 @@ function addToDraft(type, content) {
         if(typeof content !== 'string') {
             document.getElementById('orderInput').value = "";
             handleInput(document.getElementById('orderInput'));
-        }
+         if (isAIEnabled)}
         getAiReply(val);
     }
     else if (type === 'image') {
@@ -370,6 +405,7 @@ function addToDraft(type, content) {
             ${content.caption ? `<p class="mt-1 text-sm whitespace-pre-wrap">${content.caption}</p>` : ''}
         `;
          let promptText = content.caption ? content.caption : "Is tasveer ko dekhein aur isme majood items order mein shamil karein.";
+         if (isAIEnabled){
         // ✅ یہ لائن شامل کی گئی (تصویر کے لیے AI کال)
         sendMediaToAI(content.file, promptText);
     } 
@@ -461,17 +497,20 @@ function addToDraft(type, content) {
             });
 
         }, 150);
+         if (isAIEnabled){
            // ✅ یہ لائن شامل کی گئی (آواز کے لیے AI کال)
         sendMediaToAI(content, "Mera voice note sunein aur order items nikal kar summary mein add karein.");
     }
     else if (type === 'doc') {
         b.innerHTML = `<div class="flex items-center gap-2 p-2 bg-white bg-opacity-20 rounded"><i class="fas fa-file-pdf text-red-500 text-xl"></i> <span>Document File</span></div>`;
+         if (isAIEnabled){
          // ✅ یہ لائن شامل کی گئی (دستاویز کے لیے AI کال)
         sendMediaToAI(content, "Is document ko read karein aur iski details order mein shamil karein.");
     }
     else if (type === 'video') {
         const objUrl = URL.createObjectURL(content);
         b.innerHTML = `<video controls src="${objUrl}" class="max-w-full h-auto rounded-lg mt-1 mb-1"></video>`;
+         if (isAIEnabled){
            // ✅ یہ لائن شامل کی گئی (ویڈیو کے لیے AI کال)
         sendMediaToAI(content, "Is video ko check karein.");
     }
