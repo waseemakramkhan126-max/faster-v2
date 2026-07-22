@@ -1,19 +1,20 @@
 // Supabase Connection
 const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // Apni key yahan rakhein
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
 const myPhone = localStorage.getItem('faster_phone');
 const myId = localStorage.getItem('faster_customer_id') || myPhone;
 
-// 🟢 1. Main Search Logic (Phone number lakar check karega)
-async function searchUser(phoneNumber) {
-    if(!phoneNumber) return alert("Please enter a phone number");
+// 1. Search User by Phone
+async function searchUser() {
+    const phone = document.getElementById('searchPhone').value.trim();
+    if(!phone) return alert("Please enter a phone number");
 
     const { data, error } = await _supabase
         .from('customers')
         .select('customer_id, name, phone')
-        .eq('phone', phoneNumber)
+        .eq('phone', phone)
         .maybeSingle();
 
     const resultDiv = document.getElementById('searchResult');
@@ -42,21 +43,7 @@ async function searchUser(phoneNumber) {
     resultDiv.classList.remove('hidden');
 }
 
-// 🟢 2. Top Search Button se call hoga
-function searchUserFromTop() {
-    const phone = document.getElementById('searchPhone').value.trim();
-    searchUser(phone);
-}
-
-// 🟢 3. Footer (Neche wale) Send Arrow se call hoga
-function searchUserFromFooter() {
-    const phone = document.getElementById('searchPhoneFooter').value.trim();
-    searchUser(phone);
-    // Search karne ke baad input clear kar dijiye (optional)
-    document.getElementById('searchPhoneFooter').value = '';
-}
-
-// 🟢 4. Start Chat Function (Same as before)
+// 2. Start Chat (Call the SQL function we created earlier)
 async function startChat(otherUserId) {
     const { data: convId, error } = await _supabase
         .rpc('get_or_create_conversation', { 
@@ -69,5 +56,6 @@ async function startChat(otherUserId) {
         return alert("Error creating chat room. Try again.");
     }
 
+    // Redirect to the chat room we just built
     window.location.href = `chat-room.html?conversation_id=${convId}`;
 }
