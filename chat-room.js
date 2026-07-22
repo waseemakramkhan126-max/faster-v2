@@ -74,12 +74,11 @@ async function fetchOtherUser() {
         console.warn("⚠️ other user not found, but chat will still work.");
         headerName.textContent = "Unknown User";
         headerAvatar.textContent = "?";
-        return; // Yahan return karna hai, error throw nahi karna
+        return;
     }
 
     otherUserId = participants[0].user_id;
 
-    // Fetch user details from customers table
     const { data: userData, error: uErr } = await _supabase
         .from('customers')
         .select('name, phone')
@@ -133,7 +132,6 @@ function renderMessages(messages, appendAtTop = false) {
     messages.forEach((msg, index) => {
         const msgDate = getDateLabel(msg.created_at);
         
-        // Add date divider if date changes
         if (msgDate !== lastDate) {
             lastDate = msgDate;
             const div = document.createElement('div');
@@ -146,7 +144,6 @@ function renderMessages(messages, appendAtTop = false) {
         const bubble = document.createElement('div');
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
 
-        // Content
         let contentHTML = '';
         if (msg.type === 'text') {
             contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
@@ -187,7 +184,6 @@ function renderMessages(messages, appendAtTop = false) {
 
         bubble.innerHTML = contentHTML;
 
-        // Meta (Time & Read Receipt)
         const meta = document.createElement('div');
         meta.className = 'bubble-meta';
         meta.innerHTML = `
@@ -244,7 +240,6 @@ async function loadMessages(loadMore = false) {
         return;
     }
 
-    // Reverse to show chronological order
     const messages = data.reverse();
 
     if (loadMore) {
@@ -252,7 +247,6 @@ async function loadMessages(loadMore = false) {
     } else {
         renderMessages(messages, false);
         scrollToBottom();
-        // Mark messages as read
         markMessagesAsRead(messages);
     }
 }
@@ -288,7 +282,6 @@ function scrollToBottom() {
 function subscribeToChat() {
     const channel = _supabase.channel(`room-${conversationId}`);
 
-    // New Messages
     channel.on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -296,15 +289,13 @@ function subscribeToChat() {
         filter: `conversation_id=eq.${conversationId}`
     }, (payload) => {
         const msg = payload.new;
-        // Check if this message is from me (to avoid double rendering on send)
         if (msg.sender_id === myId || msg.sender_id === myPhone) return;
 
         renderMessages([msg], false);
         scrollToBottom();
-        ring(); // Play notification sound
+        ring();
     }).subscribe();
 
-    // Typing Indicator using Broadcast
     const typingChannel = _supabase.channel(`typing-${conversationId}`);
     typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (payload.sender !== myId && payload.sender !== myPhone) {
@@ -343,7 +334,6 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         return;
     }
 
-    // Manually add to UI immediately (optimistic update)
     newMsg.created_at = new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
@@ -487,62 +477,12 @@ msgInput.addEventListener('input', () => {
     msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
 });
 
-// Send button click
-sendBtn.addEventListener('click', () => {
-    const text = msgInput.value.trim();
-    if (text) sendMessage(text);
-});
-
 // Infinite Scroll
 messageContainer.addEventListener('scroll', () => {
     if (messageContainer.scrollTop === 0 && hasMoreMessages) {
         loadMessages(true);
     }
 });
-
-// Voice Button (Hold to record) - We add a voice button dynamically or just use a long-press on send? 
-// Let's add a mic button next to attach. Wait, the footer has `attachBtn` but no mic. 
-// We'll repurpose the attach button or add a new one dynamically in JS.
-// Let's append a mic button to the footer.
-
-const footer = document.querySelector('footer');
-const voiceBtn = document.createElement('button');
-voiceBtn.id = 'chatVoiceBtn';
-voiceBtn.className = 'w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer active:scale-90 transition-transform';
-voiceBtn.innerHTML = '<i class="fas fa-microphone text-lg"></i>';
-
-// Hold to record logic
-let holdTimer;
-voiceBtn.addEventListener('touchstart', (e) => {
-    holdTimer = setTimeout(() => {
-        voiceBtn.classList.add('voice-active');
-        startVoiceRecording();
-    }, 500);
-});
-voiceBtn.addEventListener('touchend', () => {
-    clearTimeout(holdTimer);
-    if (voiceBtn.classList.contains('voice-active')) {
-        voiceBtn.classList.remove('voice-active');
-        stopVoiceRecording();
-    }
-});
-// Mouse support for desktop
-voiceBtn.addEventListener('mousedown', (e) => {
-    holdTimer = setTimeout(() => {
-        voiceBtn.classList.add('voice-active');
-        startVoiceRecording();
-    }, 500);
-});
-voiceBtn.addEventListener('mouseup', () => {
-    clearTimeout(holdTimer);
-    if (voiceBtn.classList.contains('voice-active')) {
-        voiceBtn.classList.remove('voice-active');
-        stopVoiceRecording();
-    }
-});
-
-// Insert voice button before send button
-footer.insertBefore(voiceBtn, document.getElementById('sendMsgBtn'));
 
 // =========================================================
 // 13. MEDIA VIEWER
@@ -568,24 +508,45 @@ function closeMediaViewer() {
 // 14. FIXED INITIALIZATION
 // =========================================================
 async function init() {
-    // 1. Network events
     window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
     window.addEventListener('online', () => {
         document.getElementById('offlineBanner').style.top = '-50px';
         loadMessages(false);
     });
 
-    // 2. try-catch se Other User info load karein (bina ruke)
     try {
         await fetchOtherUser();
     } catch (e) {
         console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
     }
 
-    // 3. HAMESHA messages load karein (chahe other user mile ya na mile)
     await loadMessages(false);
-
-    // 4. Realtime subscribe karein
     subscribeToChat();
 }
 init();
+
+// =========================================================
+// NEW CHAT FUNCTIONS FOR THE FOOTER
+// =========================================================
+
+// 1. Chat Send Function (HTML footer click ke liye)
+function sendChatMessage() {
+    const text = msgInput.value.trim();
+    if (text) sendMessage(text);
+}
+
+// 2. Chat Voice Function (HTML footer mic click ke liye)
+function handleChatVoice() {
+    const vBtn = document.getElementById('chatVoiceBtn');
+    const micIcon = document.getElementById('micIcon');
+    
+    if (audioRecorder && audioRecorder.state === 'recording') {
+        stopVoiceRecording();
+        vBtn.classList.remove('voice-active');
+        micIcon.className = 'fas fa-microphone text-white';
+    } else {
+        startVoiceRecording();
+        vBtn.classList.add('voice-active');
+        micIcon.className = 'fas fa-stop text-red-500';
+    }
+}
