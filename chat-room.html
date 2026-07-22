@@ -44,24 +44,33 @@
     </div>
 
     <!-- Input Footer -->
-    <footer class="bg-white px-2 py-2 flex items-center gap-2 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] shrink-0 pb-safe z-20">
-        <!-- Attachment Button -->
-        <label id="attachBtn" class="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer active:scale-90 transition-transform">
-            <i class="fas fa-plus-circle text-xl"></i>
-            <input type="file" id="chatFileInput" class="hidden" accept="image/*,video/*" onchange="previewChatMedia(this)">
-        </label>
+    <footer class="bg-transparent p-2.5 pb-safe flex items-end gap-2 shrink-0 z-50">
+    <!-- 1. Plus Button (Attachment) -->
+    <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+        <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
+    </button>
+    
+    <!-- 2. Chat Input (ID orderInput -> msgInput change kiya) -->
+    <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+        <textarea id="msgInput" placeholder="Type a message..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
+    </div>
 
-        <!-- Text Area -->
-        <div class="flex-1 bg-gray-100 rounded-3xl px-4 py-2 flex items-center">
-            <textarea id="msgInput" rows="1" placeholder="Type a message..." class="w-full bg-transparent outline-none resize-none max-h-28 text-sm text-gray-800 placeholder-gray-400"></textarea>
-        </div>
+    <!-- 3. Recording Timer (Hidden) -->
+    <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
+        <i class="fas fa-circle text-[8px] animate-pulse"></i>
+        <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+    </div>
 
-        <!-- Send Button -->
-        <button id="sendMsgBtn" class="w-9 h-9 bg-[#0077b9] text-white rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">
-            <i class="fas fa-paper-plane text-sm"></i>
-        </button>
-    </footer>
+    <!-- 4. Send Button (ID sendBtn -> sendMsgBtn change, onclick sendChatMessage) -->
+    <button id="sendMsgBtn" onclick="sendChatMessage()" class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+        <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+    </button>
 
+    <!-- 5. Voice Button (ID voiceBtn -> chatVoiceBtn, onclick handleChatVoice) -->
+    <button id="chatVoiceBtn" onclick="handleChatVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+        <i class="fas fa-microphone" id="micIcon"></i>
+    </button>
+</footer>
     <!-- Media Preview Modal (for full screen image) -->
     <div id="mediaViewer" class="fixed inset-0 bg-black/95 z-[100000] hidden flex-col items-center justify-center" onclick="closeMediaViewer()">
         <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
