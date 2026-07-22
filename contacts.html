@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Faster - Contacts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="new-order-style.css">
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Bar -->
+    <header class="bg-[#0077b9] text-white px-4 py-3 flex items-center shadow-md shrink-0">
+        <i class="fas fa-arrow-left text-xl cursor-pointer active:scale-90 transition-transform" onclick="history.back()"></i>
+        <span class="ml-4 font-bold text-lg">Chat with Friends</span>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="p-4 bg-white border-b border-gray-200 shrink-0">
+        <div class="flex gap-2">
+            <input type="tel" id="searchPhone" placeholder="Enter friend's phone number..." class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#0077b9] bg-gray-50 text-sm">
+            <button onclick="searchUser()" class="bg-[#0077b9] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-transform">Search</button>
+        </div>
+        <div id="searchResult" class="mt-3 hidden"></div>
+    </div>
+
+    <!-- Contacts List -->
+    <div id="contactsList" class="flex-1 overflow-y-auto p-4 space-y-2 bg-[#f8f9fa]">
+        <p class="text-center text-gray-400 text-sm py-6 font-medium">Search for a friend using their phone number above.</p>
+    </div>
+
+    <script src="contacts.js"></script>
+</body>
+</html>
