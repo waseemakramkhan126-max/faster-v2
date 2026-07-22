@@ -563,19 +563,27 @@ function closeMediaViewer() {
 }
 
 // =========================================================
-// 14. INITIALIZATION
+// 14. FIXED INITIALIZATION
 // =========================================================
 async function init() {
-    // Network status
+    // 1. Network events
     window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
     window.addEventListener('online', () => {
         document.getElementById('offlineBanner').style.top = '-50px';
         loadMessages(false);
     });
 
-    await fetchOtherUser();
+    // 2. try-catch se Other User info load karein (bina ruke)
+    try {
+        await fetchOtherUser();
+    } catch (e) {
+        console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
+    }
+
+    // 3. HAMESHA messages load karein (chahe other user mile ya na mile)
     await loadMessages(false);
+
+    // 4. Realtime subscribe karein
     subscribeToChat();
 }
-
 init();
