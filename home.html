@@ -36,6 +36,17 @@
                 </div>
                 <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
             </div>
+            
+            //sidebar me chat ka button yaha se shuro ho rha hai
+
+            <div onclick="location.href='contacts.html'" class="p-1 bg-blue-50 rounded-2xl cursor-pointer border border-blue-100 flex justify-between items-center group active:bg-blue-100 transition-all shadow-sm">
+                <div class="flex items-center gap-3">
+                <i class="fas fa-user-friends text-blue-500 text-lg"></i>
+                <span class="font-bold text-gray-700">Chat with Friends</span>
+                </div>
+              <i class="fas fa-chevron-right text-[10px] text-blue-300"></i>
+           </div>
+            // sidebar me chat ka button yaha tak hai 
             <div onclick="location.href='wallet.html'" class="p-1 bg-orange-50 rounded-2xl cursor-pointer border border-orange-100 flex justify-between items-center group active:bg-orange-100 transition-all shadow-sm">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-wallet text-orange-500 text-lg"></i>
@@ -57,6 +68,7 @@
     <header class="px-6 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
         <div class="flex items-center gap-4">
             <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
+            <i class="fas fa-comment-dots text-2xl text-gray-500 cursor-pointer active:scale-90 transition ml-2" onclick="location.href='contacts.html'"></i>
             <div class="relative cursor-pointer p-1 flex items-center justify-center" onclick="openNotifications()">
                 <i id="notifBell" class="fas fa-bell text-2xl text-gray-500 transition-colors"></i>
                 <div id="notifBadge" class="notif-badge"></div>
@@ -143,7 +155,11 @@
             <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
         </p>
     </div>
-
+  <!-- Floating Chat Button -->
+<div onclick="location.href='contacts.html'" 
+     class="fixed bottom-6 right-6 z-50 bg-[#0077b9] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl shadow-blue-500/30 hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer animate-bounce">
+    <i class="fas fa-comment-dots text-2xl"></i>
+</div>
     <script src="home.js"></script>
 </body>
 </html>
