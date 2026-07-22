@@ -1,3 +1,4 @@
+console.log("🚀 Chat Room Script Loaded Successfully!");
 // =========================================================
 // CHAT LOGIC - FULL UPGRADED VERSION
 // =========================================================
