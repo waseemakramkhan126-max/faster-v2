@@ -46,7 +46,7 @@ const headerName = document.getElementById('headerName');
 const headerStatus = document.getElementById('headerStatus');
 const headerAvatar = document.getElementById('headerAvatar');
 const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
+const sendBtn = document.getElementById('sendMsgBtn');
 const typingIndicator = document.getElementById('typingIndicator');
 const loadMoreLoader = document.getElementById('loadMoreLoader');
 
