@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Faster - Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="chat-room.css">
+</head>
+<body class="bg-[#e5ddd5] h-screen flex flex-col overflow-hidden">
+
+    <!-- Offline Banner -->
+    <div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black shadow-md flex justify-center items-center gap-2 z-[60] transition-all duration-300">
+        <i class="fas fa-wifi-slash"></i> No Internet Connection
+    </div>
+
+    <!-- Audio Notification -->
+    <audio id="notifSound" src="https://hkabhikizdlbavfkualt.supabase.co/storage/v1/object/public/order-files/rigtone.mp3" preload="auto"></audio>
+
+    <!-- Chat Header -->
+    <header id="chatHeader" class="bg-[#0077b9] text-white px-4 py-3 flex items-center gap-3 shadow-md shrink-0 z-10 transition-all">
+        <i class="fas fa-arrow-left text-xl cursor-pointer active:scale-90 transition-transform" onclick="history.back()"></i>
+        <div id="headerAvatar" class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+            ...
+        </div>
+        <div class="flex-1 min-w-0">
+            <div id="headerName" class="font-bold text-base truncate">Loading...</div>
+            <div id="headerStatus" class="text-[11px] opacity-80">Online</div>
+        </div>
+    </header>
+
+    <!-- Messages Container -->
+    <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth pb-20 relative">
+        <!-- Loader for older messages -->
+        <div id="loadMoreLoader" class="text-center text-gray-400 text-[10px] py-2 hidden"><i class="fas fa-spinner fa-spin mr-1"></i> Loading older messages...</div>
+        <!-- Messages will be injected here -->
+    </div>
+
+    <!-- Typing Indicator (Fixed at bottom of chat area) -->
+    <div id="typingIndicator" class="hidden absolute bottom-20 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md text-xs font-bold text-gray-600 z-20 border border-gray-200">
+        <i class="fas fa-circle text-[6px] text-green-500 animate-pulse mr-2"></i> typing...
+    </div>
+
+    <!-- Input Footer -->
+    <footer class="bg-white px-2 py-2 flex items-center gap-2 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] shrink-0 pb-safe z-20">
+        <!-- Attachment Button -->
+        <label id="attachBtn" class="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer active:scale-90 transition-transform">
+            <i class="fas fa-plus-circle text-xl"></i>
+            <input type="file" id="chatFileInput" class="hidden" accept="image/*,video/*" onchange="previewChatMedia(this)">
+        </label>
+
+        <!-- Text Area -->
+        <div class="flex-1 bg-gray-100 rounded-3xl px-4 py-2 flex items-center">
+            <textarea id="msgInput" rows="1" placeholder="Type a message..." class="w-full bg-transparent outline-none resize-none max-h-28 text-sm text-gray-800 placeholder-gray-400"></textarea>
+        </div>
+
+        <!-- Send Button -->
+        <button id="sendMsgBtn" class="w-9 h-9 bg-[#0077b9] text-white rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fas fa-paper-plane text-sm"></i>
+        </button>
+    </footer>
+
+    <!-- Media Preview Modal (for full screen image) -->
+    <div id="mediaViewer" class="fixed inset-0 bg-black/95 z-[100000] hidden flex-col items-center justify-center" onclick="closeMediaViewer()">
+        <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
+        <div id="mediaViewerContent" class="w-full max-h-[90vh] flex items-center justify-center p-4"></div>
+        <div id="mediaViewerCaption" class="text-white text-xs font-semibold mt-3 hidden bg-black/40 px-4 py-1.5 rounded-xl max-w-md text-center"></div>
+    </div>
+
+    <script src="chat-room.js"></script>
+</body>
+</html>
