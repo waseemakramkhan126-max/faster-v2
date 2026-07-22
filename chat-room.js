@@ -63,7 +63,6 @@ function ring() {
 // 1. FETCH OTHER USER INFO
 // =========================================================
 async function fetchOtherUser() {
-    // Find the other user in this conversation
     const { data: participants, error } = await _supabase
         .from('conversation_participants')
         .select('user_id')
@@ -71,8 +70,10 @@ async function fetchOtherUser() {
         .neq('user_id', myId);
 
     if (error || !participants || participants.length === 0) {
-        console.error("Other user not found");
-        return;
+        console.warn("⚠️ other user not found, but chat will still work.");
+        headerName.textContent = "Unknown User";
+        headerAvatar.textContent = "?";
+        return; // Yahan return karna hai, error throw nahi karna
     }
 
     otherUserId = participants[0].user_id;
