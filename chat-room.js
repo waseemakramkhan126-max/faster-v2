@@ -1,0 +1,581 @@
+// =========================================================
+// CHAT LOGIC - FULL UPGRADED VERSION
+// =========================================================
+
+// 1. Supabase Initialization
+const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+// 2. User Info from LocalStorage
+const myPhone = localStorage.getItem('faster_phone');
+const myId = localStorage.getItem('faster_customer_id') || myPhone;
+const myName = localStorage.getItem('faster_name') || "Me";
+
+// 3. Get Conversation ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const conversationId = urlParams.get('conversation_id');
+
+if (!conversationId) {
+    alert("Invalid chat room.");
+    history.back();
+}
+
+// =========================================================
+// GLOBAL VARIABLES
+// =========================================================
+let otherUserId = null;
+let otherUserName = "User";
+let isTyping = false;
+let typingTimeout = null;
+let messageContainer = document.getElementById('messagesContainer');
+let page = 0;
+const LIMIT = 30;
+let isLoadingMore = false;
+let hasMoreMessages = true;
+let audioRecorder = null;
+let audioChunks = [];
+let voiceTimerInterval = null;
+let voiceSeconds = 0;
+
+// =========================================================
+// DOM REFS
+// =========================================================
+const headerName = document.getElementById('headerName');
+const headerStatus = document.getElementById('headerStatus');
+const headerAvatar = document.getElementById('headerAvatar');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingIndicator = document.getElementById('typingIndicator');
+const loadMoreLoader = document.getElementById('loadMoreLoader');
+
+// =========================================================
+// AUDIO NOTIFICATION
+// =========================================================
+const sound = document.getElementById('notifSound');
+function ring() {
+    if(!sound) return;
+    sound.currentTime = 0;
+    sound.play().catch(e => console.warn("Auto-play blocked:", e));
+}
+
+// =========================================================
+// 1. FETCH OTHER USER INFO
+// =========================================================
+async function fetchOtherUser() {
+    // Find the other user in this conversation
+    const { data: participants, error } = await _supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', myId);
+
+    if (error || !participants || participants.length === 0) {
+        console.error("Other user not found");
+        return;
+    }
+
+    otherUserId = participants[0].user_id;
+
+    // Fetch user details from customers table
+    const { data: userData, error: uErr } = await _supabase
+        .from('customers')
+        .select('name, phone')
+        .eq('customer_id', otherUserId)
+        .maybeSingle();
+
+    if (uErr || !userData) {
+        otherUserName = "Unknown";
+    } else {
+        otherUserName = userData.name || "User";
+        headerStatus.textContent = `+${userData.phone}`;
+    }
+
+    headerName.textContent = otherUserName;
+    headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+}
+
+// =========================================================
+// 2. DATE FORMATTER
+// =========================================================
+function getDateLabel(dateStr) {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatTime(dateStr) {
+    const d = new Date(dateStr);
+    let hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+}
+
+// =========================================================
+// 3. RENDER MESSAGES (WITH DATE GROUPING)
+// =========================================================
+function renderMessages(messages, appendAtTop = false) {
+    if (!messages || messages.length === 0) return;
+
+    let lastDate = '';
+    const fragment = document.createDocumentFragment();
+
+    messages.forEach((msg, index) => {
+        const msgDate = getDateLabel(msg.created_at);
+        
+        // Add date divider if date changes
+        if (msgDate !== lastDate) {
+            lastDate = msgDate;
+            const div = document.createElement('div');
+            div.className = 'date-divider';
+            div.innerHTML = `<span>${msgDate}</span>`;
+            fragment.appendChild(div);
+        }
+
+        const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
+
+        // Content
+        let contentHTML = '';
+        if (msg.type === 'text') {
+            contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+        } else if (msg.type === 'image') {
+            contentHTML = `
+                <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
+                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+            `;
+        } else if (msg.type === 'video') {
+            contentHTML = `
+                <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+            `;
+        } else if (msg.type === 'voice') {
+            contentHTML = `
+                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+                    <button class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform">
+                        <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
+                    </button>
+                    <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1">
+                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-5 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-6 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-5 bg-white rounded-full"></div>
+                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
+                    </div>
+                    <div class="text-[10px] text-white font-medium min-w-[35px] text-right">
+                        <span class="time-current">0:00</span>
+                    </div>
+                    <audio src="${msg.file_url}" playsinline preload="auto" style="display:none;"></audio>
+                    <div class="text-white pl-1">
+                        <i class="fas fa-microphone text-sm"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        bubble.innerHTML = contentHTML;
+
+        // Meta (Time & Read Receipt)
+        const meta = document.createElement('div');
+        meta.className = 'bubble-meta';
+        meta.innerHTML = `
+            <span>${formatTime(msg.created_at)}</span>
+            ${isMe ? `<i class="fas ${msg.read_at ? 'fa-check-double read-receipt' : 'fa-check read-receipt unread'}"></i>` : ''}
+        `;
+        bubble.appendChild(meta);
+
+        fragment.appendChild(bubble);
+    });
+
+    if (appendAtTop) {
+        messageContainer.prepend(fragment);
+    } else {
+        messageContainer.appendChild(fragment);
+    }
+}
+
+// =========================================================
+// 4. LOAD MESSAGES (WITH INFINITE SCROLL)
+// =========================================================
+async function loadMessages(loadMore = false) {
+    if (isLoadingMore || (!loadMore && !hasMoreMessages)) return;
+    isLoadingMore = true;
+    if (loadMore) {
+        loadMoreLoader.classList.remove('hidden');
+        page++;
+    } else {
+        page = 0;
+        messageContainer.innerHTML = '';
+        hasMoreMessages = true;
+    }
+
+    const from = page * LIMIT;
+    const to = from + LIMIT - 1;
+
+    const { data, error } = await _supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    isLoadingMore = false;
+    loadMoreLoader.classList.add('hidden');
+
+    if (error) {
+        console.error("Error loading messages:", error);
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        if (loadMore) hasMoreMessages = false;
+        return;
+    }
+
+    // Reverse to show chronological order
+    const messages = data.reverse();
+
+    if (loadMore) {
+        renderMessages(messages, true);
+    } else {
+        renderMessages(messages, false);
+        scrollToBottom();
+        // Mark messages as read
+        markMessagesAsRead(messages);
+    }
+}
+
+// =========================================================
+// 5. MARK MESSAGES AS READ
+// =========================================================
+async function markMessagesAsRead(messages) {
+    const unreadIds = messages
+        .filter(msg => msg.sender_id !== myId && !msg.read_at)
+        .map(msg => msg.id);
+
+    if (unreadIds.length === 0) return;
+
+    await _supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .in('id', unreadIds);
+}
+
+// =========================================================
+// 6. SCROLL HELPER
+// =========================================================
+function scrollToBottom() {
+    setTimeout(() => {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }, 100);
+}
+
+// =========================================================
+// 7. REALTIME SUBSCRIPTION
+// =========================================================
+function subscribeToChat() {
+    const channel = _supabase.channel(`room-${conversationId}`);
+
+    // New Messages
+    channel.on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+    }, (payload) => {
+        const msg = payload.new;
+        // Check if this message is from me (to avoid double rendering on send)
+        if (msg.sender_id === myId || msg.sender_id === myPhone) return;
+
+        renderMessages([msg], false);
+        scrollToBottom();
+        ring(); // Play notification sound
+    }).subscribe();
+
+    // Typing Indicator using Broadcast
+    const typingChannel = _supabase.channel(`typing-${conversationId}`);
+    typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.sender !== myId && payload.sender !== myPhone) {
+            showTypingIndicator(true);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => showTypingIndicator(false), 3000);
+        }
+    }).subscribe();
+}
+
+// =========================================================
+// 8. SEND MESSAGE
+// =========================================================
+async function sendMessage(text, fileUrl = null, msgType = 'text') {
+    if (!text && !fileUrl) return;
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
+
+    const newMsg = {
+        conversation_id: conversationId,
+        sender_id: myId,
+        type: msgType,
+        content: text || '',
+        file_url: fileUrl || null
+    };
+
+    const { error } = await _supabase.from('messages').insert([newMsg]);
+
+    sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
+    sendBtn.disabled = false;
+
+    if (error) {
+        console.error("Send error:", error);
+        alert("Message send nahi hua. Internet check karein.");
+        return;
+    }
+
+    // Manually add to UI immediately (optimistic update)
+    newMsg.created_at = new Date().toISOString();
+    renderMessages([newMsg], false);
+    scrollToBottom();
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+}
+
+// =========================================================
+// 9. TYPING INDICATOR
+// =========================================================
+function showTypingIndicator(show) {
+    if (show) {
+        typingIndicator.classList.remove('hidden');
+        typingIndicator.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
+    } else {
+        typingIndicator.classList.add('hidden');
+    }
+}
+
+// =========================================================
+// 10. MEDIA UPLOAD & PREVIEW
+// =========================================================
+async function uploadChatFile(file) {
+    const ext = file.name.split('.').pop();
+    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
+    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+    if (error) throw error;
+    return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
+}
+
+async function previewChatMedia(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const type = file.type.startsWith('video') ? 'video' : 'image';
+
+    const caption = await Dialog.show("Add Caption", "Add a message with this media? (Optional)", "prompt");
+
+    try {
+        const fileUrl = await uploadChatFile(file);
+        await sendMessage(caption || '', fileUrl, type);
+    } catch (err) {
+        alert("Media upload fail hogya. Try again.");
+        console.error(err);
+    }
+    input.value = '';
+}
+
+// =========================================================
+// 11. VOICE RECORDING (SAME AS NEW-ORDER)
+// =========================================================
+async function startVoiceRecording() {
+    if (!navigator.mediaDevices) return alert("Microphone access blocked.");
+    try {
+        const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        let options = {};
+        if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+        else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) options = { mimeType: 'audio/webm;codecs=opus' };
+        else if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
+
+        audioRecorder = new MediaRecorder(aStream, options);
+        audioChunks = [];
+        audioRecorder.ondataavailable = e => {
+            if (e.data && e.data.size > 0) audioChunks.push(e.data);
+        };
+        audioRecorder.onstop = async () => {
+            const finalMime = audioRecorder.mimeType || 'audio/webm';
+            const audioBlob = new Blob(audioChunks, { type: finalMime });
+            aStream.getTracks().forEach(track => track.stop());
+            stopVoiceTimer();
+
+            try {
+                const fileUrl = await uploadChatFile(audioBlob);
+                await sendMessage('', fileUrl, 'voice');
+            } catch (err) {
+                alert("Voice upload failed.");
+            }
+        };
+        audioRecorder.start();
+        startVoiceTimer();
+        return true;
+    } catch (e) {
+        alert("Please allow microphone permission.");
+        return false;
+    }
+}
+
+function startVoiceTimer() {
+    voiceSeconds = 0;
+    const timerUI = document.createElement('div');
+    timerUI.id = 'voiceTimerUI';
+    timerUI.className = 'fixed bottom-20 left-0 right-0 flex justify-center z-30 pointer-events-none';
+    timerUI.innerHTML = `
+        <div class="bg-red-500 text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-3 pointer-events-auto">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span id="voiceTimerDisplay" class="font-bold text-sm tracking-wider">00:00</span>
+            <button onclick="stopVoiceRecording()" class="ml-2 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30">
+                <i class="fas fa-stop text-xs"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(timerUI);
+
+    voiceTimerInterval = setInterval(() => {
+        voiceSeconds++;
+        const display = document.getElementById('voiceTimerDisplay');
+        if (display) display.textContent = `${Math.floor(voiceSeconds / 60).toString().padStart(2, '0')}:${(voiceSeconds % 60).toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+function stopVoiceRecording() {
+    if (audioRecorder && audioRecorder.state !== 'inactive') {
+        audioRecorder.stop();
+    }
+}
+
+// =========================================================
+// 12. EVENT LISTENERS
+// =========================================================
+
+// Send on Enter (Shift+Enter for new line)
+msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+    }
+});
+
+// Typing broadcast
+msgInput.addEventListener('input', () => {
+    if (!isTyping) {
+        isTyping = true;
+        const typingChannel = _supabase.channel(`typing-${conversationId}`);
+        typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
+        setTimeout(() => { isTyping = false; }, 2000);
+    }
+});
+
+// Auto-resize textarea
+msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
+});
+
+// Send button click
+sendBtn.addEventListener('click', () => {
+    const text = msgInput.value.trim();
+    if (text) sendMessage(text);
+});
+
+// Infinite Scroll
+messageContainer.addEventListener('scroll', () => {
+    if (messageContainer.scrollTop === 0 && hasMoreMessages) {
+        loadMessages(true);
+    }
+});
+
+// Voice Button (Hold to record) - We add a voice button dynamically or just use a long-press on send? 
+// Let's add a mic button next to attach. Wait, the footer has `attachBtn` but no mic. 
+// We'll repurpose the attach button or add a new one dynamically in JS.
+// Let's append a mic button to the footer.
+
+const footer = document.querySelector('footer');
+const voiceBtn = document.createElement('button');
+voiceBtn.id = 'chatVoiceBtn';
+voiceBtn.className = 'w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer active:scale-90 transition-transform';
+voiceBtn.innerHTML = '<i class="fas fa-microphone text-lg"></i>';
+
+// Hold to record logic
+let holdTimer;
+voiceBtn.addEventListener('touchstart', (e) => {
+    holdTimer = setTimeout(() => {
+        voiceBtn.classList.add('voice-active');
+        startVoiceRecording();
+    }, 500);
+});
+voiceBtn.addEventListener('touchend', () => {
+    clearTimeout(holdTimer);
+    if (voiceBtn.classList.contains('voice-active')) {
+        voiceBtn.classList.remove('voice-active');
+        stopVoiceRecording();
+    }
+});
+// Mouse support for desktop
+voiceBtn.addEventListener('mousedown', (e) => {
+    holdTimer = setTimeout(() => {
+        voiceBtn.classList.add('voice-active');
+        startVoiceRecording();
+    }, 500);
+});
+voiceBtn.addEventListener('mouseup', () => {
+    clearTimeout(holdTimer);
+    if (voiceBtn.classList.contains('voice-active')) {
+        voiceBtn.classList.remove('voice-active');
+        stopVoiceRecording();
+    }
+});
+
+// Insert voice button before send button
+footer.insertBefore(voiceBtn, document.getElementById('sendMsgBtn'));
+
+// =========================================================
+// 13. MEDIA VIEWER
+// =========================================================
+function openMediaViewer(src, type) {
+    const viewer = document.getElementById('mediaViewer');
+    const content = document.getElementById('mediaViewerContent');
+    viewer.classList.remove('hidden');
+    viewer.classList.add('flex');
+    if (type === 'image') {
+        content.innerHTML = `<img src="${src}" class="max-w-full max-h-[85vh] rounded object-contain">`;
+    } else {
+        content.innerHTML = `<video src="${src}" controls autoplay playsinline class="max-w-full max-h-[85vh] rounded"></video>`;
+    }
+}
+
+function closeMediaViewer() {
+    document.getElementById('mediaViewer').classList.add('hidden');
+    document.getElementById('mediaViewer').classList.remove('flex');
+}
+
+// =========================================================
+// 14. INITIALIZATION
+// =========================================================
+async function init() {
+    // Network status
+    window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+    window.addEventListener('online', () => {
+        document.getElementById('offlineBanner').style.top = '-50px';
+        loadMessages(false);
+    });
+
+    await fetchOtherUser();
+    await loadMessages(false);
+    subscribeToChat();
+}
+
+init();
