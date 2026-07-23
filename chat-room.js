@@ -734,15 +734,18 @@ async function previewChatMedia(input) {
         };
         canvasImage.src = url;
     } else {
-        // Video ke liye simple preview (drawing support nahi)
-        const vid = document.getElementById('mediaPreviewVideo');
-        vid.src = url;
-        vid.classList.remove('hidden');
-        document.getElementById('imageCanvas').classList.add('hidden');
-        document.getElementById('toggleDrawBtn').classList.add('hidden');
-        document.getElementById('toggleCropBtn').classList.add('hidden');
-        ui.classList.remove('hidden');
-    }
+    // Video ke liye simple preview (drawing support nahi)
+    const vid = document.getElementById('mediaPreviewVideo');
+    vid.src = url;
+    vid.classList.remove('hidden');
+    document.getElementById('mediaPreviewImg').classList.add('hidden'); // ✅ Add this
+    document.getElementById('imageCanvas').classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.add('hidden');
+    document.getElementById('toggleCropBtn').classList.add('hidden');
+    document.getElementById('drawingTools').classList.add('hidden'); // ✅ Add this
+    document.getElementById('captionBar').classList.remove('hidden'); // ✅ Add this
+    ui.classList.remove('hidden');
+}
 
     input.value = '';
 }
@@ -1214,13 +1217,177 @@ async function sendRecordedVoice() {
     vBtn.classList.remove('voice-active');
 }
 
+// =========================================================
+// ATTACHMENT POPUP MENU FUNCTIONS
+// =========================================================
+
+// Open popup
 function toggleAttachMenu() {
-    const input = document.getElementById('hiddenFileInput');
-    if (input) {
-        input.value = ''; // Reset so same file can be selected again
-        input.click();
+    const popup = document.getElementById('attachPopup');
+    const overlay = document.getElementById('attachPopupOverlay');
+    popup.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    // Force reflow for animation
+    void popup.offsetWidth;
+    popup.style.transform = 'translateY(0)';
+}
+
+// Close popup
+function closeAttachPopup() {
+    const popup = document.getElementById('attachPopup');
+    const overlay = document.getElementById('attachPopupOverlay');
+    popup.style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        popup.classList.add('hidden');
+        overlay.classList.add('hidden');
+    }, 300);
+}
+
+// 1. Gallery
+function openGallery() {
+    closeAttachPopup();
+    setTimeout(() => {
+        document.getElementById('hiddenGalleryInput').click();
+    }, 350);
+}
+
+// 2. Camera
+function openCamera() {
+    closeAttachPopup();
+    setTimeout(() => {
+        document.getElementById('hiddenCameraInput').click();
+    }, 350);
+}
+
+// 3. Location
+function shareLocation() {
+    closeAttachPopup();
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
+                const locationMsg = `📍 Location: ${mapUrl}`;
+                await sendMessage(locationMsg);
+            },
+            (error) => {
+                alert("Location access denied. Please enable GPS.");
+            }
+        );
+    } else {
+        alert("Geolocation not supported in this browser.");
     }
 }
+
+// 4. Contacts
+async function shareContact() {
+    closeAttachPopup();
+    if ('contacts' in navigator && 'select' in navigator.contacts) {
+        try {
+            const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+            if (contacts && contacts.length > 0) {
+                const contact = contacts[0];
+                const name = contact.name || 'Unknown';
+                const phone = contact.tel || '';
+                const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
+                await sendMessage(contactMsg);
+            }
+        } catch (err) {
+            console.error("Contact selection failed:", err);
+            alert("Contact access denied.");
+        }
+    } else {
+        alert("Contacts API not supported. Please share manually.");
+    }
+}
+
+// 5. Documents
+function openDocuments() {
+    closeAttachPopup();
+    setTimeout(() => {
+        document.getElementById('hiddenDocumentInput').click();
+    }, 350);
+}
+
+// 6. Audio
+function openAudio() {
+    closeAttachPopup();
+    setTimeout(() => {
+        document.getElementById('hiddenAudioInput').click();
+    }, 350);
+}
+
+// =========================================================
+// FILE HANDLERS FOR DIFFERENT TYPES
+// =========================================================
+
+// Gallery & Camera Picks (Images + Videos)
+async function handleGalleryPick(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    if (file.type.startsWith('image/')) {
+        // Image → Preview with editor
+        await previewChatMedia(input);
+    } else if (file.type.startsWith('video/')) {
+        // Video → Preview with video player + caption
+        pendingMediaFile = file;
+        pendingMediaType = 'video';
+        
+        const ui = document.getElementById('mediaPreviewUI');
+        const vid = document.getElementById('mediaPreviewVideo');
+        const img = document.getElementById('mediaPreviewImg');
+        const captionInput = document.getElementById('mediaCaptionInput');
+        
+        captionInput.value = '';
+        const url = URL.createObjectURL(file);
+        vid.src = url;
+        vid.classList.remove('hidden');
+        img.classList.add('hidden');
+        
+        // Hide drawing/crop tools for video
+        document.getElementById('imageCanvas').classList.add('hidden');
+        document.getElementById('toggleDrawBtn').classList.add('hidden');
+        document.getElementById('toggleCropBtn').classList.add('hidden');
+        document.getElementById('drawingTools').classList.add('hidden');
+        document.getElementById('captionBar').classList.remove('hidden');
+        
+        ui.classList.remove('hidden');
+        input.value = '';
+    }
+}
+
+// Document Pick
+async function handleDocumentPick(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    try {
+        const fileUrl = await uploadChatFile(file);
+        const docMsg = `📄 Document: ${file.name}\n${fileUrl}`;
+        await sendMessage(docMsg);
+    } catch (err) {
+        alert("Document upload failed.");
+        console.error(err);
+    }
+    input.value = '';
+}
+
+// Audio Pick
+async function handleAudioPick(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    try {
+        const fileUrl = await uploadChatFile(file);
+        await sendMessage('', fileUrl, 'voice');
+    } catch (err) {
+        alert("Audio upload failed.");
+        console.error(err);
+    }
+    input.value = '';
+}
+
 document.addEventListener("click", function (e) {
 
     const btn = e.target.closest(".play-btn-custom");
