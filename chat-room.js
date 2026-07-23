@@ -701,15 +701,29 @@ function toggleVoicePause() {
         isVoicePaused = true;
         voicePauseIcon.className = 'fas fa-play text-sm';
         voicePauseText.textContent = 'Resume';
+
+        // 🛑 Timer interval rok do
+        if (voiceTimerInterval) {
+            clearInterval(voiceTimerInterval);
+            voiceTimerInterval = null;
+        }
     } else if (audioRecorder.state === 'paused') {
         // Resume recording
         audioRecorder.resume();
         isVoicePaused = false;
         voicePauseIcon.className = 'fas fa-pause text-sm';
         voicePauseText.textContent = 'Pause';
+
+        // ▶️ Timer interval dobara shuru karo
+        if (voiceTimerInterval) clearInterval(voiceTimerInterval); // safety
+        voiceTimerInterval = setInterval(() => {
+            voiceSeconds++;
+            const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
+            const secs = (voiceSeconds % 60).toString().padStart(2, '0');
+            voiceTimerDisplay.textContent = `${mins}:${secs}`;
+        }, 1000);
     }
 }
-
 // 5. Send the Recorded Voice (triggers upload & send)
 async function sendRecordedVoice() {
     // Agar recording abhi chal rahi hai, pehle use roko aur blob ka wait karo
