@@ -422,18 +422,24 @@ async function startVoiceRecording() {
             if (e.data && e.data.size > 0) audioChunks.push(e.data);
         };
         audioRecorder.onstop = async () => {
-            const finalMime = audioRecorder.mimeType || 'audio/webm';
-            const audioBlob = new Blob(audioChunks, { type: finalMime });
-            aStream.getTracks().forEach(track => track.stop());
-            stopVoiceTimer();
+    const finalMime = audioRecorder.mimeType || 'audio/webm';
+    const audioBlob = new Blob(audioChunks, { type: finalMime });
+    aStream.getTracks().forEach(track => track.stop());
+    stopVoiceTimer();
 
-            try {
-                const fileUrl = await uploadChatFile(audioBlob);
-                await sendMessage('', fileUrl, 'voice');
-            } catch (err) {
-                alert("Voice upload failed.");
-            }
-        };
+    // 🟢 مائیک آئیکن کو ری سیٹ کریں (یہ 3 لائنیں شامل کریں)
+    const micIcon = document.getElementById('micIcon');
+    micIcon.className = 'fas fa-microphone text-white';
+    const vBtn = document.getElementById('chatVoiceBtn');
+    vBtn.classList.remove('voice-active');
+
+    try {
+        const fileUrl = await uploadChatFile(audioBlob);
+        await sendMessage('', fileUrl, 'voice');
+    } catch (err) {
+        alert("Voice upload failed.");
+    }
+};
         audioRecorder.start();
         startVoiceTimer();
         return true;
