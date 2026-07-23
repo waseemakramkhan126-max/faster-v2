@@ -1529,56 +1529,67 @@ async function handleGalleryPick(input) {
 }
 }
 
-// Document Pick (With Preview + Caption + Spinner)
+// Document Pick (With Preview + Caption + Spinner// Document Pick (With Preview + Caption + Spinner)
 async function handleDocumentPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+    console.log("📄 Document picked:", file.name);
     
-    // 🟢 Preview UI mein file info dikhao
     pendingMediaFile = file;
     pendingMediaType = 'document';
     
     const ui = document.getElementById('mediaPreviewUI');
+    if (!ui) { console.error("❌ mediaPreviewUI not found!"); return; }
+    
     const captionInput = document.getElementById('mediaCaptionInput');
-    const img = document.getElementById('mediaPreviewImg');
-    const vid = document.getElementById('mediaPreviewVideo');
-    const canvasEl = document.getElementById('imageCanvas');
+    if (captionInput) captionInput.value = '';
+    
+    // 🟢 SAFELY hide elements that exist
+    const safeHide = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    };
+    
+    safeHide('mediaPreviewImg');
+    safeHide('mediaPreviewVideo');
+    safeHide('imageCanvas');
+    safeHide('toggleDrawBtn');
+    safeHide('toggleCropBtn');
+    safeHide('applyCropBtn');
+    safeHide('drawingTools');
+    
+    // Show caption bar
+    const captionBar = document.getElementById('captionBar');
+    if (captionBar) captionBar.classList.remove('hidden');
+    
+    // Show editor top bar
+    const editorTopBar = document.getElementById('editorTopBar');
+    if (editorTopBar) editorTopBar.style.display = 'flex';
+    
+    // 🟢 Set document preview content
     const canvasContainer = document.getElementById('canvasContainer');
-    
-    captionInput.value = '';
-    
-    // Hide image/video/canvas
-    img.classList.add('hidden');
-    vid.classList.add('hidden');
-    canvasEl.classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.add('hidden');
-    document.getElementById('toggleCropBtn').classList.add('hidden');
-    document.getElementById('applyCropBtn').classList.add('hidden');
-    document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('captionBar').classList.remove('hidden');
-    
-    // 🟢 Create document preview card
-    canvasContainer.innerHTML = `
-        <div class="flex flex-col items-center gap-4 px-6 pt-8">
-            <div class="w-24 h-24 rounded-2xl bg-orange-600 flex items-center justify-center shadow-lg">
-                <i class="fas fa-file-alt text-5xl text-white"></i>
+    if (canvasContainer) {
+        canvasContainer.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
+                <div style="width:96px;height:96px;border-radius:16px;background:#ea580c;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <i class="fas fa-file-alt" style="font-size:48px;color:white;"></i>
+                </div>
+                <div style="text-align:center;">
+                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
+                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
+                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">${file.type || 'Unknown type'}</p>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
             </div>
-            <div class="text-center">
-                <p class="text-white font-bold text-base mb-1">${escapeHTML(file.name)}</p>
-                <p class="text-gray-400 text-sm">${formatFileSize(file.size)}</p>
-                <p class="text-gray-500 text-xs mt-1">${file.type || 'Unknown type'}</p>
-            </div>
-            <p class="text-gray-400 text-xs mt-2">Add a caption below and tap send</p>
-        </div>
-    `;
+        `;
+    }
     
-    // 🟢 Make sure UI is visible
+    // 🟢 Force show UI
     ui.classList.remove('hidden');
-    document.getElementById('editorTopBar').style.display = 'flex';
-    document.getElementById('captionBar').style.display = 'block';
+    ui.style.display = 'flex';
+    console.log("✅ Document preview opened:", file.name);
     
     input.value = '';
-    console.log("📄 Document preview opened:", file.name); // Debug
 }
 
 // Helper: Format file size
@@ -1599,52 +1610,58 @@ function escapeHTML(str) {
 async function handleAudioPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
+    console.log("🎵 Audio picked:", file.name);
     
-    // 🟢 Preview UI mein audio info dikhao
     pendingMediaFile = file;
     pendingMediaType = 'audio';
     
     const ui = document.getElementById('mediaPreviewUI');
+    if (!ui) { console.error("❌ mediaPreviewUI not found!"); return; }
+    
     const captionInput = document.getElementById('mediaCaptionInput');
-    const img = document.getElementById('mediaPreviewImg');
-    const vid = document.getElementById('mediaPreviewVideo');
-    const canvasEl = document.getElementById('imageCanvas');
+    if (captionInput) captionInput.value = '';
+    
+    const safeHide = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    };
+    
+    safeHide('mediaPreviewImg');
+    safeHide('mediaPreviewVideo');
+    safeHide('imageCanvas');
+    safeHide('toggleDrawBtn');
+    safeHide('toggleCropBtn');
+    safeHide('applyCropBtn');
+    safeHide('drawingTools');
+    
+    const captionBar = document.getElementById('captionBar');
+    if (captionBar) captionBar.classList.remove('hidden');
+    
+    const editorTopBar = document.getElementById('editorTopBar');
+    if (editorTopBar) editorTopBar.style.display = 'flex';
+    
     const canvasContainer = document.getElementById('canvasContainer');
-    
-    captionInput.value = '';
-    
-    // Hide image/video/canvas
-    img.classList.add('hidden');
-    vid.classList.add('hidden');
-    canvasEl.classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.add('hidden');
-    document.getElementById('toggleCropBtn').classList.add('hidden');
-    document.getElementById('applyCropBtn').classList.add('hidden');
-    document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('captionBar').classList.remove('hidden');
-    
-    // 🟢 Create audio preview card
-    canvasContainer.innerHTML = `
-        <div class="flex flex-col items-center gap-4 px-6 pt-8">
-            <div class="w-24 h-24 rounded-2xl bg-red-600 flex items-center justify-center shadow-lg">
-                <i class="fas fa-music text-5xl text-white"></i>
+    if (canvasContainer) {
+        canvasContainer.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
+                <div style="width:96px;height:96px;border-radius:16px;background:#dc2626;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <i class="fas fa-music" style="font-size:48px;color:white;"></i>
+                </div>
+                <div style="text-align:center;">
+                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
+                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
+                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">Audio File</p>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
             </div>
-            <div class="text-center">
-                <p class="text-white font-bold text-base mb-1">${escapeHTML(file.name)}</p>
-                <p class="text-gray-400 text-sm">${formatFileSize(file.size)}</p>
-                <p class="text-gray-500 text-xs mt-1">Audio File</p>
-            </div>
-            <p class="text-gray-400 text-xs mt-2">Add a caption below and tap send</p>
-        </div>
-    `;
+        `;
+    }
     
-    // 🟢 Make sure UI is visible
     ui.classList.remove('hidden');
-    document.getElementById('editorTopBar').style.display = 'flex';
-    document.getElementById('captionBar').style.display = 'block';
+    ui.style.display = 'flex';
+    console.log("✅ Audio preview opened:", file.name);
     
     input.value = '';
-    console.log("🎵 Audio preview opened:", file.name); // Debug
 }
 // =========================================================
 // LONG PRESS TO COPY CONTACT NUMBER
