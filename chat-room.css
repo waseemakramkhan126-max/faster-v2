@@ -149,3 +149,25 @@ footer{
 #messagesContainer{
     padding-bottom:90px;
 }
+
+/* Voice Recorder UI */
+#voiceRecorderUI {
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    will-change: transform;
+    transition: transform 0.3s ease-out;
+}
+
+#voiceWaveform {
+    pointer-events: none;
+}
+
+/* Waveform bars animation when recording */
+#voiceWaveform.recording div {
+    animation: waveAnim 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes waveAnim {
+    0% { height: 3px; }
+    100% { height: 8px; }
+}
