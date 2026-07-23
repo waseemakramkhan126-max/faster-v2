@@ -694,11 +694,18 @@ function toggleVoicePause() {
 }
 
 // 5. Send the Recorded Voice (triggers upload & send)
+// 5. Send the Recorded Voice (triggers upload & send)
 function sendRecordedVoice() {
     if (audioRecorder && audioRecorder.state !== 'inactive') {
         audioRecorder.stop();
     }
     stopVoiceTimer();
+
+    // 🟢 مستحکم ری سیٹ: ہر صورت میں مائیک آئیکن کو ری سیٹ کریں
+    const micIcon = document.getElementById('micIcon');
+    micIcon.className = 'fas fa-microphone text-white';
+    const vBtn = document.getElementById('chatVoiceBtn');
+    vBtn.classList.remove('voice-active');
 }
 
 function toggleAttachMenu() {
