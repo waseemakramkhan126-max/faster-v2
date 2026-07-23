@@ -71,6 +71,72 @@
         <i class="fas fa-microphone" id="micIcon"></i>
     </button>
 </footer>
+    <!-- ========================================= -->
+<!-- Half-Screen Attachment Popup Menu -->
+<!-- ========================================= -->
+<div id="attachPopupOverlay" class="fixed inset-0 bg-black/50 z-[99998] hidden" onclick="closeAttachPopup()"></div>
+<div id="attachPopup" class="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] z-[99999] rounded-t-2xl p-6 pb-safe hidden transform translate-y-full transition-transform duration-300">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-white font-bold text-lg">Share</h3>
+        <button onclick="closeAttachPopup()" class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
+            <i class="fas fa-times text-sm"></i>
+        </button>
+    </div>
+
+    <!-- Grid of Options (2 rows x 3 cols) -->
+    <div class="grid grid-cols-3 gap-4 mb-4">
+        
+        <!-- 1. Gallery -->
+        <button onclick="openGallery()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center">
+                <i class="fas fa-images text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Gallery</span>
+        </button>
+
+        <!-- 2. Camera -->
+        <button onclick="openCamera()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-pink-600 flex items-center justify-center">
+                <i class="fas fa-camera text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Camera</span>
+        </button>
+
+        <!-- 3. Location -->
+        <button onclick="shareLocation()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center">
+                <i class="fas fa-map-marker-alt text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Location</span>
+        </button>
+
+        <!-- 4. Contacts -->
+        <button onclick="shareContact()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
+                <i class="fas fa-address-book text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Contacts</span>
+        </button>
+
+        <!-- 5. Documents -->
+        <button onclick="openDocuments()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-orange-600 flex items-center justify-center">
+                <i class="fas fa-file-alt text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Documents</span>
+        </button>
+
+        <!-- 6. Audio -->
+        <button onclick="openAudio()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
+            <div class="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center">
+                <i class="fas fa-music text-xl text-white"></i>
+            </div>
+            <span class="text-white text-xs">Audio</span>
+        </button>
+    </div>
+</div>
 
     <!-- Voice Recorder UI (WhatsApp Style) -->
 <div id="voiceRecorderUI"
@@ -181,7 +247,11 @@
     </div>
 </div>
 <!-- Hidden File Input for Attachments -->
-<input type="file" id="hiddenFileInput" accept="image/*,video/*" style="display:none;" onchange="previewChatMedia(this)">
+<!-- Hidden Inputs for Different File Types -->
+<input type="file" id="hiddenGalleryInput" accept="image/*,video/*" style="display:none;" onchange="handleGalleryPick(this)">
+<input type="file" id="hiddenCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleGalleryPick(this)">
+<input type="file" id="hiddenDocumentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" style="display:none;" onchange="handleDocumentPick(this)">
+<input type="file" id="hiddenAudioInput" accept="audio/*" style="display:none;" onchange="handleAudioPick(this)">
     <script src="chat-room.js"></script>
 </body>
 </html>
