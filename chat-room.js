@@ -583,24 +583,32 @@ async function previewChatMedia(input) {
     input.value = ''; // Input reset
 }
 
-// 2. Send button dabaane par upload aur send
+// 2. Send button dabaane par upload aur send (کیپشن ڈبل رکنے کے لیے)
 async function sendCaptionedMedia() {
     if (!pendingMediaFile) return;
+    
+    // 🟢 کیپشن اور UI کو فوراً ری سیٹ کریں (تاکہ ڈبل میسج نہ بھیجے)
     const caption = document.getElementById('mediaCaptionInput').value.trim();
     const ui = document.getElementById('mediaPreviewUI');
+    
+    // یہ لائن ڈبل کلک کو روکتی ہے
+    const file = pendingMediaFile;
+    pendingMediaFile = null; 
+    
+    // UI چھپائیں اور انپٹ خالی کریں
+    ui.classList.add('hidden');
+    document.getElementById('mediaCaptionInput').value = ''; 
 
-    ui.classList.add('hidden'); // UI band karo
     try {
-        const fileUrl = await uploadChatFile(pendingMediaFile);
+        const fileUrl = await uploadChatFile(file);
         await sendMessage(caption || '', fileUrl, pendingMediaType);
     } catch (err) {
         alert("Media upload fail hogya. Try again.");
         console.error(err);
     } finally {
-        pendingMediaFile = null;
-        // Memory free karne ke liye URL revoke karo
         const img = document.getElementById('mediaPreviewImg');
         if (img.src) URL.revokeObjectURL(img.src);
+        ui.style.display = ''; // Normal state mein wapas
     }
 }
 
@@ -626,20 +634,22 @@ const voicePauseText = document.getElementById('voicePauseText');
 
 let isVoicePaused = false;
 
-// 1. Start Voice Recording & Show UI
+// 1. Start Voice Recording & Show UI (سیف ورژن)
 function startVoiceTimer() {
+    if (!voiceRecorderUI) return; // اگروہ موجود نہ ہو تو باہر نکل جائیں
     voiceSeconds = 0;
-    voiceRecorderUI.classList.remove('hidden');
-    voiceTimerDisplay.textContent = '00:00';
     
-    // Reset Pause button
+    // 🟢 سیدھا اسٹائل لگائیں، کلاس ہٹانے سے زیادہ محفوظ ہے
+    voiceRecorderUI.style.display = 'flex';
+    voiceRecorderUI.style.transform = 'translateY(0)';
+    
+    voiceTimerDisplay.textContent = '00:00';
     isVoicePaused = false;
     voicePauseIcon.className = 'fas fa-pause text-sm';
     voicePauseText.textContent = 'Pause';
-    
-    // Start waveform animation
     voiceWaveform.classList.add('recording');
 
+    if (voiceTimerInterval) clearInterval(voiceTimerInterval);
     voiceTimerInterval = setInterval(() => {
         voiceSeconds++;
         const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
