@@ -151,3 +151,52 @@ footer{
 
 /* Temp message blur effect */
 .bubble-sent img.opacity-60 { transition: opacity 0.5s, filter 0.5s; }
+/* Attachment Popup */
+#attachPopup {
+    will-change: transform;
+}
+#attachPopup:not(.hidden) {
+    transform: translateY(0) !important;
+}
+
+/* Popup Option Buttons */
+#attachPopup button > div {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Location Preview Card */
+.location-preview {
+    background: #2a2a2a;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.location-preview .map-placeholder {
+    height: 120px;
+    background: #3a3a3a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    font-size: 12px;
+}
+
+/* Contact Card */
+.contact-card {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.contact-card .contact-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0077b9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
