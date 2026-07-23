@@ -32,7 +32,7 @@
     </header>
 
     <!-- Messages Container -->
-    <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth pb-20 relative">
+    <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth pb-24 relative">
         <!-- Loader for older messages -->
         <div id="loadMoreLoader" class="text-center text-gray-400 text-[10px] py-2 hidden"><i class="fas fa-spinner fa-spin mr-1"></i> Loading older messages...</div>
         <!-- Messages will be injected here -->
@@ -44,7 +44,7 @@
     </div>
 
     <!-- Input Footer -->
-    <footer class="bg-transparent p-2.5 pb-safe flex items-end gap-2 shrink-0 z-50">
+    <footer class="fixed bottom-0 left-0 right-0 bg-white p-2.5 pb-safe flex items-end gap-2 z-[9999] border-t border-gray-200">
     <!-- 1. Plus Button (Attachment) -->
     <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
         <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
