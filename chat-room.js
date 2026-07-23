@@ -644,9 +644,13 @@ function sendRecordedVoice() {
     if (audioRecorder && audioRecorder.state !== 'inactive') {
         audioRecorder.stop();
     }
-    // Note: The upload and send logic is already inside audioRecorder.onstop in your original code.
-    // It will automatically trigger when stop() is called.
     stopVoiceTimer();
+
+    // 🟢 یہ 3 نئی لائنیں شامل کریں (بٹن کو ری سیٹ کرنے کے لیے)
+    const micIcon = document.getElementById('micIcon');
+    micIcon.className = 'fas fa-microphone text-white';
+    const vBtn = document.getElementById('chatVoiceBtn');
+    vBtn.classList.remove('voice-active');
 }
 
 function toggleAttachMenu() {
