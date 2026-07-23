@@ -404,25 +404,25 @@ async function startVoiceRecording() {
         audioRecorder.ondataavailable = e => {
             if (e.data && e.data.size > 0) audioChunks.push(e.data);
         };
+        
         audioRecorder.onstop = async () => {
-    const finalMime = audioRecorder.mimeType || 'audio/webm';
+
+    const finalMime = audioRecorder.mimeType || "audio/webm";
     const audioBlob = new Blob(audioChunks, { type: finalMime });
+
     aStream.getTracks().forEach(track => track.stop());
+
     stopVoiceTimer();
 
-    // 🟢 مائیک آئیکن کو ری سیٹ کریں (یہ 3 لائنیں شامل کریں)
-    const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
-    const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
+    const micIcon = document.getElementById("micIcon");
+    micIcon.className = "fas fa-microphone text-white";
 
-    try {
-        const fileUrl = await uploadChatFile(audioBlob);
-        await sendMessage('', fileUrl, 'voice');
-    } catch (err) {
-        alert("Voice upload failed.");
-    }
+    const vBtn = document.getElementById("chatVoiceBtn");
+    vBtn.classList.remove("voice-active");
+
+    window.recordedVoiceBlob = audioBlob;
 };
+        
         audioRecorder.start();
         startVoiceTimer();
         return true;
@@ -682,6 +682,7 @@ function cancelVoiceRecording() {
     micIcon.className = 'fas fa-microphone text-white';
     const vBtn = document.getElementById('chatVoiceBtn');
     vBtn.classList.remove('voice-active');
+    window.recordedVoiceBlob = null;
 }
 
 // 4. Toggle Pause/Resume
@@ -705,17 +706,36 @@ function toggleVoicePause() {
 
 // 5. Send the Recorded Voice (triggers upload & send)
 // 5. Send the Recorded Voice (triggers upload & send)
-function sendRecordedVoice() {
-    if (audioRecorder && audioRecorder.state !== 'inactive') {
+async function sendRecordedVoice() {
+
+    if (audioRecorder && audioRecorder.state !== "inactive") {
         audioRecorder.stop();
+        return;
     }
+
+    if (!window.recordedVoiceBlob) return;
+
+    try {
+
+        const fileUrl = await uploadChatFile(window.recordedVoiceBlob);
+
+        await sendMessage("", fileUrl, "voice");
+
+    } catch (e) {
+
+        alert("Voice upload failed.");
+
+    }
+
+    window.recordedVoiceBlob = null;
+
     stopVoiceTimer();
 
-    // 🟢 مستحکم ری سیٹ: ہر صورت میں مائیک آئیکن کو ری سیٹ کریں
-    const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
-    const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
+    const micIcon = document.getElementById("micIcon");
+    micIcon.className = "fas fa-microphone text-white";
+
+    const vBtn = document.getElementById("chatVoiceBtn");
+    vBtn.classList.remove("voice-active");
 }
 
 function toggleAttachMenu() {
