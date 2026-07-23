@@ -406,20 +406,14 @@ async function startVoiceRecording() {
         };
         
         audioRecorder.onstop = async () => {
-
     const finalMime = audioRecorder.mimeType || "audio/webm";
     const audioBlob = new Blob(audioChunks, { type: finalMime });
-
     aStream.getTracks().forEach(track => track.stop());
-
-    stopVoiceTimer();
-
+    stopVoiceTimer();          // UI hide, timer band
     const micIcon = document.getElementById("micIcon");
     micIcon.className = "fas fa-microphone text-white";
-
     const vBtn = document.getElementById("chatVoiceBtn");
     vBtn.classList.remove("voice-active");
-
     window.recordedVoiceBlob = audioBlob;
 };
         
@@ -539,10 +533,12 @@ function handleChatVoice() {
     const micIcon = document.getElementById('micIcon');
     
     if (audioRecorder && audioRecorder.state === 'recording') {
-        stopVoiceRecording();
-        vBtn.classList.remove('voice-active');
-        micIcon.className = 'fas fa-microphone text-white';
-    } else {
+    stopVoiceRecording();
+    stopVoiceTimer();   // ✅ ye line add karo
+    vBtn.classList.remove('voice-active');
+    micIcon.className = 'fas fa-microphone text-white';
+}
+    else {
         startVoiceRecording();
         vBtn.classList.add('voice-active');
         micIcon.className = 'fas fa-stop text-red-500';
@@ -575,9 +571,10 @@ async function previewChatMedia(input) {
         img.classList.remove('hidden');
         vid.classList.add('hidden');
     } else {
-        vid.classList.remove('hidden');
-        img.classList.add('hidden');
-    }
+    vid.src = url;            // ✅ ye line add karo
+    vid.classList.remove('hidden');
+    img.classList.add('hidden');
+}
 
     ui.classList.remove('hidden');
     input.value = ''; // Input reset
@@ -608,7 +605,6 @@ async function sendCaptionedMedia() {
     } finally {
         const img = document.getElementById('mediaPreviewImg');
         if (img.src) URL.revokeObjectURL(img.src);
-        ui.style.display = ''; // Normal state mein wapas
     }
 }
 
@@ -636,17 +632,24 @@ let isVoicePaused = false;
 
 // 1. Start Voice Recording & Show UI (سیف ورژن)
 function startVoiceTimer() {
-    if (!voiceRecorderUI) return; // اگروہ موجود نہ ہو تو باہر نکل جائیں
+    if (!voiceRecorderUI) return;
     voiceSeconds = 0;
-    
-    // 🟢 سیدھا اسٹائل لگائیں، کلاس ہٹانے سے زیادہ محفوظ ہے
     voiceRecorderUI.style.display = 'flex';
     voiceRecorderUI.style.transform = 'translateY(0)';
-    
     voiceTimerDisplay.textContent = '00:00';
     isVoicePaused = false;
     voicePauseIcon.className = 'fas fa-pause text-sm';
     voicePauseText.textContent = 'Pause';
+    
+    // 🟢 Waveform bars create karo
+    voiceWaveform.innerHTML = '';
+    for (let i = 0; i < 40; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-[2px] bg-white rounded-full';
+        bar.style.height = '3px';
+        bar.style.animationDelay = (i * 0.05) + 's';
+        voiceWaveform.appendChild(bar);
+    }
     voiceWaveform.classList.add('recording');
 
     if (voiceTimerInterval) clearInterval(voiceTimerInterval);
