@@ -664,6 +664,9 @@ function stopVoiceTimer() {
     voiceTimerInterval = null;
     voiceSeconds = 0;
     voiceWaveform.classList.remove('recording');
+    // Inline style hatao taaki 'hidden' class kaam kare
+    voiceRecorderUI.style.display = '';
+    voiceRecorderUI.style.transform = '';
     voiceRecorderUI.classList.add('hidden');
 }
 
@@ -705,37 +708,38 @@ function toggleVoicePause() {
 }
 
 // 5. Send the Recorded Voice (triggers upload & send)
-// 5. Send the Recorded Voice (triggers upload & send)
 async function sendRecordedVoice() {
-
-    if (audioRecorder && audioRecorder.state !== "inactive") {
+    // Agar recording abhi chal rahi hai, pehle use roko aur blob ka wait karo
+    if (audioRecorder && audioRecorder.state !== 'inactive') {
+        // onstop event already blob set kar dega, hum promise se wait karenge
+        const blobPromise = new Promise(resolve => {
+            const originalOnStop = audioRecorder.onstop;
+            audioRecorder.onstop = async (e) => {
+                if (originalOnStop) await originalOnStop.call(audioRecorder, e);
+                resolve(window.recordedVoiceBlob);
+            };
+        });
         audioRecorder.stop();
-        return;
+        await blobPromise; // blob ready hone tak ruko
+        // ab automatically send call karo, return nahi karna
     }
 
     if (!window.recordedVoiceBlob) return;
 
     try {
-
         const fileUrl = await uploadChatFile(window.recordedVoiceBlob);
-
-        await sendMessage("", fileUrl, "voice");
-
+        await sendMessage('', fileUrl, 'voice');
     } catch (e) {
-
-        alert("Voice upload failed.");
-
+        alert('Voice upload failed.');
     }
 
+    // Cleanup
     window.recordedVoiceBlob = null;
-
     stopVoiceTimer();
-
-    const micIcon = document.getElementById("micIcon");
-    micIcon.className = "fas fa-microphone text-white";
-
-    const vBtn = document.getElementById("chatVoiceBtn");
-    vBtn.classList.remove("voice-active");
+    const micIcon = document.getElementById('micIcon');
+    micIcon.className = 'fas fa-microphone text-white';
+    const vBtn = document.getElementById('chatVoiceBtn');
+    vBtn.classList.remove('voice-active');
 }
 
 function toggleAttachMenu() {
