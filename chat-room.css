@@ -186,3 +186,18 @@ footer{
 #mediaPreviewUI:not(.hidden) {
     transform: translateY(0);
 }
+
+/* Canvas Drawing Cursor */
+#imageCanvas.drawing-mode {
+    cursor: crosshair;
+}
+
+/* Crop Box Resize Handles */
+#cropBox .w-3 {
+    pointer-events: all;
+}
+
+/* Color Picker Styling */
+#currentColor {
+    transition: background-color 0.3s;
+}
