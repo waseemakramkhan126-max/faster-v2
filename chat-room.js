@@ -387,6 +387,147 @@ async function uploadChatFile(file) {
         .data.publicUrl;
 }
 
+// Upload with progress + local preview
+async function sendMessageWithProgress(text, file, msgType) {
+    if (!text && !file) return;
+
+    // Create local blob URL for immediate preview
+    let localUrl = null;
+    if (file) {
+        localUrl = URL.createObjectURL(file);
+    }
+
+    // Create temporary message with spinner
+    const tempMsg = {
+        conversation_id: conversationId,
+        sender_id: myId,
+        type: msgType,
+        content: text || '',
+        file_url: localUrl || null,
+        created_at: new Date().toISOString(),
+        isTemp: true,
+        uploadProgress: 0
+    };
+
+    // Render temp message with spinner
+    const tempBubble = renderTempMessage(tempMsg);
+    scrollToBottom();
+
+    try {
+        // Upload file
+        let fileUrl = null;
+        if (file) {
+            fileUrl = await uploadChatFileWithProgress(file, (progress) => {
+                tempMsg.uploadProgress = progress;
+                updateProgressBar(tempBubble, progress);
+            });
+        }
+
+        // Save to database
+        const newMsg = {
+            conversation_id: conversationId,
+            sender_id: myId,
+            type: msgType,
+            content: text || '',
+            file_url: fileUrl || null
+        };
+
+        const { error } = await _supabase.from('messages').insert([newMsg]);
+        
+        if (error) throw error;
+
+        // Replace temp message with real one
+        tempBubble.remove();
+        newMsg.created_at = new Date().toISOString();
+        renderMessages([newMsg], false);
+        scrollToBottom();
+        
+    } catch (err) {
+        const spinner = tempBubble?.querySelector('.upload-spinner');
+if (spinner) {
+    spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
+}
+    }
+
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+}
+
+function renderTempMessage(msg) {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble bubble-sent animate-pop';
+    
+    let contentHTML = '';
+    if (msg.type === 'image') {
+        contentHTML = `
+            <div class="relative">
+                <img src="${msg.file_url}" class="max-w-full max-h-48 rounded-lg object-contain opacity-60 blur-sm">
+                <div class="upload-spinner absolute inset-0 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+                        <i class="fas fa-spinner fa-spin text-white text-lg"></i>
+                    </div>
+                </div>
+                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
+            </div>
+            ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+        `;
+    } else if (msg.type === 'voice') {
+        contentHTML = `
+            <div class="flex items-center gap-2">
+                <div class="upload-spinner w-6 h-6 rounded-full bg-black/30 flex items-center justify-center">
+                    <i class="fas fa-spinner fa-spin text-white text-xs"></i>
+                </div>
+                <span class="text-white text-xs">Uploading voice...</span>
+            </div>
+        `;
+    }
+    
+    bubble.innerHTML = contentHTML;
+    messageContainer.appendChild(bubble);
+    return bubble;
+}
+
+function updateProgressBar(bubble, progress) {
+    const bar = bubble.querySelector('.upload-progress-bar');
+    if (bar) {
+        bar.style.width = progress + '%';
+    }
+    if (progress === 100) {
+        const spinner = bubble.querySelector('.upload-spinner');
+        if (spinner) {
+            spinner.innerHTML = '<i class="fas fa-check text-green-400 text-lg"></i>';
+        }
+    }
+}
+
+async function uploadChatFileWithProgress(file, onProgress) {
+    let extension = "bin";
+    if (file.name) {
+        extension = file.name.split(".").pop();
+    } else {
+        const type = file.type || "";
+        if (type.includes("image")) extension = "jpg";
+        else if (type.includes("video")) extension = "mp4";
+        else if (type.includes("audio")) extension = "webm";
+    }
+
+    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
+
+    // Simulate progress (Supabase upload doesn't provide real progress events easily)
+    onProgress(10);
+    
+    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
+    
+    if (error) throw error;
+    
+    onProgress(90);
+    
+    const publicUrl = _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
+    
+    onProgress(100);
+    
+    return publicUrl;
+}
 // =========================================================
 // 11. VOICE RECORDING (SAME AS NEW-ORDER)
 // =========================================================
@@ -625,6 +766,9 @@ function setupCanvas(img) {
     canvas.width = width;
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
+    
+    // 🟢 Ab event listeners add karo (canvas ab null nahi hai)
+    setupCanvasEvents();
 }
 
 // Reset all editor states
@@ -643,9 +787,26 @@ function resetEditorState() {
     cropOverlay = document.getElementById('cropOverlay');
     cropBox.classList.add('hidden');
     cropOverlay.classList.add('hidden');
+    setupCropBoxEvents();
     document.getElementById('imageCanvas').classList.remove('drawing-mode');
 }
 
+// 🟢 Naya function
+function setupCropBoxEvents() {
+    cropBox.onmousedown = null; // Purana listener hatao
+    
+    cropBox.addEventListener('mousedown', (e) => {
+        if (!isCropMode) return;
+        e.stopPropagation();
+        cropDragState = {
+            type: 'move',
+            startX: e.clientX,
+            startY: e.clientY,
+            startLeft: cropBox.offsetLeft,
+            startTop: cropBox.offsetTop
+        };
+    });
+}
 // ==================== DRAWING FUNCTIONS ====================
 
 function toggleDrawingMode() {
@@ -688,66 +849,6 @@ function setDrawingColor() {
     drawColor = colors[(idx + 1) % colors.length];
     current.style.backgroundColor = drawColor;
 }
-
-// Canvas Mouse Events
-canvas.addEventListener('mousedown', (e) => {
-    if (!isDrawingMode || isCropMode) return;
-    isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    startX = (e.clientX - rect.left) * (canvas.width / rect.width);
-    startY = (e.clientY - rect.top) * (canvas.height / rect.height);
-    drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (!isDrawing || isCropMode) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
-    // Update last drawing
-    drawings[drawings.length - 1].endX = x;
-    drawings[drawings.length - 1].endY = y;
-    
-    // Redraw everything
-    redrawCanvas();
-});
-
-canvas.addEventListener('mouseup', () => {
-    isDrawing = false;
-});
-
-canvas.addEventListener('mouseleave', () => {
-    isDrawing = false;
-});
-
-// Touch Events for Mobile
-canvas.addEventListener('touchstart', (e) => {
-    if (!isDrawingMode || isCropMode) return;
-    e.preventDefault();
-    isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    startX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    startY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
-});
-
-canvas.addEventListener('touchmove', (e) => {
-    if (!isDrawing || isCropMode) return;
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-    drawings[drawings.length - 1].endX = x;
-    drawings[drawings.length - 1].endY = y;
-    redrawCanvas();
-});
-
-canvas.addEventListener('touchend', () => {
-    isDrawing = false;
-});
 
 function redrawCanvas() {
     if (!ctx || !canvasImage) return;
@@ -821,18 +922,6 @@ function toggleCropMode() {
 
 // Crop box dragging logic (simplified - production mein aur detailed hoga)
 let cropDragState = null;
-
-cropBox.addEventListener('mousedown', (e) => {
-    if (!isCropMode) return;
-    e.stopPropagation();
-    cropDragState = {
-        type: 'move',
-        startX: e.clientX,
-        startY: e.clientY,
-        startLeft: cropBox.offsetLeft,
-        startTop: cropBox.offsetTop
-    };
-});
 
 document.addEventListener('mousemove', (e) => {
     if (!cropDragState) return;
@@ -915,62 +1004,8 @@ async function sendCaptionedMedia() {
     closeMediaPreview();
 }
 
-// 2. Send button dabaane par upload aur send (کیپشن ڈبل رکنے کے لیے)
-async function sendCaptionedMedia() {
-    if (!pendingMediaFile) return;
-    
-    const caption = document.getElementById('mediaCaptionInput').value.trim();
-    const ui = document.getElementById('mediaPreviewUI');
-    
-    const file = pendingMediaFile;
-    pendingMediaFile = null; 
-    
-    ui.classList.add('hidden');
-    document.getElementById('mediaCaptionInput').value = ''; 
 
-    try {
-        const fileUrl = await uploadChatFile(file);
-        await sendMessage(caption || '', fileUrl, pendingMediaType);
-    } catch (err) {
-        alert("Media upload fail hogya. Try again.");
-        console.error(err);
-    } finally {
-        const img = document.getElementById('mediaPreviewImg');
-        const vid = document.getElementById('mediaPreviewVideo');
-        if (img.src) {
-            URL.revokeObjectURL(img.src);
-            img.src = '';
-            img.classList.add('hidden');
-        }
-        if (vid.src) {
-            URL.revokeObjectURL(vid.src);
-            vid.src = '';
-            vid.classList.add('hidden');
-        }
-    }
-}
-// 3. Close/Cancel button
-function closeMediaPreview() {
-    const ui = document.getElementById('mediaPreviewUI');
-    ui.classList.add('hidden');
-    
-    const img = document.getElementById('mediaPreviewImg');
-    const vid = document.getElementById('mediaPreviewVideo');
-    
-    if (img.src) {
-        URL.revokeObjectURL(img.src);
-        img.src = '';
-        img.classList.add('hidden');
-    }
-    if (vid.src) {
-        URL.revokeObjectURL(vid.src);
-        vid.src = '';
-        vid.classList.add('hidden');
-    }
-    
-    pendingMediaFile = null;
-    document.getElementById('mediaCaptionInput').value = '';
-}
+
 
 // =========================================================
 // NEW VOICE RECORDING UI (WhatsApp Style)
@@ -1082,7 +1117,6 @@ function toggleVoicePause() {
 async function sendRecordedVoice() {
     // Agar recording abhi chal rahi hai, pehle use roko aur blob ka wait karo
     if (audioRecorder && audioRecorder.state !== 'inactive') {
-        // onstop event already blob set kar dega, hum promise se wait karenge
         const blobPromise = new Promise(resolve => {
             const originalOnStop = audioRecorder.onstop;
             audioRecorder.onstop = async (e) => {
@@ -1091,20 +1125,19 @@ async function sendRecordedVoice() {
             };
         });
         audioRecorder.stop();
-        await blobPromise; // blob ready hone tak ruko
-        // ab automatically send call karo, return nahi karna
+        await blobPromise;
     }
 
     if (!window.recordedVoiceBlob) return;
 
     try {
-        const fileUrl = await uploadChatFile(window.recordedVoiceBlob);
-        await sendMessage('', fileUrl, 'voice');
+        // 🟢 Blob ko File object mein convert karo
+        const voiceFile = new File([window.recordedVoiceBlob], 'voice_' + Date.now() + '.webm', { type: 'audio/webm' });
+        await sendMessageWithProgress('', voiceFile, 'voice');
     } catch (e) {
         alert('Voice upload failed.');
     }
 
-    // Cleanup
     window.recordedVoiceBlob = null;
     stopVoiceTimer();
     const micIcon = document.getElementById('micIcon');
