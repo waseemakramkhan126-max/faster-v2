@@ -201,3 +201,13 @@ footer{
 #currentColor {
     transition: background-color 0.3s;
 }
+
+/* Upload Progress */
+.upload-progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Temp message blur effect */
+.bubble-sent img.opacity-60 {
+    transition: opacity 0.5s, filter 0.5s;
+}
