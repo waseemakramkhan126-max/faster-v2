@@ -1492,31 +1492,41 @@ async function handleGalleryPick(input) {
         // Image → Preview with editor
         await previewChatMedia(input);
     } else if (file.type.startsWith('video/')) {
-        // Video → Preview with video player + caption
-        pendingMediaFile = file;
-        pendingMediaType = 'video';
-        
-        const ui = document.getElementById('mediaPreviewUI');
-        const vid = document.getElementById('mediaPreviewVideo');
-        const img = document.getElementById('mediaPreviewImg');
-        const captionInput = document.getElementById('mediaCaptionInput');
-        
-        captionInput.value = '';
-        const url = URL.createObjectURL(file);
-        vid.src = url;
-        vid.classList.remove('hidden');
-        img.classList.add('hidden');
-        
-        // Hide drawing/crop tools for video
-        document.getElementById('imageCanvas').classList.add('hidden');
-        document.getElementById('toggleDrawBtn').classList.add('hidden');
-        document.getElementById('toggleCropBtn').classList.add('hidden');
-        document.getElementById('drawingTools').classList.add('hidden');
-        document.getElementById('captionBar').classList.remove('hidden');
-        
-        ui.classList.remove('hidden');
-        input.value = '';
-    }
+    // Video → Preview with video player + caption
+    pendingMediaFile = file;
+    pendingMediaType = 'video';
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    const vid = document.getElementById('mediaPreviewVideo');
+    const img = document.getElementById('mediaPreviewImg');
+    const captionInput = document.getElementById('mediaCaptionInput');
+    
+    captionInput.value = '';
+    const url = URL.createObjectURL(file);
+    vid.src = url;
+    vid.classList.remove('hidden');
+    img.classList.add('hidden');
+    
+    // Hide drawing/crop tools for video
+    document.getElementById('imageCanvas').classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.add('hidden');
+    document.getElementById('toggleCropBtn').classList.add('hidden');
+    document.getElementById('applyCropBtn').classList.add('hidden');
+    document.getElementById('drawingTools').classList.add('hidden');
+    document.getElementById('captionBar').classList.remove('hidden');
+    
+    // 🟢 Ensure top bar and caption bar are visible
+    document.getElementById('editorTopBar').style.display = 'flex';
+    document.getElementById('captionBar').style.display = 'block';
+    
+    // 🟢 Clear canvas container for video
+    document.getElementById('canvasContainer').innerHTML = '';
+    document.getElementById('canvasContainer').appendChild(vid);
+    
+    ui.classList.remove('hidden');
+    input.value = '';
+    console.log("🎬 Video preview opened:", file.name); // Debug
+}
 }
 
 // Document Pick (With Preview + Caption + Spinner)
@@ -1532,14 +1542,15 @@ async function handleDocumentPick(input) {
     const captionInput = document.getElementById('mediaCaptionInput');
     const img = document.getElementById('mediaPreviewImg');
     const vid = document.getElementById('mediaPreviewVideo');
-    const canvas = document.getElementById('imageCanvas');
+    const canvasEl = document.getElementById('imageCanvas');
+    const canvasContainer = document.getElementById('canvasContainer');
     
     captionInput.value = '';
     
     // Hide image/video/canvas
     img.classList.add('hidden');
     vid.classList.add('hidden');
-    canvas.classList.add('hidden');
+    canvasEl.classList.add('hidden');
     document.getElementById('toggleDrawBtn').classList.add('hidden');
     document.getElementById('toggleCropBtn').classList.add('hidden');
     document.getElementById('applyCropBtn').classList.add('hidden');
@@ -1547,10 +1558,9 @@ async function handleDocumentPick(input) {
     document.getElementById('captionBar').classList.remove('hidden');
     
     // 🟢 Create document preview card
-    const canvasContainer = document.getElementById('canvasContainer');
     canvasContainer.innerHTML = `
-        <div class="flex flex-col items-center gap-4 px-6">
-            <div class="w-24 h-24 rounded-2xl bg-orange-600 flex items-center justify-center">
+        <div class="flex flex-col items-center gap-4 px-6 pt-8">
+            <div class="w-24 h-24 rounded-2xl bg-orange-600 flex items-center justify-center shadow-lg">
                 <i class="fas fa-file-alt text-5xl text-white"></i>
             </div>
             <div class="text-center">
@@ -1558,11 +1568,17 @@ async function handleDocumentPick(input) {
                 <p class="text-gray-400 text-sm">${formatFileSize(file.size)}</p>
                 <p class="text-gray-500 text-xs mt-1">${file.type || 'Unknown type'}</p>
             </div>
+            <p class="text-gray-400 text-xs mt-2">Add a caption below and tap send</p>
         </div>
     `;
     
+    // 🟢 Make sure UI is visible
     ui.classList.remove('hidden');
+    document.getElementById('editorTopBar').style.display = 'flex';
+    document.getElementById('captionBar').style.display = 'block';
+    
     input.value = '';
+    console.log("📄 Document preview opened:", file.name); // Debug
 }
 
 // Helper: Format file size
@@ -1579,19 +1595,56 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// Audio Pick
+// Audio Pick (With Preview + Caption + Spinner)
 async function handleAudioPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     
-    try {
-        const fileUrl = await uploadChatFile(file);
-        await sendMessage('', fileUrl, 'voice');
-    } catch (err) {
-        alert("Audio upload failed.");
-        console.error(err);
-    }
+    // 🟢 Preview UI mein audio info dikhao
+    pendingMediaFile = file;
+    pendingMediaType = 'audio';
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    const captionInput = document.getElementById('mediaCaptionInput');
+    const img = document.getElementById('mediaPreviewImg');
+    const vid = document.getElementById('mediaPreviewVideo');
+    const canvasEl = document.getElementById('imageCanvas');
+    const canvasContainer = document.getElementById('canvasContainer');
+    
+    captionInput.value = '';
+    
+    // Hide image/video/canvas
+    img.classList.add('hidden');
+    vid.classList.add('hidden');
+    canvasEl.classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.add('hidden');
+    document.getElementById('toggleCropBtn').classList.add('hidden');
+    document.getElementById('applyCropBtn').classList.add('hidden');
+    document.getElementById('drawingTools').classList.add('hidden');
+    document.getElementById('captionBar').classList.remove('hidden');
+    
+    // 🟢 Create audio preview card
+    canvasContainer.innerHTML = `
+        <div class="flex flex-col items-center gap-4 px-6 pt-8">
+            <div class="w-24 h-24 rounded-2xl bg-red-600 flex items-center justify-center shadow-lg">
+                <i class="fas fa-music text-5xl text-white"></i>
+            </div>
+            <div class="text-center">
+                <p class="text-white font-bold text-base mb-1">${escapeHTML(file.name)}</p>
+                <p class="text-gray-400 text-sm">${formatFileSize(file.size)}</p>
+                <p class="text-gray-500 text-xs mt-1">Audio File</p>
+            </div>
+            <p class="text-gray-400 text-xs mt-2">Add a caption below and tap send</p>
+        </div>
+    `;
+    
+    // 🟢 Make sure UI is visible
+    ui.classList.remove('hidden');
+    document.getElementById('editorTopBar').style.display = 'flex';
+    document.getElementById('captionBar').style.display = 'block';
+    
     input.value = '';
+    console.log("🎵 Audio preview opened:", file.name); // Debug
 }
 // =========================================================
 // LONG PRESS TO COPY CONTACT NUMBER
