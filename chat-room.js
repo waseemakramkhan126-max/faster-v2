@@ -357,11 +357,34 @@ function showTypingIndicator(show) {
 // 10. MEDIA UPLOAD & PREVIEW
 // =========================================================
 async function uploadChatFile(file) {
-    const ext = file.name.split('.').pop();
-    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
-    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
+
+    let extension = "bin";
+
+    if (file.name) {
+        extension = file.name.split(".").pop();
+    } else {
+        const type = file.type || "";
+
+        if (type.includes("image")) extension = "jpg";
+        else if (type.includes("video")) extension = "mp4";
+        else if (type.includes("audio")) extension = "webm";
+    }
+
+    const fileName =
+        `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
+
+    const { error } = await _supabase
+        .storage
+        .from("order-files")
+        .upload(fileName, file);
+
     if (error) throw error;
-    return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
+
+    return _supabase
+        .storage
+        .from("order-files")
+        .getPublicUrl(fileName)
+        .data.publicUrl;
 }
 
 async function previewChatMedia(input) {
@@ -369,7 +392,7 @@ async function previewChatMedia(input) {
     const file = input.files[0];
     const type = file.type.startsWith('video') ? 'video' : 'image';
 
-    const caption = await Dialog.show("Add Caption", "Add a message with this media? (Optional)", "prompt");
+    const caption = prompt("Add a caption (optional):") || "";
 
     try {
         const fileUrl = await uploadChatFile(file);
@@ -441,6 +464,15 @@ function startVoiceTimer() {
         const display = document.getElementById('voiceTimerDisplay');
         if (display) display.textContent = `${Math.floor(voiceSeconds / 60).toString().padStart(2, '0')}:${(voiceSeconds % 60).toString().padStart(2, '0')}`;
     }, 1000);
+}
+
+function stopVoiceTimer() {
+    clearInterval(voiceTimerInterval);
+    voiceTimerInterval = null;
+    voiceSeconds = 0;
+
+    const timerUI = document.getElementById("voiceTimerUI");
+    if (timerUI) timerUI.remove();
 }
 
 function stopVoiceRecording() {
@@ -525,6 +557,15 @@ async function init() {
 }
 init();
 
+function updateChatHeight() {
+    document.body.style.height = window.innerHeight + "px";
+}
+
+window.addEventListener("resize", updateChatHeight);
+window.addEventListener("orientationchange", updateChatHeight);
+
+updateChatHeight();
+
 // =========================================================
 // NEW CHAT FUNCTIONS FOR THE FOOTER
 // =========================================================
@@ -550,3 +591,85 @@ function handleChatVoice() {
         micIcon.className = 'fas fa-stop text-red-500';
     }
 }
+
+function toggleAttachMenu() {
+
+    const input = document.createElement("input");
+
+    input.type = "file";
+
+    input.accept = "image/*,video/*";
+
+    input.onchange = () => previewChatMedia(input);
+
+    input.click();
+
+}
+
+document.addEventListener("click", function (e) {
+
+    const btn = e.target.closest(".play-btn-custom");
+
+    if (!btn) return;
+
+    const container = btn.closest(".voice-player-container");
+
+    const audio = container.querySelector("audio");
+
+    const icon = btn.querySelector("i");
+
+    const timer = container.querySelector(".time-current");
+
+    document.querySelectorAll(".voice-player-container audio").forEach(a => {
+
+        if (a !== audio) {
+
+            a.pause();
+
+            a.currentTime = 0;
+
+            const c = a.closest(".voice-player-container");
+
+            c.querySelector(".play-btn-custom i").className =
+                "fas fa-play text-[10px] ml-0.5";
+
+            c.querySelector(".time-current").textContent = "0:00";
+
+        }
+
+    });
+
+    if (audio.paused) {
+
+        audio.play();
+
+        icon.className = "fas fa-pause text-[10px]";
+
+    } else {
+
+        audio.pause();
+
+        icon.className = "fas fa-play text-[10px] ml-0.5";
+
+    }
+
+    audio.ontimeupdate = () => {
+
+        const m = Math.floor(audio.currentTime / 60);
+
+        const s = Math.floor(audio.currentTime % 60);
+
+        timer.textContent =
+            `${m}:${String(s).padStart(2,"0")}`;
+
+    };
+
+    audio.onended = () => {
+
+        icon.className = "fas fa-play text-[10px] ml-0.5";
+
+        timer.textContent = "0:00";
+
+    };
+
+});
