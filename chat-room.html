@@ -108,37 +108,50 @@
         <div id="mediaViewerCaption" class="text-white text-xs font-semibold mt-3 hidden bg-black/40 px-4 py-1.5 rounded-xl max-w-md text-center"></div>
     </div>
     <!-- ========================================= -->
-    <!-- WhatsApp Style Media Preview Bottom Sheet -->
-    <!-- ========================================= -->
-<div id="mediaPreviewUI" class="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] rounded-t-2xl p-4 pb-6 z-[99999] shadow-[0_-4px_20px_rgba(0,0,0,0.6)] hidden flex-col gap-4">
-    <!-- Top Row: Thumbnail + Input -->
-    <div class="flex items-center gap-3">
-        <!-- Thumbnail Preview -->
-        <div id="mediaPreviewThumb" class="w-24 h-24 rounded-xl overflow-hidden bg-gray-700 flex-shrink-0 relative">
-                <img id="mediaPreviewImg" src="" class="w-full h-full object-cover hidden">
-                <video id="mediaPreviewVideo" class="w-full h-full object-cover hidden" muted playsinline></video>
-        </div>
-            <div id="mediaPreviewVideo" class="w-full h-full flex items-center justify-center text-white hidden bg-black/50">
-                <i class="fas fa-play text-2xl"></i>
-            </div>
-        </div>
-        
-        <!-- Caption Input -->
-        <div class="flex-1 bg-[#2a2a2a] rounded-xl flex items-center px-3 border border-gray-700">
-            <input id="mediaCaptionInput" type="text" placeholder="Add a caption..." class="w-full bg-transparent py-3 outline-none text-white text-sm placeholder-gray-500">
-        </div>
+<!-- WhatsApp Style Full Screen Media Preview -->
+<!-- ========================================= -->
+<div id="mediaPreviewUI" class="fixed inset-0 bg-black z-[99999] hidden flex-col">
 
-        <!-- Close Button -->
-        <button onclick="closeMediaPreview()" class="w-8 h-8 rounded-full bg-gray-700 text-gray-300 flex items-center justify-center hover:bg-gray-600 transition-colors active:scale-95">
-            <i class="fas fa-times text-sm"></i>
+    <!-- Top Bar (Back & Icons) -->
+    <div class="flex items-center justify-between px-4 py-3 bg-black/60 absolute top-0 left-0 right-0 z-10">
+        <button onclick="closeMediaPreview()" class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white active:scale-95 transition-transform">
+            <i class="fas fa-times text-lg"></i>
         </button>
+        <div class="flex gap-4">
+            <button class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+                <i class="fas fa-smile text-lg"></i>
+            </button>
+            <button class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+                <i class="fas fa-pen text-lg"></i>
+            </button>
+            <button class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+                <i class="fas fa-text-height text-lg"></i>
+            </button>
+        </div>
     </div>
 
-    <!-- Bottom Row: Send Button -->
-    <div class="flex justify-end">
-        <button onclick="sendCaptionedMedia()" class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
-        </button>
+    <!-- Main Preview Area (Image/Video) -->
+    <div class="flex-1 flex items-center justify-center px-2 pt-16 pb-24">
+        <img id="mediaPreviewImg" src="" class="max-w-full max-h-full object-contain hidden rounded-sm">
+        <video id="mediaPreviewVideo" src="" class="max-w-full max-h-full object-contain hidden" controls playsinline></video>
+    </div>
+
+    <!-- Bottom Caption Bar -->
+    <div class="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] px-4 py-3 pb-safe border-t border-gray-800">
+        <div class="flex items-center gap-3">
+            <!-- Caption Input -->
+            <div class="flex-1 bg-[#2a2a2a] rounded-full flex items-center px-4">
+                <input id="mediaCaptionInput" type="text" placeholder="Add a caption..." 
+                       class="w-full bg-transparent py-3 outline-none text-white text-sm placeholder-gray-500">
+                <i class="fas fa-smile text-gray-500 cursor-pointer ml-2"></i>
+            </div>
+            
+            <!-- Send Button -->
+            <button onclick="sendCaptionedMedia()" 
+                    class="w-11 h-11 rounded-full bg-[#0077b9] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform flex-shrink-0">
+                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+            </button>
+        </div>
     </div>
 </div>
 
