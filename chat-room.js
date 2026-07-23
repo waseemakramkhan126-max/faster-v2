@@ -546,12 +546,32 @@ function handleChatVoice() {
 }
 
 // =========================================================
-// MEDIA PREVIEW (WhatsApp Style)
+// ADVANCED MEDIA PREVIEW (Draw + Crop + Send)
 // =========================================================
 let pendingMediaFile = null;
 let pendingMediaType = 'image';
+let canvasImage = null; // Original image object
+let canvas = null;
+let ctx = null;
 
-// 1. Preview open karne ka function
+// Drawing state
+let isDrawingMode = false;
+let isDrawing = false;
+let currentTool = 'pen';
+let drawColor = '#ff0000';
+let startX, startY;
+let drawings = []; // Array of drawing actions (for undo)
+
+// Crop state
+let isCropMode = false;
+let cropBox = null;
+let cropOverlay = null;
+let isDraggingCrop = false;
+let isResizingCrop = false;
+let cropStartX, cropStartY;
+let cropBoxStartLeft, cropBoxStartTop, cropBoxStartWidth, cropBoxStartHeight;
+
+// 1. Preview open karne ka function (Canvas setup)
 async function previewChatMedia(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
@@ -559,27 +579,340 @@ async function previewChatMedia(input) {
     pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
 
     const ui = document.getElementById('mediaPreviewUI');
-    const img = document.getElementById('mediaPreviewImg');
-    const vid = document.getElementById('mediaPreviewVideo');
     const captionInput = document.getElementById('mediaCaptionInput');
-    captionInput.value = ''; // Purana caption clear
+    captionInput.value = '';
 
     const url = URL.createObjectURL(file);
     
     if (pendingMediaType === 'image') {
-        img.src = url;
-        img.classList.remove('hidden');   // ✅ Image dikhao
-        vid.classList.add('hidden');       // ❌ Video chhupao
+        canvasImage = new Image();
+        canvasImage.onload = () => {
+            setupCanvas(canvasImage);
+            ui.classList.remove('hidden');
+            resetEditorState();
+        };
+        canvasImage.src = url;
     } else {
-        vid.src = url;                     // ✅ Video source set karo
-        vid.classList.remove('hidden');    // ✅ Video dikhao
-        img.classList.add('hidden');       // ❌ Image chhupao
-        vid.load();                        // Force load
+        // Video ke liye simple preview (drawing support nahi)
+        const vid = document.getElementById('mediaPreviewVideo');
+        vid.src = url;
+        vid.classList.remove('hidden');
+        document.getElementById('imageCanvas').classList.add('hidden');
+        document.getElementById('toggleDrawBtn').classList.add('hidden');
+        document.getElementById('toggleCropBtn').classList.add('hidden');
+        ui.classList.remove('hidden');
     }
 
-    // 🟢 Full screen UI show karo
-    ui.classList.remove('hidden');
-    input.value = ''; // File input reset
+    input.value = '';
+}
+
+// Setup Canvas with Image
+function setupCanvas(img) {
+    canvas = document.getElementById('imageCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.classList.remove('hidden');
+    
+    // Calculate canvas size (fit screen)
+    const maxWidth = window.innerWidth - 16;
+    const maxHeight = window.innerHeight - 200;
+    let width = img.width;
+    let height = img.height;
+    
+    const ratio = Math.min(maxWidth / width, maxHeight / height);
+    width *= ratio;
+    height *= ratio;
+    
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+}
+
+// Reset all editor states
+function resetEditorState() {
+    isDrawingMode = false;
+    isCropMode = false;
+    drawings = [];
+    document.getElementById('drawingTools').classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
+    document.getElementById('toggleCropBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleCropBtn').classList.add('bg-white/10');
+    document.getElementById('applyCropBtn').classList.add('hidden');
+    document.getElementById('captionBar').classList.remove('hidden');
+    cropBox = document.getElementById('cropBox');
+    cropOverlay = document.getElementById('cropOverlay');
+    cropBox.classList.add('hidden');
+    cropOverlay.classList.add('hidden');
+    document.getElementById('imageCanvas').classList.remove('drawing-mode');
+}
+
+// ==================== DRAWING FUNCTIONS ====================
+
+function toggleDrawingMode() {
+    if (isCropMode) toggleCropMode(); // Close crop first
+    
+    isDrawingMode = !isDrawingMode;
+    const tools = document.getElementById('drawingTools');
+    const btn = document.getElementById('toggleDrawBtn');
+    
+    if (isDrawingMode) {
+        tools.classList.remove('hidden');
+        btn.classList.add('bg-[#0077b9]');
+        btn.classList.remove('bg-white/10');
+        canvas.classList.add('drawing-mode');
+        document.getElementById('captionBar').classList.add('hidden');
+        setDrawingTool('pen');
+    } else {
+        tools.classList.add('hidden');
+        btn.classList.remove('bg-[#0077b9]');
+        btn.classList.add('bg-white/10');
+        canvas.classList.remove('drawing-mode');
+        document.getElementById('captionBar').classList.remove('hidden');
+    }
+}
+
+function setDrawingTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('#drawingTools button[id$="Tool"]').forEach(btn => {
+        btn.classList.add('bg-white/10');
+        btn.classList.remove('bg-[#0077b9]');
+    });
+    document.getElementById(tool + 'Tool').classList.add('bg-[#0077b9]');
+    document.getElementById(tool + 'Tool').classList.remove('bg-white/10');
+}
+
+function setDrawingColor() {
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'];
+    const current = document.getElementById('currentColor');
+    const idx = colors.indexOf(drawColor);
+    drawColor = colors[(idx + 1) % colors.length];
+    current.style.backgroundColor = drawColor;
+}
+
+// Canvas Mouse Events
+canvas.addEventListener('mousedown', (e) => {
+    if (!isDrawingMode || isCropMode) return;
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    startY = (e.clientY - rect.top) * (canvas.height / rect.height);
+    drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    if (!isDrawing || isCropMode) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    // Update last drawing
+    drawings[drawings.length - 1].endX = x;
+    drawings[drawings.length - 1].endY = y;
+    
+    // Redraw everything
+    redrawCanvas();
+});
+
+canvas.addEventListener('mouseup', () => {
+    isDrawing = false;
+});
+
+canvas.addEventListener('mouseleave', () => {
+    isDrawing = false;
+});
+
+// Touch Events for Mobile
+canvas.addEventListener('touchstart', (e) => {
+    if (!isDrawingMode || isCropMode) return;
+    e.preventDefault();
+    isDrawing = true;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    startX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    startY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
+});
+
+canvas.addEventListener('touchmove', (e) => {
+    if (!isDrawing || isCropMode) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+    drawings[drawings.length - 1].endX = x;
+    drawings[drawings.length - 1].endY = y;
+    redrawCanvas();
+});
+
+canvas.addEventListener('touchend', () => {
+    isDrawing = false;
+});
+
+function redrawCanvas() {
+    if (!ctx || !canvasImage) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
+    
+    drawings.forEach(d => {
+        ctx.strokeStyle = d.color;
+        ctx.lineWidth = 3;
+        ctx.fillStyle = d.color;
+        ctx.beginPath();
+        
+        if (d.tool === 'pen') {
+            ctx.moveTo(d.startX, d.startY);
+            ctx.lineTo(d.endX, d.endY);
+        } else if (d.tool === 'circle') {
+            const radius = Math.sqrt(Math.pow(d.endX - d.startX, 2) + Math.pow(d.endY - d.startY, 2));
+            ctx.ellipse(d.startX, d.startY, radius, radius, 0, 0, 2 * Math.PI);
+        } else if (d.tool === 'arrow') {
+            const angle = Math.atan2(d.endY - d.startY, d.endX - d.startX);
+            ctx.moveTo(d.startX, d.startY);
+            ctx.lineTo(d.endX, d.endY);
+            ctx.lineTo(
+                d.endX - 10 * Math.cos(angle - Math.PI / 6),
+                d.endY - 10 * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(d.endX, d.endY);
+            ctx.lineTo(
+                d.endX - 10 * Math.cos(angle + Math.PI / 6),
+                d.endY - 10 * Math.sin(angle + Math.PI / 6)
+            );
+        }
+        ctx.stroke();
+    });
+}
+
+function undoDrawing() {
+    drawings.pop();
+    redrawCanvas();
+}
+
+// ==================== CROP FUNCTIONS ====================
+
+function toggleCropMode() {
+    if (isDrawingMode) toggleDrawingMode(); // Close drawing first
+    
+    isCropMode = !isCropMode;
+    cropBox = document.getElementById('cropBox');
+    cropOverlay = document.getElementById('cropOverlay');
+    const btn = document.getElementById('toggleCropBtn');
+    const applyBtn = document.getElementById('applyCropBtn');
+    
+    if (isCropMode) {
+        btn.classList.add('bg-[#0077b9]');
+        btn.classList.remove('bg-white/10');
+        applyBtn.classList.remove('hidden');
+        cropOverlay.classList.remove('hidden');
+        cropBox.classList.remove('hidden');
+        document.getElementById('captionBar').classList.add('hidden');
+        document.getElementById('toggleDrawBtn').classList.add('hidden');
+    } else {
+        btn.classList.remove('bg-[#0077b9]');
+        btn.classList.add('bg-white/10');
+        applyBtn.classList.add('hidden');
+        cropOverlay.classList.add('hidden');
+        cropBox.classList.add('hidden');
+        document.getElementById('captionBar').classList.remove('hidden');
+        document.getElementById('toggleDrawBtn').classList.remove('hidden');
+    }
+}
+
+// Crop box dragging logic (simplified - production mein aur detailed hoga)
+let cropDragState = null;
+
+cropBox.addEventListener('mousedown', (e) => {
+    if (!isCropMode) return;
+    e.stopPropagation();
+    cropDragState = {
+        type: 'move',
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: cropBox.offsetLeft,
+        startTop: cropBox.offsetTop
+    };
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!cropDragState) return;
+    const dx = e.clientX - cropDragState.startX;
+    const dy = e.clientY - cropDragState.startY;
+    cropBox.style.left = (cropDragState.startLeft + dx) + 'px';
+    cropBox.style.top = (cropDragState.startTop + dy) + 'px';
+    cropBox.style.transform = 'none';
+});
+
+document.addEventListener('mouseup', () => {
+    cropDragState = null;
+});
+
+function applyCrop() {
+    if (!isCropMode || !canvasImage) return;
+    
+    const canvasRect = canvas.getBoundingClientRect();
+    const boxRect = cropBox.getBoundingClientRect();
+    
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+    
+    const sx = (boxRect.left - canvasRect.left) * scaleX;
+    const sy = (boxRect.top - canvasRect.top) * scaleY;
+    const sw = boxRect.width * scaleX;
+    const sh = boxRect.height * scaleY;
+    
+    canvas.width = sw;
+    canvas.height = sh;
+    ctx.drawImage(canvasImage, sx, sy, sw, sh, 0, 0, sw, sh);
+    
+    // Update canvasImage to cropped version
+    canvasImage = new Image();
+    canvasImage.src = canvas.toDataURL();
+    
+    toggleCropMode();
+}
+
+// ==================== SEND FUNCTIONS ====================
+
+function closeMediaPreview() {
+    const ui = document.getElementById('mediaPreviewUI');
+    ui.classList.add('hidden');
+    pendingMediaFile = null;
+    canvasImage = null;
+    drawings = [];
+    if (canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.classList.add('hidden');
+    }
+    document.getElementById('mediaCaptionInput').value = '';
+    resetEditorState();
+}
+
+async function sendCaptionedMedia() {
+    if (!canvasImage && !pendingMediaFile) return;
+    
+    const caption = document.getElementById('mediaCaptionInput').value.trim();
+    const ui = document.getElementById('mediaPreviewUI');
+    
+    let fileToUpload;
+    
+    if (pendingMediaType === 'image' && canvasImage) {
+        // Canvas se edited image lo
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    } else {
+        fileToUpload = pendingMediaFile;
+    }
+    
+    pendingMediaFile = null;
+    ui.classList.add('hidden');
+    document.getElementById('mediaCaptionInput').value = '';
+
+    // Send with upload progress indicator
+    await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
+    
+    // Cleanup
+    closeMediaPreview();
 }
 
 // 2. Send button dabaane par upload aur send (کیپشن ڈبل رکنے کے لیے)
