@@ -387,23 +387,6 @@ async function uploadChatFile(file) {
         .data.publicUrl;
 }
 
-async function previewChatMedia(input) {
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    const type = file.type.startsWith('video') ? 'video' : 'image';
-
-    const caption = prompt("Add a caption (optional):") || "";
-
-    try {
-        const fileUrl = await uploadChatFile(file);
-        await sendMessage(caption || '', fileUrl, type);
-    } catch (err) {
-        alert("Media upload fail hogya. Try again.");
-        console.error(err);
-    }
-    input.value = '';
-}
-
 // =========================================================
 // 11. VOICE RECORDING (SAME AS NEW-ORDER)
 // =========================================================
@@ -564,6 +547,71 @@ function handleChatVoice() {
         vBtn.classList.add('voice-active');
         micIcon.className = 'fas fa-stop text-red-500';
     }
+}
+
+// =========================================================
+// MEDIA PREVIEW (WhatsApp Style)
+// =========================================================
+let pendingMediaFile = null;
+let pendingMediaType = 'image';
+
+// 1. Preview open karne ka function
+async function previewChatMedia(input) {
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    pendingMediaFile = file;
+    pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
+
+    // UI dikhao
+    const ui = document.getElementById('mediaPreviewUI');
+    const img = document.getElementById('mediaPreviewImg');
+    const vid = document.getElementById('mediaPreviewVideo');
+    const captionInput = document.getElementById('mediaCaptionInput');
+    captionInput.value = ''; // Purana caption clear karo
+
+    const url = URL.createObjectURL(file);
+    if (pendingMediaType === 'image') {
+        img.src = url;
+        img.classList.remove('hidden');
+        vid.classList.add('hidden');
+    } else {
+        vid.classList.remove('hidden');
+        img.classList.add('hidden');
+    }
+
+    ui.classList.remove('hidden');
+    input.value = ''; // Input reset
+}
+
+// 2. Send button dabaane par upload aur send
+async function sendCaptionedMedia() {
+    if (!pendingMediaFile) return;
+    const caption = document.getElementById('mediaCaptionInput').value.trim();
+    const ui = document.getElementById('mediaPreviewUI');
+
+    ui.classList.add('hidden'); // UI band karo
+    try {
+        const fileUrl = await uploadChatFile(pendingMediaFile);
+        await sendMessage(caption || '', fileUrl, pendingMediaType);
+    } catch (err) {
+        alert("Media upload fail hogya. Try again.");
+        console.error(err);
+    } finally {
+        pendingMediaFile = null;
+        // Memory free karne ke liye URL revoke karo
+        const img = document.getElementById('mediaPreviewImg');
+        if (img.src) URL.revokeObjectURL(img.src);
+    }
+}
+
+// 3. Close/Cancel button
+function closeMediaPreview() {
+    const ui = document.getElementById('mediaPreviewUI');
+    ui.classList.add('hidden');
+    pendingMediaFile = null;
+    // Video/Image URL revoke
+    const img = document.getElementById('mediaPreviewImg');
+    if (img.src) URL.revokeObjectURL(img.src);
 }
 
 // =========================================================
