@@ -558,41 +558,40 @@ async function previewChatMedia(input) {
     pendingMediaFile = file;
     pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
 
-    // UI dikhao
     const ui = document.getElementById('mediaPreviewUI');
     const img = document.getElementById('mediaPreviewImg');
     const vid = document.getElementById('mediaPreviewVideo');
     const captionInput = document.getElementById('mediaCaptionInput');
-    captionInput.value = ''; // Purana caption clear karo
+    captionInput.value = ''; // Purana caption clear
 
     const url = URL.createObjectURL(file);
+    
     if (pendingMediaType === 'image') {
         img.src = url;
-        img.classList.remove('hidden');
-        vid.classList.add('hidden');
+        img.classList.remove('hidden');   // ✅ Image dikhao
+        vid.classList.add('hidden');       // ❌ Video chhupao
     } else {
-    vid.src = url;            // ✅ ye line add karo
-    vid.classList.remove('hidden');
-    img.classList.add('hidden');
-}
+        vid.src = url;                     // ✅ Video source set karo
+        vid.classList.remove('hidden');    // ✅ Video dikhao
+        img.classList.add('hidden');       // ❌ Image chhupao
+        vid.load();                        // Force load
+    }
 
+    // 🟢 Full screen UI show karo
     ui.classList.remove('hidden');
-    input.value = ''; // Input reset
+    input.value = ''; // File input reset
 }
 
 // 2. Send button dabaane par upload aur send (کیپشن ڈبل رکنے کے لیے)
 async function sendCaptionedMedia() {
     if (!pendingMediaFile) return;
     
-    // 🟢 کیپشن اور UI کو فوراً ری سیٹ کریں (تاکہ ڈبل میسج نہ بھیجے)
     const caption = document.getElementById('mediaCaptionInput').value.trim();
     const ui = document.getElementById('mediaPreviewUI');
     
-    // یہ لائن ڈبل کلک کو روکتی ہے
     const file = pendingMediaFile;
     pendingMediaFile = null; 
     
-    // UI چھپائیں اور انپٹ خالی کریں
     ui.classList.add('hidden');
     document.getElementById('mediaCaptionInput').value = ''; 
 
@@ -604,18 +603,40 @@ async function sendCaptionedMedia() {
         console.error(err);
     } finally {
         const img = document.getElementById('mediaPreviewImg');
-        if (img.src) URL.revokeObjectURL(img.src);
+        const vid = document.getElementById('mediaPreviewVideo');
+        if (img.src) {
+            URL.revokeObjectURL(img.src);
+            img.src = '';
+            img.classList.add('hidden');
+        }
+        if (vid.src) {
+            URL.revokeObjectURL(vid.src);
+            vid.src = '';
+            vid.classList.add('hidden');
+        }
     }
 }
-
 // 3. Close/Cancel button
 function closeMediaPreview() {
     const ui = document.getElementById('mediaPreviewUI');
     ui.classList.add('hidden');
-    pendingMediaFile = null;
-    // Video/Image URL revoke
+    
     const img = document.getElementById('mediaPreviewImg');
-    if (img.src) URL.revokeObjectURL(img.src);
+    const vid = document.getElementById('mediaPreviewVideo');
+    
+    if (img.src) {
+        URL.revokeObjectURL(img.src);
+        img.src = '';
+        img.classList.add('hidden');
+    }
+    if (vid.src) {
+        URL.revokeObjectURL(vid.src);
+        vid.src = '';
+        vid.classList.add('hidden');
+    }
+    
+    pendingMediaFile = null;
+    document.getElementById('mediaCaptionInput').value = '';
 }
 
 // =========================================================
