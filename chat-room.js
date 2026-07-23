@@ -771,6 +771,74 @@ function setupCanvas(img) {
     setupCanvasEvents();
 }
 
+// 🟢 Naya function jo event listeners setup karta hai
+function setupCanvasEvents() {
+    // Purane listeners hatane ke liye (agar dobara setup ho)
+    canvas.onmousedown = null;
+    canvas.onmousemove = null;
+    canvas.onmouseup = null;
+    canvas.onmouseleave = null;
+    canvas.ontouchstart = null;
+    canvas.ontouchmove = null;
+    canvas.ontouchend = null;
+    
+    // Mouse Events
+    canvas.addEventListener('mousedown', (e) => {
+        if (!isDrawingMode || isCropMode) return;
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        startX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        startY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing || isCropMode) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        drawings[drawings.length - 1].endX = x;
+        drawings[drawings.length - 1].endY = y;
+        redrawCanvas();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        isDrawing = false;
+    });
+
+    // Touch Events for Mobile
+    canvas.addEventListener('touchstart', (e) => {
+        if (!isDrawingMode || isCropMode) return;
+        e.preventDefault();
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        startX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        startY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!isDrawing || isCropMode) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+        drawings[drawings.length - 1].endX = x;
+        drawings[drawings.length - 1].endY = y;
+        redrawCanvas();
+    });
+
+    canvas.addEventListener('touchend', () => {
+        isDrawing = false;
+    });
+}
+
 // Reset all editor states
 function resetEditorState() {
     isDrawingMode = false;
@@ -1147,19 +1215,12 @@ async function sendRecordedVoice() {
 }
 
 function toggleAttachMenu() {
-
-    const input = document.createElement("input");
-
-    input.type = "file";
-
-    input.accept = "image/*,video/*";
-
-    input.onchange = () => previewChatMedia(input);
-
-    input.click();
-
+    const input = document.getElementById('hiddenFileInput');
+    if (input) {
+        input.value = ''; // Reset so same file can be selected again
+        input.click();
+    }
 }
-
 document.addEventListener("click", function (e) {
 
     const btn = e.target.closest(".play-btn-custom");
