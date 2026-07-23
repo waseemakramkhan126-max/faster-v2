@@ -71,6 +71,36 @@
         <i class="fas fa-microphone" id="micIcon"></i>
     </button>
 </footer>
+
+    <!-- Voice Recorder UI (WhatsApp Style) -->
+<div id="voiceRecorderUI"
+     class="fixed bottom-0 left-0 right-0 bg-[#111827] p-4 z-[99999] hidden flex-col"
+     style="border-top-left-radius: 24px; border-top-right-radius: 24px;">
+
+    <!-- Top Row -->
+    <div class="flex items-center gap-3 mb-3">
+        <button onclick="cancelVoiceRecording()"
+                class="w-10 h-10 rounded-full bg-red-600 text-white">
+            <i class="fas fa-trash"></i>
+        </button>
+        <span id="voiceTimerDisplay" class="text-white font-bold">00:00</span>
+        <div id="voiceWaveform" class="flex-1 flex items-center gap-[2px] px-2"></div>
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="flex gap-3">
+        <button id="voicePauseBtn" onclick="toggleVoicePause()"
+                class="flex-1 h-11 rounded-full bg-gray-700 text-white">
+            <i id="voicePauseIcon" class="fas fa-pause"></i>
+            <span id="voicePauseText">Pause</span>
+        </button>
+        <button onclick="sendRecordedVoice()"
+                class="w-14 h-11 rounded-full bg-green-600 text-white">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+    
     <!-- Media Preview Modal (for full screen image) -->
     <div id="mediaViewer" class="fixed inset-0 bg-black/95 z-[100000] hidden flex-col items-center justify-center" onclick="closeMediaViewer()">
         <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
@@ -85,7 +115,9 @@
     <div class="flex items-center gap-3">
         <!-- Thumbnail Preview -->
         <div id="mediaPreviewThumb" class="w-24 h-24 rounded-xl overflow-hidden bg-gray-700 flex-shrink-0 relative">
-            <img id="mediaPreviewImg" src="" class="w-full h-full object-cover hidden">
+                <img id="mediaPreviewImg" src="" class="w-full h-full object-cover hidden">
+                <video id="mediaPreviewVideo" class="w-full h-full object-cover hidden" muted playsinline></video>
+        </div>
             <div id="mediaPreviewVideo" class="w-full h-full flex items-center justify-center text-white hidden bg-black/50">
                 <i class="fas fa-play text-2xl"></i>
             </div>
