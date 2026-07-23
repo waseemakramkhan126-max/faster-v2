@@ -443,38 +443,6 @@ async function startVoiceRecording() {
     }
 }
 
-function startVoiceTimer() {
-    voiceSeconds = 0;
-    const timerUI = document.createElement('div');
-    timerUI.id = 'voiceTimerUI';
-    timerUI.className = 'fixed bottom-20 left-0 right-0 flex justify-center z-30 pointer-events-none';
-    timerUI.innerHTML = `
-        <div class="bg-red-500 text-white px-6 py-2 rounded-full shadow-lg flex items-center gap-3 pointer-events-auto">
-            <i class="fas fa-circle text-[8px] animate-pulse"></i>
-            <span id="voiceTimerDisplay" class="font-bold text-sm tracking-wider">00:00</span>
-            <button onclick="stopVoiceRecording()" class="ml-2 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30">
-                <i class="fas fa-stop text-xs"></i>
-            </button>
-        </div>
-    `;
-    document.body.appendChild(timerUI);
-
-    voiceTimerInterval = setInterval(() => {
-        voiceSeconds++;
-        const display = document.getElementById('voiceTimerDisplay');
-        if (display) display.textContent = `${Math.floor(voiceSeconds / 60).toString().padStart(2, '0')}:${(voiceSeconds % 60).toString().padStart(2, '0')}`;
-    }, 1000);
-}
-
-function stopVoiceTimer() {
-    clearInterval(voiceTimerInterval);
-    voiceTimerInterval = null;
-    voiceSeconds = 0;
-
-    const timerUI = document.getElementById("voiceTimerUI");
-    if (timerUI) timerUI.remove();
-}
-
 function stopVoiceRecording() {
     if (audioRecorder && audioRecorder.state !== 'inactive') {
         audioRecorder.stop();
@@ -590,6 +558,95 @@ function handleChatVoice() {
         vBtn.classList.add('voice-active');
         micIcon.className = 'fas fa-stop text-red-500';
     }
+}
+
+// =========================================================
+// NEW VOICE RECORDING UI (WhatsApp Style)
+// =========================================================
+const voiceRecorderUI = document.getElementById('voiceRecorderUI');
+const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
+const voiceWaveform = document.getElementById('voiceWaveform');
+const voicePauseBtn = document.getElementById('voicePauseBtn');
+const voicePauseIcon = document.getElementById('voicePauseIcon');
+const voicePauseText = document.getElementById('voicePauseText');
+
+let isVoicePaused = false;
+
+// 1. Start Voice Recording & Show UI
+function startVoiceTimer() {
+    voiceSeconds = 0;
+    voiceRecorderUI.classList.remove('hidden');
+    voiceTimerDisplay.textContent = '00:00';
+    
+    // Reset Pause button
+    isVoicePaused = false;
+    voicePauseIcon.className = 'fas fa-pause text-sm';
+    voicePauseText.textContent = 'Pause';
+    
+    // Start waveform animation
+    voiceWaveform.classList.add('recording');
+
+    voiceTimerInterval = setInterval(() => {
+        voiceSeconds++;
+        const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
+        const secs = (voiceSeconds % 60).toString().padStart(2, '0');
+        voiceTimerDisplay.textContent = `${mins}:${secs}`;
+    }, 1000);
+}
+
+// 2. Stop Timer & Hide UI
+function stopVoiceTimer() {
+    clearInterval(voiceTimerInterval);
+    voiceTimerInterval = null;
+    voiceSeconds = 0;
+    voiceWaveform.classList.remove('recording');
+    voiceRecorderUI.classList.add('hidden');
+}
+
+// 3. Cancel Recording (Delete Voice)
+function cancelVoiceRecording() {
+    if (audioRecorder) {
+        // Stop and discard chunks
+        audioRecorder.onstop = null; 
+        audioRecorder.stop();
+        audioRecorder = null;
+        audioChunks = [];
+    }
+    stopVoiceTimer();
+    // Reset mic icon in footer
+    const micIcon = document.getElementById('micIcon');
+    micIcon.className = 'fas fa-microphone text-white';
+    const vBtn = document.getElementById('chatVoiceBtn');
+    vBtn.classList.remove('voice-active');
+}
+
+// 4. Toggle Pause/Resume
+function toggleVoicePause() {
+    if (!audioRecorder) return;
+
+    if (audioRecorder.state === 'recording') {
+        // Pause recording
+        audioRecorder.pause();
+        isVoicePaused = true;
+        voicePauseIcon.className = 'fas fa-play text-sm';
+        voicePauseText.textContent = 'Resume';
+    } else if (audioRecorder.state === 'paused') {
+        // Resume recording
+        audioRecorder.resume();
+        isVoicePaused = false;
+        voicePauseIcon.className = 'fas fa-pause text-sm';
+        voicePauseText.textContent = 'Pause';
+    }
+}
+
+// 5. Send the Recorded Voice (triggers upload & send)
+function sendRecordedVoice() {
+    if (audioRecorder && audioRecorder.state !== 'inactive') {
+        audioRecorder.stop();
+    }
+    // Note: The upload and send logic is already inside audioRecorder.onstop in your original code.
+    // It will automatically trigger when stop() is called.
+    stopVoiceTimer();
 }
 
 function toggleAttachMenu() {
