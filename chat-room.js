@@ -153,12 +153,24 @@ function renderMessages(messages, appendAtTop = false) {
                 ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
             `;
         } else if (msg.type === 'video') {
-            contentHTML = `
-                <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
-            `;
-        } else if (msg.type === 'voice') {
-            contentHTML = `
-                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+    contentHTML = `
+        <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+    `;
+} else if (msg.type === 'document') {
+    contentHTML = `
+        <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
+            <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-file-alt text-white"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold truncate">${msg.content || 'Document'}</p>
+                <p class="text-[10px] opacity-70">Tap to download</p>
+            </div>
+        </div>
+    `;
+} else if (msg.type === 'voice') {
+    contentHTML = `
+        <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
                     <button class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform">
                         <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
                     </button>
@@ -1060,6 +1072,20 @@ async function sendCaptionedMedia() {
         // Canvas se edited image lo
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
         fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    } else if (pendingMediaType === 'document') {
+        // 🟢 Document — direct file with caption
+        fileToUpload = pendingMediaFile;
+        const docName = pendingMediaFile.name;
+        const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
+        
+        pendingMediaFile = null;
+        ui.classList.add('hidden');
+        document.getElementById('mediaCaptionInput').value = '';
+        
+        // Send with spinner/progress
+        await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
+        closeMediaPreview();
+        return;
     } else {
         fileToUpload = pendingMediaFile;
     }
@@ -1074,9 +1100,6 @@ async function sendCaptionedMedia() {
     // Cleanup
     closeMediaPreview();
 }
-
-
-
 
 // =========================================================
 // NEW VOICE RECORDING UI (WhatsApp Style)
@@ -1258,30 +1281,160 @@ function openCamera() {
         document.getElementById('hiddenCameraInput').click();
     }, 350);
 }
-
 // 3. Location
+// =========================================================
+// LOCATION FUNCTIONS
+// =========================================================
+
+let selectedLat = null;
+let selectedLng = null;
+let selectedLocName = '';
+let selectedLocAddress = '';
+
+// Open location popup
 function shareLocation() {
     closeAttachPopup();
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const { latitude, longitude } = position.coords;
-                const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
-                const locationMsg = `📍 Location: ${mapUrl}`;
-                await sendMessage(locationMsg);
-            },
-            (error) => {
-                alert("Location access denied. Please enable GPS.");
-            }
-        );
-    } else {
-        alert("Geolocation not supported in this browser.");
+    setTimeout(() => {
+        const popup = document.getElementById('locationPopup');
+        const overlay = document.getElementById('locationPopupOverlay');
+        popup.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+        void popup.offsetWidth;
+        popup.style.transform = 'translateY(0)';
+        
+        // Reset state
+        selectedLat = null;
+        selectedLng = null;
+        document.getElementById('sendLocationBtn').disabled = true;
+        document.getElementById('selectedLocationInfo').classList.add('hidden');
+        document.getElementById('locationMapImage').classList.add('hidden');
+        document.getElementById('locationMapPlaceholder').classList.remove('hidden');
+        document.getElementById('locationPin').classList.add('hidden');
+        document.getElementById('locationSearchInput').value = '';
+    }, 350);
+}
+
+// Close location popup
+function closeLocationPopup() {
+    const popup = document.getElementById('locationPopup');
+    const overlay = document.getElementById('locationPopupOverlay');
+    popup.style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        popup.classList.add('hidden');
+        overlay.classList.add('hidden');
+    }, 300);
+}
+
+// Search location (Google Maps Geocoding API)
+async function searchLocation() {
+    const query = document.getElementById('locationSearchInput').value.trim();
+    if (!query) return;
+    
+    try {
+        // Using OpenStreetMap Nominatim (free, no API key)
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const place = data[0];
+            selectedLat = parseFloat(place.lat);
+            selectedLng = parseFloat(place.lon);
+            selectedLocName = place.display_name.split(',')[0];
+            selectedLocAddress = place.display_name;
+            
+            // Show on map
+            showLocationOnMap(selectedLat, selectedLng, selectedLocName, selectedLocAddress);
+        } else {
+            alert("Location not found. Try a different search.");
+        }
+    } catch (err) {
+        console.error("Search error:", err);
+        alert("Search failed. Please try again.");
     }
 }
 
-// 4. Contacts
+// Show location on map
+function showLocationOnMap(lat, lng, name, address) {
+    const mapImg = document.getElementById('locationMapImage');
+    const placeholder = document.getElementById('locationMapPlaceholder');
+    const pin = document.getElementById('locationPin');
+    const info = document.getElementById('selectedLocationInfo');
+    const nameEl = document.getElementById('selectedLocationName');
+    const addrEl = document.getElementById('selectedLocationAddress');
+    const sendBtn = document.getElementById('sendLocationBtn');
+    
+    // Use OpenStreetMap static map
+    mapImg.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x400&markers=${lat},${lng},red-pushpin`;
+    mapImg.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+    pin.classList.remove('hidden');
+    
+    nameEl.textContent = name;
+    addrEl.textContent = address;
+    info.classList.remove('hidden');
+    sendBtn.disabled = false;
+}
+
+// Send selected location
+async function sendSelectedLocation() {
+    if (!selectedLat || !selectedLng) {
+        alert("Please search and select a location first.");
+        return;
+    }
+    
+    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
+    const locationMsg = `📍 ${selectedLocName}\n${mapUrl}`;
+    
+    closeLocationPopup();
+    await sendMessage(locationMsg);
+}
+
+// Share live location (simplified - sends periodic updates for 15 min)
+function shareLiveLocation() {
+    if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+    }
+    
+    closeLocationPopup();
+    
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
+        const liveMsg = `🔴 Live Location (15 min)\n${mapUrl}`;
+        await sendMessage(liveMsg);
+        
+        // Optional: Set interval to update location every 5 minutes
+        alert("Live location sharing started for 15 minutes.");
+    }, () => {
+        alert("Location access denied.");
+    });
+}
+
+// Send current location instantly
+function sendCurrentLocation() {
+    if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords;
+        const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
+        const locationMsg = `📍 My Current Location\n${mapUrl}`;
+        
+        closeLocationPopup();
+        await sendMessage(locationMsg);
+    }, () => {
+        alert("Location access denied. Please enable GPS.");
+        closeLocationPopup();
+    });
+}
+
+// 4. Contacts (Fixed - No Double Send)
 async function shareContact() {
     closeAttachPopup();
+    
     if ('contacts' in navigator && 'select' in navigator.contacts) {
         try {
             const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
@@ -1289,15 +1442,24 @@ async function shareContact() {
                 const contact = contacts[0];
                 const name = contact.name || 'Unknown';
                 const phone = contact.tel || '';
+                
+                // 🟢 Fix: Sirf EK BAAR send karo
                 const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
                 await sendMessage(contactMsg);
+                // ❌ Doosri bar call mat karo — yahi galti thi!
             }
         } catch (err) {
             console.error("Contact selection failed:", err);
             alert("Contact access denied.");
         }
     } else {
-        alert("Contacts API not supported. Please share manually.");
+        // Manual contact share prompt
+        const name = prompt("Enter contact name:");
+        if (!name) return;
+        const phone = prompt("Enter phone number:");
+        if (!phone) return;
+        const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
+        await sendMessage(contactMsg);
     }
 }
 
@@ -1357,20 +1519,64 @@ async function handleGalleryPick(input) {
     }
 }
 
-// Document Pick
+// Document Pick (With Preview + Caption + Spinner)
 async function handleDocumentPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     
-    try {
-        const fileUrl = await uploadChatFile(file);
-        const docMsg = `📄 Document: ${file.name}\n${fileUrl}`;
-        await sendMessage(docMsg);
-    } catch (err) {
-        alert("Document upload failed.");
-        console.error(err);
-    }
+    // 🟢 Preview UI mein file info dikhao
+    pendingMediaFile = file;
+    pendingMediaType = 'document';
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    const captionInput = document.getElementById('mediaCaptionInput');
+    const img = document.getElementById('mediaPreviewImg');
+    const vid = document.getElementById('mediaPreviewVideo');
+    const canvas = document.getElementById('imageCanvas');
+    
+    captionInput.value = '';
+    
+    // Hide image/video/canvas
+    img.classList.add('hidden');
+    vid.classList.add('hidden');
+    canvas.classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.add('hidden');
+    document.getElementById('toggleCropBtn').classList.add('hidden');
+    document.getElementById('applyCropBtn').classList.add('hidden');
+    document.getElementById('drawingTools').classList.add('hidden');
+    document.getElementById('captionBar').classList.remove('hidden');
+    
+    // 🟢 Create document preview card
+    const canvasContainer = document.getElementById('canvasContainer');
+    canvasContainer.innerHTML = `
+        <div class="flex flex-col items-center gap-4 px-6">
+            <div class="w-24 h-24 rounded-2xl bg-orange-600 flex items-center justify-center">
+                <i class="fas fa-file-alt text-5xl text-white"></i>
+            </div>
+            <div class="text-center">
+                <p class="text-white font-bold text-base mb-1">${escapeHTML(file.name)}</p>
+                <p class="text-gray-400 text-sm">${formatFileSize(file.size)}</p>
+                <p class="text-gray-500 text-xs mt-1">${file.type || 'Unknown type'}</p>
+            </div>
+        </div>
+    `;
+    
+    ui.classList.remove('hidden');
     input.value = '';
+}
+
+// Helper: Format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Helper: Escape HTML
+function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 // Audio Pick
@@ -1387,7 +1593,75 @@ async function handleAudioPick(input) {
     }
     input.value = '';
 }
+// =========================================================
+// LONG PRESS TO COPY CONTACT NUMBER
+// =========================================================
+let longPressTimer;
+let longPressTarget;
 
+document.addEventListener('touchstart', function(e) {
+    const contactBubble = e.target.closest('.bubble-sent, .bubble-received');
+    if (!contactBubble) return;
+    
+    const text = contactBubble.textContent || '';
+    
+    // Check if it contains a phone number (simple pattern)
+    const phoneMatch = text.match(/📞\s*([+\d\s-]+)/);
+    if (!phoneMatch) return;
+    
+    longPressTarget = phoneMatch[1].replace(/\s+/g, '');
+    
+    longPressTimer = setTimeout(() => {
+        if (longPressTarget) {
+            copyToClipboard(longPressTarget);
+            showCopyToast(contactBubble);
+        }
+    }, 800); // 800ms long press
+});
+
+document.addEventListener('touchend', function() {
+    clearTimeout(longPressTimer);
+    longPressTarget = null;
+});
+
+document.addEventListener('touchmove', function() {
+    clearTimeout(longPressTimer);
+    longPressTarget = null;
+});
+
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            console.log("📋 Copied:", text);
+        }).catch(err => {
+            console.error("Copy failed:", err);
+        });
+    } else {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+}
+
+function showCopyToast(element) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bg-black/80 text-white text-xs px-3 py-2 rounded-full z-[100000] animate-pop';
+    toast.textContent = '📋 Phone number copied!';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.bottom = '100px';
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 2000);
+}
 document.addEventListener("click", function (e) {
 
     const btn = e.target.closest(".play-btn-custom");
