@@ -146,36 +146,40 @@ function renderMessages(messages, appendAtTop = false) {
 
         let contentHTML = '';
         if (msg.type === 'text') {
-            // ✅ LOCATION DETECTION (IMPROVED)
-            const locationMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=([-\d.]+),([-\d.]+)/);
-            if (locationMatch) {
-                const lat = locationMatch[1];
-                const lng = locationMatch[2];
-                const fullUrl = locationMatch[0];
+    // 1. Regex jo Google Maps link aur Lat/Lng ko sahi tarike se extract karta hai
+    const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=([-\d.]+),([-\d.]+)/);
+    
+    if (urlMatch) {
+        const fullUrl = urlMatch[0];
+        const lat = urlMatch[1];
+        const lng = urlMatch[2];
+        const textWithoutUrl = msg.content.replace(fullUrl, '').trim();
+
+        // 2. Multi-Server Backup Static Map Links (Pehle Yandex, phir OpenStreetMap fallback)
+        const primaryMapUrl = `https://static-maps.yandex.ru/1.x/?l=map&z=15&size=600,300&pt=${lng},${lat},pm2rdm`;
+        const fallbackMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
+
+        contentHTML = `
+            <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
+                ${textWithoutUrl ? `<p class="whitespace-pre-wrap font-medium mb-1">${textWithoutUrl}</p>` : ''}
                 
-                // Remove URL from text to show only caption
-                const textWithoutUrl = msg.content.replace(fullUrl, '').trim();
-                
-                // Static Map URL (OpenStreetMap)
-                const staticMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
-                
-                contentHTML = `
-                    <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
-                        ${textWithoutUrl ? `<p class="whitespace-pre-wrap">${textWithoutUrl}</p>` : ''}
-                        <div class="mt-2 rounded-xl overflow-hidden shadow-md" style="max-width:280px;">
-                            <img src="${staticMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
-                                 onerror="this.style.display='none'">
-                        </div>
-                        <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                            <i class="fas fa-map-marker-alt text-blue-400"></i>
-                            <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Normal text message
-                contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
-            }
+                <div class="mt-2 rounded-xl overflow-hidden shadow-md border border-gray-200 relative bg-gray-100" style="max-width:280px;">
+                    <img src="${primaryMapUrl}" 
+                         class="w-full h-36 object-cover" 
+                         alt="Location Map" 
+                         onerror="this.onerror=null; this.src='${fallbackMapUrl}';">
+                </div>
+
+                <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <i class="fas fa-map-marker-alt text-blue-400"></i>
+                    <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
+                </div>
+            </div>
+        `;
+    } else {
+        contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+    }
+}
         } else if (msg.type === 'image') {
             contentHTML = `
                 <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
