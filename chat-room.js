@@ -1,6 +1,6 @@
 console.log("🚀 Chat Room Script Loaded Successfully!");
 // =========================================================
-// CHAT LOGIC - FULL UPGRADED & FIXED VERSION
+// CHAT LOGIC - CORE MODULE
 // =========================================================
 
 // 1. Supabase Initialization
@@ -72,8 +72,8 @@ async function fetchOtherUser() {
 
     if (error || !participants || participants.length === 0) {
         console.warn("⚠️ other user not found, but chat will still work.");
-        if (headerName) headerName.textContent = "Unknown User";
-        if (headerAvatar) headerAvatar.textContent = "?";
+        headerName.textContent = "Unknown User";
+        headerAvatar.textContent = "?";
         return;
     }
 
@@ -89,11 +89,11 @@ async function fetchOtherUser() {
         otherUserName = "Unknown";
     } else {
         otherUserName = userData.name || "User";
-        if (headerStatus) headerStatus.textContent = `+${userData.phone}`;
+        headerStatus.textContent = `+${userData.phone}`;
     }
 
-    if (headerName) headerName.textContent = otherUserName;
-    if (headerAvatar) headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+    headerName.textContent = otherUserName;
+    headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
 }
 
 // =========================================================
@@ -121,7 +121,7 @@ function formatTime(dateStr) {
 }
 
 // =========================================================
-// 3. RENDER MESSAGES (WITH DATE GROUPING & MAP PREVIEW)
+// 3. RENDER MESSAGES (WITH DATE GROUPING)
 // =========================================================
 function renderMessages(messages, appendAtTop = false) {
     if (!messages || messages.length === 0) return;
@@ -129,7 +129,7 @@ function renderMessages(messages, appendAtTop = false) {
     let lastDate = '';
     const fragment = document.createDocumentFragment();
 
-    messages.forEach((msg) => {
+    messages.forEach((msg, index) => {
         const msgDate = getDateLabel(msg.created_at);
         
         if (msgDate !== lastDate) {
@@ -161,14 +161,10 @@ function renderMessages(messages, appendAtTop = false) {
                 contentHTML = `
                     <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
                         ${textWithoutUrl ? `<p class="whitespace-pre-wrap font-medium mb-1">${textWithoutUrl}</p>` : ''}
-                        
                         <div class="mt-2 rounded-xl overflow-hidden shadow-md border border-gray-200 relative bg-gray-100" style="max-width:280px;">
-                            <img src="${primaryMapUrl}" 
-                                 class="w-full h-36 object-cover" 
-                                 alt="Location Map" 
+                            <img src="${primaryMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
                                  onerror="this.onerror=null; this.src='${fallbackMapUrl}';">
                         </div>
-
                         <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
                             <i class="fas fa-map-marker-alt text-blue-400"></i>
                             <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
@@ -186,7 +182,6 @@ function renderMessages(messages, appendAtTop = false) {
         } else if (msg.type === 'video') {
             contentHTML = `
                 <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
-                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
             `;
         } else if (msg.type === 'document') {
             contentHTML = `
@@ -253,11 +248,11 @@ async function loadMessages(loadMore = false) {
     if (isLoadingMore || (!loadMore && !hasMoreMessages)) return;
     isLoadingMore = true;
     if (loadMore) {
-        if (loadMoreLoader) loadMoreLoader.classList.remove('hidden');
+        loadMoreLoader.classList.remove('hidden');
         page++;
     } else {
         page = 0;
-        if (messageContainer) messageContainer.innerHTML = '';
+        messageContainer.innerHTML = '';
         hasMoreMessages = true;
     }
 
@@ -272,7 +267,7 @@ async function loadMessages(loadMore = false) {
         .range(from, to);
 
     isLoadingMore = false;
-    if (loadMoreLoader) loadMoreLoader.classList.add('hidden');
+    loadMoreLoader.classList.add('hidden');
 
     if (error) {
         console.error("Error loading messages:", error);
@@ -316,9 +311,7 @@ async function markMessagesAsRead(messages) {
 // =========================================================
 function scrollToBottom() {
     setTimeout(() => {
-        if (messageContainer) {
-            messageContainer.scrollTop = messageContainer.scrollHeight;
-        }
+        messageContainer.scrollTop = messageContainer.scrollHeight;
     }, 100);
 }
 
@@ -358,10 +351,8 @@ function subscribeToChat() {
 async function sendMessage(text, fileUrl = null, msgType = 'text') {
     if (!text && !fileUrl) return;
 
-    if (sendBtn) {
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
-    }
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
 
     const newMsg = {
         conversation_id: conversationId,
@@ -373,10 +364,8 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
 
     const { error } = await _supabase.from('messages').insert([newMsg]);
 
-    if (sendBtn) {
-        sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
-        sendBtn.disabled = false;
-    }
+    sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
+    sendBtn.disabled = false;
 
     if (error) {
         console.error("Send error:", error);
@@ -387,17 +376,14 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
     newMsg.created_at = new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
-    if (msgInput) {
-        msgInput.value = '';
-        msgInput.style.height = 'auto';
-    }
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
 }
 
 // =========================================================
 // 9. TYPING INDICATOR
 // =========================================================
 function showTypingIndicator(show) {
-    if (!typingIndicator) return;
     if (show) {
         typingIndicator.classList.remove('hidden');
         typingIndicator.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
@@ -407,7 +393,7 @@ function showTypingIndicator(show) {
 }
 
 // =========================================================
-// 10. MEDIA UPLOAD & PREVIEW LOGIC
+// 10. MEDIA UPLOAD
 // =========================================================
 async function uploadChatFile(file) {
     let extension = "bin";
@@ -422,18 +408,10 @@ async function uploadChatFile(file) {
 
     const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
-    const { error } = await _supabase
-        .storage
-        .from("order-files")
-        .upload(fileName, file);
-
+    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
     if (error) throw error;
 
-    return _supabase
-        .storage
-        .from("order-files")
-        .getPublicUrl(fileName)
-        .data.publicUrl;
+    return _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
 }
 
 // Upload with progress + local preview
@@ -441,9 +419,7 @@ async function sendMessageWithProgress(text, file, msgType) {
     if (!text && !file) return;
 
     let localUrl = null;
-    if (file) {
-        localUrl = URL.createObjectURL(file);
-    }
+    if (file) localUrl = URL.createObjectURL(file);
 
     const tempMsg = {
         conversation_id: conversationId,
@@ -477,25 +453,19 @@ async function sendMessageWithProgress(text, file, msgType) {
         };
 
         const { error } = await _supabase.from('messages').insert([newMsg]);
-        
         if (error) throw error;
 
         tempBubble.remove();
         newMsg.created_at = new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
-        
     } catch (err) {
         const spinner = tempBubble?.querySelector('.upload-spinner');
-        if (spinner) {
-            spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
-        }
+        if (spinner) spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
     }
 
-    if (msgInput) {
-        msgInput.value = '';
-        msgInput.style.height = 'auto';
-    }
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
 }
 
 function renderTempMessage(msg) {
@@ -525,32 +495,19 @@ function renderTempMessage(msg) {
                 <span class="text-white text-xs">Uploading voice...</span>
             </div>
         `;
-    } else {
-        contentHTML = `
-            <div class="flex items-center gap-2">
-                <div class="upload-spinner w-6 h-6 rounded-full bg-black/30 flex items-center justify-center">
-                    <i class="fas fa-spinner fa-spin text-white text-xs"></i>
-                </div>
-                <span class="text-white text-xs">Uploading file...</span>
-            </div>
-        `;
     }
     
     bubble.innerHTML = contentHTML;
-    if (messageContainer) messageContainer.appendChild(bubble);
+    messageContainer.appendChild(bubble);
     return bubble;
 }
 
 function updateProgressBar(bubble, progress) {
     const bar = bubble.querySelector('.upload-progress-bar');
-    if (bar) {
-        bar.style.width = progress + '%';
-    }
+    if (bar) bar.style.width = progress + '%';
     if (progress === 100) {
         const spinner = bubble.querySelector('.upload-spinner');
-        if (spinner) {
-            spinner.innerHTML = '<i class="fas fa-check text-green-400 text-lg"></i>';
-        }
+        if (spinner) spinner.innerHTML = '<i class="fas fa-check text-green-400 text-lg"></i>';
     }
 }
 
@@ -568,17 +525,12 @@ async function uploadChatFileWithProgress(file, onProgress) {
     const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
     onProgress(10);
-    
     const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
-    
     if (error) throw error;
-    
     onProgress(90);
     
     const publicUrl = _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
-    
     onProgress(100);
-    
     return publicUrl;
 }
 
@@ -606,9 +558,9 @@ async function startVoiceRecording() {
             aStream.getTracks().forEach(track => track.stop());
             stopVoiceTimer();
             const micIcon = document.getElementById("micIcon");
-            if (micIcon) micIcon.className = "fas fa-microphone text-white";
+            micIcon.className = "fas fa-microphone text-white";
             const vBtn = document.getElementById("chatVoiceBtn");
-            if (vBtn) vBtn.classList.remove("voice-active");
+            vBtn.classList.remove("voice-active");
             window.recordedVoiceBlob = audioBlob;
         };
         
@@ -630,33 +582,32 @@ function stopVoiceRecording() {
 // =========================================================
 // 12. EVENT LISTENERS
 // =========================================================
-if (msgInput) {
-    msgInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (sendBtn) sendBtn.click();
-        }
-    });
+msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+    }
+});
 
-    msgInput.addEventListener('input', () => {
-        if (!isTyping) {
-            isTyping = true;
-            const typingChannel = _supabase.channel(`typing-${conversationId}`);
-            typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
-            setTimeout(() => { isTyping = false; }, 2000);
-        }
-        msgInput.style.height = 'auto';
-        msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
-    });
-}
+msgInput.addEventListener('input', () => {
+    if (!isTyping) {
+        isTyping = true;
+        const typingChannel = _supabase.channel(`typing-${conversationId}`);
+        typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
+        setTimeout(() => { isTyping = false; }, 2000);
+    }
+});
 
-if (messageContainer) {
-    messageContainer.addEventListener('scroll', () => {
-        if (messageContainer.scrollTop === 0 && hasMoreMessages) {
-            loadMessages(true);
-        }
-    });
-}
+msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
+});
+
+messageContainer.addEventListener('scroll', () => {
+    if (messageContainer.scrollTop === 0 && hasMoreMessages) {
+        loadMessages(true);
+    }
+});
 
 // =========================================================
 // 13. MEDIA VIEWER
@@ -664,7 +615,6 @@ if (messageContainer) {
 function openMediaViewer(src, type) {
     const viewer = document.getElementById('mediaViewer');
     const content = document.getElementById('mediaViewerContent');
-    if (!viewer || !content) return;
     viewer.classList.remove('hidden');
     viewer.classList.add('flex');
     if (type === 'image') {
@@ -674,51 +624,25 @@ function openMediaViewer(src, type) {
     }
 }
 
-function closeMediaPreview() {
-    console.log("🔄 closeMediaPreview called");
-    const ui = document.getElementById('mediaPreviewUI');
-    ui.classList.add('hidden');
-    ui.style.display = 'none';
-    
-    // ✅ Clean up but DON'T nullify before send
-    if (canvas) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.classList.add('hidden');
-    }
-    document.getElementById('mediaCaptionInput').value = '';
-    resetEditorState();
-    
-    // Clean up blob URLs
-    const vid = document.getElementById('mediaPreviewVideo');
-    if (vid) {
-        vid.src = '';
-        vid.classList.add('hidden');
-    }
-    const img = document.getElementById('mediaPreviewImg');
-    if (img) {
-        img.src = '';
-        img.classList.add('hidden');
-    }
+function closeMediaViewer() {
+    document.getElementById('mediaViewer').classList.add('hidden');
+    document.getElementById('mediaViewer').classList.remove('flex');
 }
 
 // =========================================================
 // 14. INITIALIZATION
 // =========================================================
 async function init() {
-    window.addEventListener('offline', () => {
-        const banner = document.getElementById('offlineBanner');
-        if (banner) banner.style.top = '0';
-    });
+    window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
     window.addEventListener('online', () => {
-        const banner = document.getElementById('offlineBanner');
-        if (banner) banner.style.top = '-50px';
+        document.getElementById('offlineBanner').style.top = '-50px';
         loadMessages(false);
     });
 
     try {
         await fetchOtherUser();
     } catch (e) {
-        console.warn("Other user info fetch error:", e);
+        console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
     }
 
     await loadMessages(false);
@@ -732,14 +656,12 @@ function updateChatHeight() {
 
 window.addEventListener("resize", updateChatHeight);
 window.addEventListener("orientationchange", updateChatHeight);
-
 updateChatHeight();
 
 // =========================================================
-// CHAT FOOTER BUTTON HANDLERS
+// 15. FOOTER FUNCTIONS
 // =========================================================
 function sendChatMessage() {
-    if (!msgInput) return;
     const text = msgInput.value.trim();
     if (text) sendMessage(text);
 }
@@ -751,583 +673,44 @@ function handleChatVoice() {
     if (audioRecorder && audioRecorder.state === 'recording') {
         stopVoiceRecording();
         stopVoiceTimer();
-        if (vBtn) vBtn.classList.remove('voice-active');
-        if (micIcon) micIcon.className = 'fas fa-microphone text-white';
+        vBtn.classList.remove('voice-active');
+        micIcon.className = 'fas fa-microphone text-white';
     } else {
         startVoiceRecording();
-        if (vBtn) vBtn.classList.add('voice-active');
-        if (micIcon) micIcon.className = 'fas fa-stop text-red-500';
+        vBtn.classList.add('voice-active');
+        micIcon.className = 'fas fa-stop text-red-500';
     }
 }
 
 // =========================================================
-// ADVANCED MEDIA PREVIEW (DRAW + CROP + CAPTION) - ALL BUGS FIXED
+// 16. VOICE RECORDER UI
 // =========================================================
-let pendingMediaFile = null;
-let pendingMediaType = 'image';
-let canvasImage = null;
-let canvas = null;
-let ctx = null;
-
-let isDrawingMode = false;
-let isDrawing = false;
-let currentTool = 'pen';
-let drawColor = '#ff0000';
-let startX, startY;
-let drawings = [];
-
-let isCropMode = false;
-let cropBox = null;
-let cropOverlay = null;
-
-// 🟢 CRITICAL HELPER: Restores canvas & preview structure whenever document/audio previously changed innerHTML
-function ensureCanvasExists() {
-    let container = document.getElementById('canvasContainer');
-    if (!container) return null;
-
-    let canvasEl = document.getElementById('imageCanvas');
-    if (!canvasEl) {
-        container.innerHTML = `
-            <img id="mediaPreviewImg" class="hidden max-w-full max-h-[60vh] rounded-lg object-contain mx-auto">
-            <video id="mediaPreviewVideo" class="hidden max-w-full max-h-[60vh] rounded-lg mx-auto" controls></video>
-            <canvas id="imageCanvas" class="max-w-full max-h-[60vh] rounded-lg mx-auto shadow-lg"></canvas>
-        `;
-        canvasEl = document.getElementById('imageCanvas');
-    }
-    return canvasEl;
-}
-
-// 1. Preview Chat Media
-async function previewChatMedia(input) {
-    if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    pendingMediaFile = file;
-    pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
-
-    const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) return;
-
-    const captionInput = document.getElementById('mediaCaptionInput');
-    if (captionInput) captionInput.value = '';
-
-    const url = URL.createObjectURL(file);
-    
-    console.log("📸 Preview called:", { fileName: file.name, pendingMediaType });
-    
-    if (pendingMediaType === 'image') {
-        ensureCanvasExists();
-
-        ui.classList.remove('hidden');
-        ui.style.display = 'flex';
-        
-        canvasImage = new Image();
-        canvasImage.onload = () => {
-            console.log("✅ Image loaded successfully");
-            setupCanvas(canvasImage);
-            resetEditorState();
-            
-            const container = document.getElementById('canvasContainer');
-            if (container) container.style.display = 'block';
-            
-            const canvasEl = document.getElementById('imageCanvas');
-            if (canvasEl) {
-                canvasEl.classList.remove('hidden');
-                canvasEl.style.display = 'block';
-            }
-            
-            const topBar = document.getElementById('editorTopBar');
-            if (topBar) topBar.style.display = 'flex';
-            
-            const capBar = document.getElementById('captionBar');
-            if (capBar) {
-                capBar.classList.remove('hidden');
-                capBar.style.display = 'block';
-            }
-
-            // Reset input safely AFTER successful load
-            input.value = '';
-        };
-
-        canvasImage.onerror = (err) => {
-            console.error("❌ Image load failed:", err);
-            ui.classList.add('hidden');
-            ui.style.display = 'none';
-            input.value = '';
-            alert("Image could not be loaded. Please try again.");
-        };
-
-        canvasImage.src = url;
-        
-    } else {
-        // Video Preview
-        ensureCanvasExists();
-        const vid = document.getElementById('mediaPreviewVideo');
-        if (vid) {
-            vid.src = url;
-            vid.classList.remove('hidden');
-            vid.style.display = 'block';
-        }
-
-        const img = document.getElementById('mediaPreviewImg');
-        if (img) img.classList.add('hidden');
-
-        const canvasEl = document.getElementById('imageCanvas');
-        if (canvasEl) canvasEl.classList.add('hidden');
-
-        const drawBtn = document.getElementById('toggleDrawBtn');
-        if (drawBtn) drawBtn.classList.add('hidden');
-
-        const cropBtn = document.getElementById('toggleCropBtn');
-        if (cropBtn) cropBtn.classList.add('hidden');
-
-        const drawTools = document.getElementById('drawingTools');
-        if (drawTools) drawTools.classList.add('hidden');
-
-        const capBar = document.getElementById('captionBar');
-        if (capBar) {
-            capBar.classList.remove('hidden');
-            capBar.style.display = 'block';
-        }
-        
-        ui.classList.remove('hidden');
-        ui.style.display = 'flex';
-        input.value = '';
-    }
-}
-
-// 2. Setup Canvas
-function setupCanvas(img) {
-    canvas = ensureCanvasExists();
-    if (!canvas) {
-        console.error("❌ Canvas element not found");
-        return;
-    }
-    
-    ctx = canvas.getContext('2d');
-    canvas.classList.remove('hidden');
-    canvas.style.display = 'block';
-    
-    const maxWidth = window.innerWidth - 32;
-    const maxHeight = window.innerHeight - 250;
-    let width = img.width;
-    let height = img.height;
-    
-    const ratio = Math.min(maxWidth / width, maxHeight / height);
-    width *= ratio;
-    height *= ratio;
-    
-    canvas.width = width;
-    canvas.height = height;
-    ctx.drawImage(img, 0, 0, width, height);
-    
-    const container = document.getElementById('canvasContainer');
-    if (container) container.style.display = 'block';
-    
-    setupCanvasEvents();
-}
-
-function setupCanvasEvents() {
-    if (!canvas) return;
-    canvas.onmousedown = null;
-    canvas.onmousemove = null;
-    canvas.onmouseup = null;
-    canvas.onmouseleave = null;
-    canvas.ontouchstart = null;
-    canvas.ontouchmove = null;
-    canvas.ontouchend = null;
-    
-    canvas.addEventListener('mousedown', (e) => {
-        if (!isDrawingMode || isCropMode) return;
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        startX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        startY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing || isCropMode) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-        drawings[drawings.length - 1].endX = x;
-        drawings[drawings.length - 1].endY = y;
-        redrawCanvas();
-    });
-
-    canvas.addEventListener('mouseup', () => { isDrawing = false; });
-    canvas.addEventListener('mouseleave', () => { isDrawing = false; });
-
-    canvas.addEventListener('touchstart', (e) => {
-        if (!isDrawingMode || isCropMode) return;
-        e.preventDefault();
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        startX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-        startY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        drawings.push({ tool: currentTool, color: drawColor, startX, startY, endX: startX, endY: startY });
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-        if (!isDrawing || isCropMode) return;
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        drawings[drawings.length - 1].endX = x;
-        drawings[drawings.length - 1].endY = y;
-        redrawCanvas();
-    });
-
-    canvas.addEventListener('touchend', () => { isDrawing = false; });
-}
-
-function resetEditorState() {
-    console.log("🔄 resetEditorState called");
-    isDrawingMode = false;
-    isCropMode = false;
-    drawings = [];
-    
-    // ✅ DON'T reset pendingMediaFile or canvasImage here!
-    
-    document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
-    document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
-    document.getElementById('toggleCropBtn').classList.remove('bg-[#0077b9]');
-    document.getElementById('toggleCropBtn').classList.add('bg-white/10');
-    document.getElementById('applyCropBtn').classList.add('hidden');
-    document.getElementById('captionBar').classList.remove('hidden');
-    cropBox = document.getElementById('cropBox');
-    cropOverlay = document.getElementById('cropOverlay');
-    cropBox.classList.add('hidden');
-    cropOverlay.classList.add('hidden');
-    setupCropBoxEvents();
-    document.getElementById('imageCanvas').classList.remove('drawing-mode');
-}
-
-function setupCropBoxEvents() {
-    if (!cropBox) return;
-    cropBox.onmousedown = null;
-    
-    cropBox.addEventListener('mousedown', (e) => {
-        if (!isCropMode) return;
-        e.stopPropagation();
-        cropDragState = {
-            type: 'move',
-            startX: e.clientX,
-            startY: e.clientY,
-            startLeft: cropBox.offsetLeft,
-            startTop: cropBox.offsetTop
-        };
-    });
-}
-
-function toggleDrawingMode() {
-    if (isCropMode) toggleCropMode();
-    
-    isDrawingMode = !isDrawingMode;
-    const tools = document.getElementById('drawingTools');
-    const btn = document.getElementById('toggleDrawBtn');
-    
-    if (isDrawingMode) {
-        if (tools) tools.classList.remove('hidden');
-        if (btn) {
-            btn.classList.add('bg-[#0077b9]');
-            btn.classList.remove('bg-white/10');
-        }
-        if (canvas) canvas.classList.add('drawing-mode');
-        const capBar = document.getElementById('captionBar');
-        if (capBar) capBar.classList.add('hidden');
-        setDrawingTool('pen');
-    } else {
-        if (tools) tools.classList.add('hidden');
-        if (btn) {
-            btn.classList.remove('bg-[#0077b9]');
-            btn.classList.add('bg-white/10');
-        }
-        if (canvas) canvas.classList.remove('drawing-mode');
-        const capBar = document.getElementById('captionBar');
-        if (capBar) capBar.classList.remove('hidden');
-    }
-}
-
-function setDrawingTool(tool) {
-    currentTool = tool;
-    document.querySelectorAll('#drawingTools button[id$="Tool"]').forEach(btn => {
-        btn.classList.add('bg-white/10');
-        btn.classList.remove('bg-[#0077b9]');
-    });
-    const target = document.getElementById(tool + 'Tool');
-    if (target) {
-        target.classList.add('bg-[#0077b9]');
-        target.classList.remove('bg-white/10');
-    }
-}
-
-function setDrawingColor() {
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'];
-    const current = document.getElementById('currentColor');
-    const idx = colors.indexOf(drawColor);
-    drawColor = colors[(idx + 1) % colors.length];
-    if (current) current.style.backgroundColor = drawColor;
-}
-
-function redrawCanvas() {
-    if (!ctx || !canvasImage || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
-    
-    drawings.forEach(d => {
-        ctx.strokeStyle = d.color;
-        ctx.lineWidth = 3;
-        ctx.fillStyle = d.color;
-        ctx.beginPath();
-        
-        if (d.tool === 'pen') {
-            ctx.moveTo(d.startX, d.startY);
-            ctx.lineTo(d.endX, d.endY);
-        } else if (d.tool === 'circle') {
-            const radius = Math.sqrt(Math.pow(d.endX - d.startX, 2) + Math.pow(d.endY - d.startY, 2));
-            ctx.ellipse(d.startX, d.startY, radius, radius, 0, 0, 2 * Math.PI);
-        } else if (d.tool === 'arrow') {
-            const angle = Math.atan2(d.endY - d.startY, d.endX - d.startX);
-            ctx.moveTo(d.startX, d.startY);
-            ctx.lineTo(d.endX, d.endY);
-            ctx.lineTo(
-                d.endX - 10 * Math.cos(angle - Math.PI / 6),
-                d.endY - 10 * Math.sin(angle - Math.PI / 6)
-            );
-            ctx.moveTo(d.endX, d.endY);
-            ctx.lineTo(
-                d.endX - 10 * Math.cos(angle + Math.PI / 6),
-                d.endY - 10 * Math.sin(angle + Math.PI / 6)
-            );
-        }
-        ctx.stroke();
-    });
-}
-
-function undoDrawing() {
-    drawings.pop();
-    redrawCanvas();
-}
-
-function toggleCropMode() {
-    if (isDrawingMode) toggleDrawingMode();
-    
-    isCropMode = !isCropMode;
-    cropBox = document.getElementById('cropBox');
-    cropOverlay = document.getElementById('cropOverlay');
-    const btn = document.getElementById('toggleCropBtn');
-    const applyBtn = document.getElementById('applyCropBtn');
-    
-    if (isCropMode) {
-        if (btn) {
-            btn.classList.add('bg-[#0077b9]');
-            btn.classList.remove('bg-white/10');
-        }
-        if (applyBtn) applyBtn.classList.remove('hidden');
-        if (cropOverlay) cropOverlay.classList.remove('hidden');
-        if (cropBox) cropBox.classList.remove('hidden');
-        const capBar = document.getElementById('captionBar');
-        if (capBar) capBar.classList.add('hidden');
-        const drawBtn = document.getElementById('toggleDrawBtn');
-        if (drawBtn) drawBtn.classList.add('hidden');
-    } else {
-        if (btn) {
-            btn.classList.remove('bg-[#0077b9]');
-            btn.classList.add('bg-white/10');
-        }
-        if (applyBtn) applyBtn.classList.add('hidden');
-        if (cropOverlay) cropOverlay.classList.add('hidden');
-        if (cropBox) cropBox.classList.add('hidden');
-        const capBar = document.getElementById('captionBar');
-        if (capBar) capBar.classList.remove('hidden');
-        const drawBtn = document.getElementById('toggleDrawBtn');
-        if (drawBtn) drawBtn.classList.remove('hidden');
-    }
-}
-
-let cropDragState = null;
-
-document.addEventListener('mousemove', (e) => {
-    if (!cropDragState || !cropBox) return;
-    const dx = e.clientX - cropDragState.startX;
-    const dy = e.clientY - cropDragState.startY;
-    cropBox.style.left = (cropDragState.startLeft + dx) + 'px';
-    cropBox.style.top = (cropDragState.startTop + dy) + 'px';
-    cropBox.style.transform = 'none';
-});
-
-document.addEventListener('mouseup', () => { cropDragState = null; });
-
-function applyCrop() {
-    if (!isCropMode || !canvasImage || !canvas || !cropBox) return;
-    
-    const canvasRect = canvas.getBoundingClientRect();
-    const boxRect = cropBox.getBoundingClientRect();
-    
-    const scaleX = canvas.width / canvasRect.width;
-    const scaleY = canvas.height / canvasRect.height;
-    
-    const sx = (boxRect.left - canvasRect.left) * scaleX;
-    const sy = (boxRect.top - canvasRect.top) * scaleY;
-    const sw = boxRect.width * scaleX;
-    const sh = boxRect.height * scaleY;
-    
-    canvas.width = sw;
-    canvas.height = sh;
-    ctx.drawImage(canvasImage, sx, sy, sw, sh, 0, 0, sw, sh);
-    
-    canvasImage = new Image();
-    canvasImage.src = canvas.toDataURL();
-    
-    toggleCropMode();
-}
-
-function closeMediaPreview() {
-    const ui = document.getElementById('mediaPreviewUI');
-    if (ui) {
-        ui.classList.add('hidden');
-        ui.style.display = 'none';
-    }
-    pendingMediaFile = null;
-    canvasImage = null;
-    drawings = [];
-    if (canvas && ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.classList.add('hidden');
-    }
-    const captionInp = document.getElementById('mediaCaptionInput');
-    if (captionInp) captionInp.value = '';
-    resetEditorState();
-}
-
-async function sendCaptionedMedia() {
-    console.log("🟢 sendCaptionedMedia START");
-    console.log("📁 pendingMediaFile:", pendingMediaFile);
-    console.log("🖼️ canvasImage:", canvasImage);
-    console.log("📝 pendingMediaType:", pendingMediaType);
-    
-    // ✅ Check if we have media to send
-    if (!canvasImage && !pendingMediaFile) {
-        console.error("❌ No media to send!");
-        alert("Please select an image first!");
-        return;
-    }
-    
-    const caption = document.getElementById('mediaCaptionInput').value.trim();
-    console.log("📝 Caption:", caption);
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    let fileToUpload;
-    
-    try {
-        if (pendingMediaType === 'image' && canvasImage) {
-            console.log("🔄 Converting canvas to blob...");
-            const canvas = document.getElementById('imageCanvas');
-            if (!canvas) {
-                console.error("❌ Canvas not found!");
-                alert("Canvas not found!");
-                return;
-            }
-            
-            const blob = await new Promise((resolve) => {
-                canvas.toBlob(resolve, 'image/jpeg', 0.9);
-            });
-            
-            if (!blob) {
-                console.error("❌ Failed to create blob");
-                alert("Image processing failed!");
-                return;
-            }
-            
-            fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-            console.log("✅ File created:", fileToUpload);
-            
-        } else if (pendingMediaFile) {
-            console.log("🔄 Using pendingMediaFile directly");
-            fileToUpload = pendingMediaFile;
-        } else {
-            console.error("❌ No file available!");
-            alert("No image to send!");
-            return;
-        }
-        
-        console.log("📤 Sending file:", fileToUpload);
-        
-        // ✅ Store type before clearing
-        const mediaType = pendingMediaType;
-        
-        // ✅ Clear UI but KEEP variables until send completes
-        ui.classList.add('hidden');
-        ui.style.display = 'none';
-        document.getElementById('mediaCaptionInput').value = '';
-        
-        // ✅ Send message
-        await sendMessageWithProgress(caption || '', fileToUpload, mediaType);
-        console.log("✅ Message sent!");
-        
-        // ✅ Now clear variables AFTER successful send
-        pendingMediaFile = null;
-        canvasImage = null;
-        pendingMediaType = 'image';
-        
-        // Clean up canvas
-        if (canvas) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            canvas.classList.add('hidden');
-        }
-        resetEditorState();
-        
-    } catch (error) {
-        console.error("❌ Error:", error);
-        alert("Failed to send: " + error.message);
-    }
-}
-
-// =========================================================
-// VOICE RECORDING UI (WHATSAPP STYLE)
-// =========================================================
-const voiceRecorderUI = document.getElementById('voiceRecorderUI');
-const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
-const voiceWaveform = document.getElementById('voiceWaveform');
-const voicePauseBtn = document.getElementById('voicePauseBtn');
-const voicePauseIcon = document.getElementById('voicePauseIcon');
-const voicePauseText = document.getElementById('voicePauseText');
-
-let isVoicePaused = false;
-
 function startVoiceTimer() {
     if (!voiceRecorderUI) return;
     voiceSeconds = 0;
     voiceRecorderUI.style.display = 'flex';
     voiceRecorderUI.style.transform = 'translateY(0)';
-    if (voiceTimerDisplay) voiceTimerDisplay.textContent = '00:00';
+    voiceTimerDisplay.textContent = '00:00';
     isVoicePaused = false;
-    if (voicePauseIcon) voicePauseIcon.className = 'fas fa-pause text-sm';
-    if (voicePauseText) voicePauseText.textContent = 'Pause';
+    voicePauseIcon.className = 'fas fa-pause text-sm';
+    voicePauseText.textContent = 'Pause';
     
-    if (voiceWaveform) {
-        voiceWaveform.innerHTML = '';
-        for (let i = 0; i < 40; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'w-[2px] bg-white rounded-full';
-            bar.style.height = '3px';
-            bar.style.animationDelay = (i * 0.05) + 's';
-            voiceWaveform.appendChild(bar);
-        }
-        voiceWaveform.classList.add('recording');
+    voiceWaveform.innerHTML = '';
+    for (let i = 0; i < 40; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-[2px] bg-white rounded-full';
+        bar.style.height = '3px';
+        bar.style.animationDelay = (i * 0.05) + 's';
+        voiceWaveform.appendChild(bar);
     }
+    voiceWaveform.classList.add('recording');
 
     if (voiceTimerInterval) clearInterval(voiceTimerInterval);
     voiceTimerInterval = setInterval(() => {
         voiceSeconds++;
         const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
         const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-        if (voiceTimerDisplay) voiceTimerDisplay.textContent = `${mins}:${secs}`;
+        voiceTimerDisplay.textContent = `${mins}:${secs}`;
     }, 1000);
 }
 
@@ -1335,12 +718,10 @@ function stopVoiceTimer() {
     clearInterval(voiceTimerInterval);
     voiceTimerInterval = null;
     voiceSeconds = 0;
-    if (voiceWaveform) voiceWaveform.classList.remove('recording');
-    if (voiceRecorderUI) {
-        voiceRecorderUI.style.display = '';
-        voiceRecorderUI.style.transform = '';
-        voiceRecorderUI.classList.add('hidden');
-    }
+    voiceWaveform.classList.remove('recording');
+    voiceRecorderUI.style.display = '';
+    voiceRecorderUI.style.transform = '';
+    voiceRecorderUI.classList.add('hidden');
 }
 
 function cancelVoiceRecording() {
@@ -1352,9 +733,9 @@ function cancelVoiceRecording() {
     }
     stopVoiceTimer();
     const micIcon = document.getElementById('micIcon');
-    if (micIcon) micIcon.className = 'fas fa-microphone text-white';
+    micIcon.className = 'fas fa-microphone text-white';
     const vBtn = document.getElementById('chatVoiceBtn');
-    if (vBtn) vBtn.classList.remove('voice-active');
+    vBtn.classList.remove('voice-active');
     window.recordedVoiceBlob = null;
 }
 
@@ -1364,9 +745,8 @@ function toggleVoicePause() {
     if (audioRecorder.state === 'recording') {
         audioRecorder.pause();
         isVoicePaused = true;
-        if (voicePauseIcon) voicePauseIcon.className = 'fas fa-play text-sm';
-        if (voicePauseText) voicePauseText.textContent = 'Resume';
-
+        voicePauseIcon.className = 'fas fa-play text-sm';
+        voicePauseText.textContent = 'Resume';
         if (voiceTimerInterval) {
             clearInterval(voiceTimerInterval);
             voiceTimerInterval = null;
@@ -1374,15 +754,14 @@ function toggleVoicePause() {
     } else if (audioRecorder.state === 'paused') {
         audioRecorder.resume();
         isVoicePaused = false;
-        if (voicePauseIcon) voicePauseIcon.className = 'fas fa-pause text-sm';
-        if (voicePauseText) voicePauseText.textContent = 'Pause';
-
+        voicePauseIcon.className = 'fas fa-pause text-sm';
+        voicePauseText.textContent = 'Pause';
         if (voiceTimerInterval) clearInterval(voiceTimerInterval);
         voiceTimerInterval = setInterval(() => {
             voiceSeconds++;
             const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
             const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-            if (voiceTimerDisplay) voiceTimerDisplay.textContent = `${mins}:${secs}`;
+            voiceTimerDisplay.textContent = `${mins}:${secs}`;
         }, 1000);
     }
 }
@@ -1412,18 +791,25 @@ async function sendRecordedVoice() {
     window.recordedVoiceBlob = null;
     stopVoiceTimer();
     const micIcon = document.getElementById('micIcon');
-    if (micIcon) micIcon.className = 'fas fa-microphone text-white';
+    micIcon.className = 'fas fa-microphone text-white';
     const vBtn = document.getElementById('chatVoiceBtn');
-    if (vBtn) vBtn.classList.remove('voice-active');
+    vBtn.classList.remove('voice-active');
 }
 
+const voiceRecorderUI = document.getElementById('voiceRecorderUI');
+const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
+const voiceWaveform = document.getElementById('voiceWaveform');
+const voicePauseBtn = document.getElementById('voicePauseBtn');
+const voicePauseIcon = document.getElementById('voicePauseIcon');
+const voicePauseText = document.getElementById('voicePauseText');
+let isVoicePaused = false;
+
 // =========================================================
-// ATTACHMENT POPUP MENU
+// 17. ATTACHMENT POPUP
 // =========================================================
 function toggleAttachMenu() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
-    if (!popup || !overlay) return;
     popup.classList.remove('hidden');
     overlay.classList.remove('hidden');
     void popup.offsetWidth;
@@ -1433,7 +819,6 @@ function toggleAttachMenu() {
 function closeAttachPopup() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
-    if (!popup || !overlay) return;
     popup.style.transform = 'translateY(100%)';
     setTimeout(() => {
         popup.classList.add('hidden');
@@ -1443,424 +828,16 @@ function closeAttachPopup() {
 
 function openGallery() {
     closeAttachPopup();
-    setTimeout(() => {
-        const inp = document.getElementById('hiddenGalleryInput');
-        if (inp) inp.click();
-    }, 350);
+    setTimeout(() => document.getElementById('hiddenGalleryInput').click(), 350);
 }
 
 function openCamera() {
     closeAttachPopup();
-    setTimeout(() => {
-        const inp = document.getElementById('hiddenCameraInput');
-        if (inp) inp.click();
-    }, 350);
-}
-
-function openDocuments() {
-    closeAttachPopup();
-    setTimeout(() => {
-        const inp = document.getElementById('hiddenDocumentInput');
-        if (inp) inp.click();
-    }, 350);
-}
-
-function openAudio() {
-    closeAttachPopup();
-    setTimeout(() => {
-        const inp = document.getElementById('hiddenAudioInput');
-        if (inp) inp.click();
-    }, 350);
+    setTimeout(() => document.getElementById('hiddenCameraInput').click(), 350);
 }
 
 // =========================================================
-// LOCATION FUNCTIONS
-// =========================================================
-let selectedLat = null;
-let selectedLng = null;
-let selectedLocName = '';
-let selectedLocAddress = '';
-let locationMap = null;
-
-function shareLocation() {
-    closeAttachPopup();
-    setTimeout(() => {
-        const popup = document.getElementById('locationPopup');
-        const overlay = document.getElementById('locationPopupOverlay');
-        if (!popup || !overlay) return;
-        popup.classList.remove('hidden');
-        overlay.classList.remove('hidden');
-        popup.style.display = 'flex';
-        
-        selectedLat = null;
-        selectedLng = null;
-        const sendLocBtn = document.getElementById('sendLocationBtn');
-        if (sendLocBtn) sendLocBtn.disabled = true;
-        const selCard = document.getElementById('locationSelectedCard');
-        if (selCard) selCard.classList.add('hidden');
-        const searchRes = document.getElementById('locationSearchResults');
-        if (searchRes) searchRes.classList.add('hidden');
-        const searchInp = document.getElementById('locationSearchInput');
-        if (searchInp) searchInp.value = '';
-        
-        setTimeout(() => initLocationMap(), 300);
-    }, 350);
-}
-
-function closeLocationPopup() {
-    const popup = document.getElementById('locationPopup');
-    const overlay = document.getElementById('locationPopupOverlay');
-    if (popup) {
-        popup.classList.add('hidden');
-        popup.style.display = '';
-    }
-    if (overlay) overlay.classList.add('hidden');
-    if (locationMap) {
-        locationMap.remove();
-        locationMap = null;
-    }
-}
-
-function initLocationMap() {
-    const container = document.getElementById('locationMap');
-    if (!container || typeof L === 'undefined') return;
-    
-    if (locationMap) {
-        locationMap.remove();
-        locationMap = null;
-    }
-    
-    const defaultLat = 30.3753;
-    const defaultLng = 69.3451;
-    
-    locationMap = L.map('locationMap', {
-        center: [defaultLat, defaultLng],
-        zoom: 13,
-        zoomControl: false,
-        attributionControl: false
-    });
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(locationMap);
-    
-    setTimeout(() => {
-        if (locationMap) locationMap.invalidateSize();
-    }, 500);
-    
-    locationMap.on('moveend', function() {
-        if (locationMap) {
-            const center = locationMap.getCenter();
-            updateLocationInfo(center.lat, center.lng);
-        }
-    });
-    
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                if (locationMap) {
-                    locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                    updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
-                }
-            },
-            () => {
-                updateLocationInfo(defaultLat, defaultLng);
-            }
-        );
-    }
-}
-
-function goToMyLocation() {
-    if (!locationMap) return;
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                if (locationMap) {
-                    locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                }
-            },
-            () => alert("Location access denied.")
-        );
-    }
-}
-
-function updateLocationInfo(lat, lng) {
-    selectedLat = lat;
-    selectedLng = lng;
-    
-    const card = document.getElementById('locationSelectedCard');
-    const nameEl = document.getElementById('locationCardName');
-    const addrEl = document.getElementById('locationCardAddress');
-    const sendLocBtn = document.getElementById('sendLocationBtn');
-    
-    if (nameEl) nameEl.textContent = 'Selected Location';
-    if (addrEl) addrEl.textContent = '';
-    if (card) card.classList.remove('hidden');
-    if (sendLocBtn) sendLocBtn.disabled = false;
-    
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.display_name) {
-                selectedLocName = data.display_name.split(',')[0] || 'Selected Location';
-                selectedLocAddress = data.display_name;
-            } else {
-                selectedLocName = 'Selected Location';
-                selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            }
-            if (nameEl) nameEl.textContent = selectedLocName;
-            if (addrEl) addrEl.textContent = selectedLocAddress;
-        })
-        .catch(() => {
-            selectedLocName = 'Selected Location';
-            selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            if (nameEl) nameEl.textContent = selectedLocName;
-            if (addrEl) addrEl.textContent = selectedLocAddress;
-        });
-}
-
-async function searchLocation() {
-    const searchInp = document.getElementById('locationSearchInput');
-    if (!searchInp) return;
-    const query = searchInp.value.trim();
-    if (!query) return;
-    
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-        const data = await response.json();
-        const container = document.getElementById('locationSearchResults');
-        
-        if (data && data.length > 0 && container) {
-            container.classList.remove('hidden');
-            container.innerHTML = data.map((place) => `
-                <div onclick="selectLocationResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name)}')"
-                     class="loc-result-item px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                    <p class="text-gray-900 text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
-                    <p class="text-gray-500 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
-                </div>
-            `).join('');
-        } else if (container) {
-            container.classList.add('hidden');
-            alert("Location not found.");
-        }
-    } catch (err) {
-        alert("Search failed.");
-    }
-}
-
-function selectLocationResult(lat, lng, name) {
-    const res = document.getElementById('locationSearchResults');
-    if (res) res.classList.add('hidden');
-    const searchInp = document.getElementById('locationSearchInput');
-    if (searchInp) searchInp.value = name.split(',')[0];
-    
-    if (locationMap) {
-        locationMap.setView([parseFloat(lat), parseFloat(lng)], 16);
-    }
-}
-
-async function confirmLocation() {
-    if (!selectedLat || !selectedLng) {
-        alert("Select a location first.");
-        return;
-    }
-    const locComment = document.getElementById('locationComment');
-    const comment = locComment ? locComment.value.trim() : '';
-    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const msg = `📍 ${selectedLocName}${comment ? '\n' + comment : ''}\n${mapUrl}`;
-    closeLocationPopup();
-    await sendMessage(msg);
-}
-
-// Contacts sharing
-async function shareContact() {
-    closeAttachPopup();
-    
-    if ('contacts' in navigator && 'select' in navigator.contacts) {
-        try {
-            const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-            if (contacts && contacts.length > 0) {
-                const contact = contacts[0];
-                const name = contact.name || 'Unknown';
-                const phone = contact.tel || '';
-                const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
-                await sendMessage(contactMsg);
-            }
-        } catch (err) {
-            console.error("Contact selection failed:", err);
-            alert("Contact access denied.");
-        }
-    } else {
-        const name = prompt("Enter contact name:");
-        if (!name) return;
-        const phone = prompt("Enter phone number:");
-        if (!phone) return;
-        const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
-        await sendMessage(contactMsg);
-    }
-}
-
-// =========================================================
-// FILE PICK HANDLERS
-// =========================================================
-async function handleGalleryPick(input) {
-    if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    
-    if (file.type.startsWith('image/')) {
-        await previewChatMedia(input);
-    } else if (file.type.startsWith('video/')) {
-        pendingMediaFile = file;
-        pendingMediaType = 'video';
-        
-        const ui = document.getElementById('mediaPreviewUI');
-        const vid = document.getElementById('mediaPreviewVideo');
-        const img = document.getElementById('mediaPreviewImg');
-        const capInp = document.getElementById('mediaCaptionInput');
-        
-        if (capInp) capInp.value = '';
-        const url = URL.createObjectURL(file);
-        
-        ensureCanvasExists();
-
-        if (vid) {
-            vid.src = url;
-            vid.classList.remove('hidden');
-            vid.style.display = 'block';
-        }
-        if (img) img.classList.add('hidden');
-        
-        const canvasEl = document.getElementById('imageCanvas');
-        if (canvasEl) canvasEl.classList.add('hidden');
-
-        const drawBtn = document.getElementById('toggleDrawBtn');
-        if (drawBtn) drawBtn.classList.add('hidden');
-
-        const cropBtn = document.getElementById('toggleCropBtn');
-        if (cropBtn) cropBtn.classList.add('hidden');
-
-        const drawTools = document.getElementById('drawingTools');
-        if (drawTools) drawTools.classList.add('hidden');
-
-        const capBar = document.getElementById('captionBar');
-        if (capBar) {
-            capBar.classList.remove('hidden');
-            capBar.style.display = 'block';
-        }
-
-        const topBar = document.getElementById('editorTopBar');
-        if (topBar) topBar.style.display = 'flex';
-        
-        if (ui) {
-            ui.classList.remove('hidden');
-            ui.style.display = 'flex';
-        }
-        input.value = '';
-    }
-}
-
-async function handleDocumentPick(input) {
-    if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    
-    pendingMediaFile = file;
-    pendingMediaType = 'document';
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) return;
-    
-    const capInp = document.getElementById('mediaCaptionInput');
-    if (capInp) capInp.value = '';
-    
-    const capBar = document.getElementById('captionBar');
-    if (capBar) {
-        capBar.classList.remove('hidden');
-        capBar.style.display = 'block';
-    }
-    
-    const topBar = document.getElementById('editorTopBar');
-    if (topBar) topBar.style.display = 'flex';
-    
-    const container = document.getElementById('canvasContainer');
-    if (container) {
-        container.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
-                <div style="width:96px;height:96px;border-radius:16px;background:#ea580c;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <i class="fas fa-file-alt" style="font-size:48px;color:white;"></i>
-                </div>
-                <div style="text-align:center;">
-                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
-                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
-                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">${file.type || 'Document'}</p>
-                </div>
-                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
-            </div>
-        `;
-    }
-    
-    ui.classList.remove('hidden');
-    ui.style.display = 'flex';
-    input.value = '';
-}
-
-async function handleAudioPick(input) {
-    if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    
-    pendingMediaFile = file;
-    pendingMediaType = 'audio';
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) return;
-    
-    const capInp = document.getElementById('mediaCaptionInput');
-    if (capInp) capInp.value = '';
-    
-    const capBar = document.getElementById('captionBar');
-    if (capBar) {
-        capBar.classList.remove('hidden');
-        capBar.style.display = 'block';
-    }
-    
-    const topBar = document.getElementById('editorTopBar');
-    if (topBar) topBar.style.display = 'flex';
-    
-    const container = document.getElementById('canvasContainer');
-    if (container) {
-        container.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
-                <div style="width:96px;height:96px;border-radius:16px;background:#dc2626;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <i class="fas fa-music" style="font-size:48px;color:white;"></i>
-                </div>
-                <div style="text-align:center;">
-                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
-                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
-                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">Audio File</p>
-                </div>
-                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
-            </div>
-        `;
-    }
-    
-    ui.classList.remove('hidden');
-    ui.style.display = 'flex';
-    input.value = '';
-}
-
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function escapeHTML(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-// =========================================================
-// LONG PRESS TO COPY CONTACT NUMBER
+// 18. LONG PRESS COPY
 // =========================================================
 let longPressTimer;
 let longPressTarget;
@@ -1868,27 +845,24 @@ let longPressTarget;
 document.addEventListener('touchstart', function(e) {
     const contactBubble = e.target.closest('.bubble-sent, .bubble-received');
     if (!contactBubble) return;
-    
     const text = contactBubble.textContent || '';
     const phoneMatch = text.match(/📞\s*([+\d\s-]+)/);
     if (!phoneMatch) return;
-    
     longPressTarget = phoneMatch[1].replace(/\s+/g, '');
-    
     longPressTimer = setTimeout(() => {
         if (longPressTarget) {
             copyToClipboard(longPressTarget);
-            showCopyToast();
+            showCopyToast(contactBubble);
         }
     }, 800);
 });
 
-document.addEventListener('touchend', function() { clearTimeout(longPressTimer); longPressTarget = null; });
-document.addEventListener('touchmove', function() { clearTimeout(longPressTimer); longPressTarget = null; });
+document.addEventListener('touchend', () => { clearTimeout(longPressTimer); longPressTarget = null; });
+document.addEventListener('touchmove', () => { clearTimeout(longPressTimer); longPressTarget = null; });
 
 function copyToClipboard(text) {
     if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).catch(err => console.error("Copy failed:", err));
+        navigator.clipboard.writeText(text).catch(() => {});
     } else {
         const textarea = document.createElement('textarea');
         textarea.value = text;
@@ -1901,7 +875,7 @@ function copyToClipboard(text) {
     }
 }
 
-function showCopyToast() {
+function showCopyToast(element) {
     const toast = document.createElement('div');
     toast.className = 'fixed bg-black/80 text-white text-xs px-3 py-2 rounded-full z-[100000] animate-pop';
     toast.textContent = '📋 Phone number copied!';
@@ -1909,53 +883,46 @@ function showCopyToast() {
     toast.style.transform = 'translateX(-50%)';
     toast.style.bottom = '100px';
     document.body.appendChild(toast);
-    
-    setTimeout(() => { toast.remove(); }, 2000);
+    setTimeout(() => toast.remove(), 2000);
 }
 
-// Custom Audio Player Click Event
-document.addEventListener("click", function (e) {
+// =========================================================
+// 19. VOICE PLAYER CLICK
+// =========================================================
+document.addEventListener("click", function(e) {
     const btn = e.target.closest(".play-btn-custom");
     if (!btn) return;
-
     const container = btn.closest(".voice-player-container");
-    if (!container) return;
-
     const audio = container.querySelector("audio");
     const icon = btn.querySelector("i");
     const timer = container.querySelector(".time-current");
-    if (!audio) return;
 
     document.querySelectorAll(".voice-player-container audio").forEach(a => {
         if (a !== audio) {
             a.pause();
             a.currentTime = 0;
             const c = a.closest(".voice-player-container");
-            if (c) {
-                const i = c.querySelector(".play-btn-custom i");
-                if (i) i.className = "fas fa-play text-[10px] ml-0.5";
-                const t = c.querySelector(".time-current");
-                if (t) t.textContent = "0:00";
-            }
+            c.querySelector(".play-btn-custom i").className = "fas fa-play text-[10px] ml-0.5";
+            c.querySelector(".time-current").textContent = "0:00";
         }
     });
 
     if (audio.paused) {
         audio.play();
-        if (icon) icon.className = "fas fa-pause text-[10px]";
+        icon.className = "fas fa-pause text-[10px]";
     } else {
         audio.pause();
-        if (icon) icon.className = "fas fa-play text-[10px] ml-0.5";
+        icon.className = "fas fa-play text-[10px] ml-0.5";
     }
 
     audio.ontimeupdate = () => {
         const m = Math.floor(audio.currentTime / 60);
         const s = Math.floor(audio.currentTime % 60);
-        if (timer) timer.textContent = `${m}:${String(s).padStart(2,"0")}`;
+        timer.textContent = `${m}:${String(s).padStart(2,"0")}`;
     };
 
     audio.onended = () => {
-        if (icon) icon.className = "fas fa-play text-[10px] ml-0.5";
-        if (timer) timer.textContent = "0:00";
+        icon.className = "fas fa-play text-[10px] ml-0.5";
+        timer.textContent = "0:00";
     };
 });
