@@ -219,6 +219,33 @@ footer{
     line-height: 32px !important;
 }
 
+/* Location Search Results */
+#locationSearchResults {
+    scrollbar-width: thin;
+    scrollbar-color: #4a4a4a transparent;
+}
+#locationSearchResults::-webkit-scrollbar {
+    width: 4px;
+}
+#locationSearchResults::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+    border-radius: 4px;
+}
+#locationSearchResults .search-result-item {
+    transition: background-color 0.2s;
+}
+#locationSearchResults .search-result-item:active {
+    background-color: #4a4a4a !important;
+}
+
+/* Quick Access Tags */
+#locationQuickAccess span {
+    transition: all 0.2s;
+}
+#locationQuickAccess span:active {
+    transform: scale(0.95);
+}
+
 /* Custom Leaflet Popup */
 .leaflet-popup-content-wrapper {
     border-radius: 12px !important;
