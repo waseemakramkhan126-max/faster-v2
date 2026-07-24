@@ -1,6 +1,6 @@
 console.log("🚀 Chat Room Script Loaded Successfully!");
 // =========================================================
-// CHAT LOGIC - FULL UPGRADED VERSION
+// CHAT LOGIC - FULL UPGRADED & FIXED VERSION
 // =========================================================
 
 // 1. Supabase Initialization
@@ -72,8 +72,8 @@ async function fetchOtherUser() {
 
     if (error || !participants || participants.length === 0) {
         console.warn("⚠️ other user not found, but chat will still work.");
-        headerName.textContent = "Unknown User";
-        headerAvatar.textContent = "?";
+        if (headerName) headerName.textContent = "Unknown User";
+        if (headerAvatar) headerAvatar.textContent = "?";
         return;
     }
 
@@ -89,11 +89,11 @@ async function fetchOtherUser() {
         otherUserName = "Unknown";
     } else {
         otherUserName = userData.name || "User";
-        headerStatus.textContent = `+${userData.phone}`;
+        if (headerStatus) headerStatus.textContent = `+${userData.phone}`;
     }
 
-    headerName.textContent = otherUserName;
-    headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+    if (headerName) headerName.textContent = otherUserName;
+    if (headerAvatar) headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
 }
 
 // =========================================================
@@ -129,7 +129,7 @@ function renderMessages(messages, appendAtTop = false) {
     let lastDate = '';
     const fragment = document.createDocumentFragment();
 
-    messages.forEach((msg, index) => {
+    messages.forEach((msg) => {
         const msgDate = getDateLabel(msg.created_at);
         
         if (msgDate !== lastDate) {
@@ -147,7 +147,6 @@ function renderMessages(messages, appendAtTop = false) {
         let contentHTML = '';
         
         if (msg.type === 'text') {
-            // 1. Regex jo Google Maps link aur Lat/Lng ko sahi tarike se extract karta hai
             const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=([-\d.]+),([-\d.]+)/);
             
             if (urlMatch) {
@@ -156,21 +155,18 @@ function renderMessages(messages, appendAtTop = false) {
                 const lng = urlMatch[2];
                 const textWithoutUrl = msg.content.replace(fullUrl, '').trim();
 
-                // 2. Multi-Server Backup Static Map Links (Pehle Yandex, phir OpenStreetMap fallback)
                 const primaryMapUrl = `https://static-maps.yandex.ru/1.x/?l=map&z=15&size=600,300&pt=${lng},${lat},pm2rdm`;
                 const fallbackMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
 
                 contentHTML = `
                     <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
                         ${textWithoutUrl ? `<p class="whitespace-pre-wrap font-medium mb-1">${textWithoutUrl}</p>` : ''}
-                        
                         <div class="mt-2 rounded-xl overflow-hidden shadow-md border border-gray-200 relative bg-gray-100" style="max-width:280px;">
                             <img src="${primaryMapUrl}" 
                                  class="w-full h-36 object-cover" 
                                  alt="Location Map" 
                                  onerror="this.onerror=null; this.src='${fallbackMapUrl}';">
                         </div>
-
                         <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
                             <i class="fas fa-map-marker-alt text-blue-400"></i>
                             <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
@@ -241,23 +237,24 @@ function renderMessages(messages, appendAtTop = false) {
     });
 
     if (appendAtTop) {
-        messageContainer.prepend(fragment);
+        if (messageContainer) messageContainer.prepend(fragment);
     } else {
-        messageContainer.appendChild(fragment);
+        if (messageContainer) messageContainer.appendChild(fragment);
     }
 }
+
 // =========================================================
-// 4. LOAD MESSAGES (WITH INFINITE SCROLL)
+// 4. LOAD MESSAGES
 // =========================================================
 async function loadMessages(loadMore = false) {
     if (isLoadingMore || (!loadMore && !hasMoreMessages)) return;
     isLoadingMore = true;
     if (loadMore) {
-        loadMoreLoader.classList.remove('hidden');
+        if (loadMoreLoader) loadMoreLoader.classList.remove('hidden');
         page++;
     } else {
         page = 0;
-        messageContainer.innerHTML = '';
+        if (messageContainer) messageContainer.innerHTML = '';
         hasMoreMessages = true;
     }
 
@@ -272,7 +269,7 @@ async function loadMessages(loadMore = false) {
         .range(from, to);
 
     isLoadingMore = false;
-    loadMoreLoader.classList.add('hidden');
+    if (loadMoreLoader) loadMoreLoader.classList.add('hidden');
 
     if (error) {
         console.error("Error loading messages:", error);
@@ -316,7 +313,7 @@ async function markMessagesAsRead(messages) {
 // =========================================================
 function scrollToBottom() {
     setTimeout(() => {
-        messageContainer.scrollTop = messageContainer.scrollHeight;
+        if (messageContainer) messageContainer.scrollTop = messageContainer.scrollHeight;
     }, 100);
 }
 
@@ -356,8 +353,10 @@ function subscribeToChat() {
 async function sendMessage(text, fileUrl = null, msgType = 'text') {
     if (!text && !fileUrl) return;
 
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
+    }
 
     const newMsg = {
         conversation_id: conversationId,
@@ -369,8 +368,10 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
 
     const { error } = await _supabase.from('messages').insert([newMsg]);
 
-    sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
-    sendBtn.disabled = false;
+    if (sendBtn) {
+        sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
+        sendBtn.disabled = false;
+    }
 
     if (error) {
         console.error("Send error:", error);
@@ -381,14 +382,17 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
     newMsg.created_at = new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
-    msgInput.value = '';
-    msgInput.style.height = 'auto';
+    if (msgInput) {
+        msgInput.value = '';
+        msgInput.style.height = 'auto';
+    }
 }
 
 // =========================================================
 // 9. TYPING INDICATOR
 // =========================================================
 function showTypingIndicator(show) {
+    if (!typingIndicator) return;
     if (show) {
         typingIndicator.classList.remove('hidden');
         typingIndicator.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
@@ -401,47 +405,34 @@ function showTypingIndicator(show) {
 // 10. MEDIA UPLOAD & PREVIEW
 // =========================================================
 async function uploadChatFile(file) {
-
     let extension = "bin";
 
     if (file.name) {
         extension = file.name.split(".").pop();
     } else {
         const type = file.type || "";
-
         if (type.includes("image")) extension = "jpg";
         else if (type.includes("video")) extension = "mp4";
         else if (type.includes("audio")) extension = "webm";
     }
 
-    const fileName =
-        `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
+    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
-    const { error } = await _supabase
-        .storage
-        .from("order-files")
-        .upload(fileName, file);
+    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
 
     if (error) throw error;
 
-    return _supabase
-        .storage
-        .from("order-files")
-        .getPublicUrl(fileName)
-        .data.publicUrl;
+    return _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
 }
 
-// Upload with progress + local preview
 async function sendMessageWithProgress(text, file, msgType) {
     if (!text && !file) return;
 
-    // Create local blob URL for immediate preview
     let localUrl = null;
     if (file) {
         localUrl = URL.createObjectURL(file);
     }
 
-    // Create temporary message with spinner
     const tempMsg = {
         conversation_id: conversationId,
         sender_id: myId,
@@ -453,12 +444,10 @@ async function sendMessageWithProgress(text, file, msgType) {
         uploadProgress: 0
     };
 
-    // Render temp message with spinner
     const tempBubble = renderTempMessage(tempMsg);
     scrollToBottom();
 
     try {
-        // Upload file
         let fileUrl = null;
         if (file) {
             fileUrl = await uploadChatFileWithProgress(file, (progress) => {
@@ -467,7 +456,6 @@ async function sendMessageWithProgress(text, file, msgType) {
             });
         }
 
-        // Save to database
         const newMsg = {
             conversation_id: conversationId,
             sender_id: myId,
@@ -480,21 +468,22 @@ async function sendMessageWithProgress(text, file, msgType) {
         
         if (error) throw error;
 
-        // Replace temp message with real one
-        tempBubble.remove();
+        if (tempBubble) tempBubble.remove();
         newMsg.created_at = new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
         
     } catch (err) {
         const spinner = tempBubble?.querySelector('.upload-spinner');
-if (spinner) {
-    spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
-}
+        if (spinner) {
+            spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
+        }
     }
 
-    msgInput.value = '';
-    msgInput.style.height = 'auto';
+    if (msgInput) {
+        msgInput.value = '';
+        msgInput.style.height = 'auto';
+    }
 }
 
 function renderTempMessage(msg) {
@@ -527,11 +516,12 @@ function renderTempMessage(msg) {
     }
     
     bubble.innerHTML = contentHTML;
-    messageContainer.appendChild(bubble);
+    if (messageContainer) messageContainer.appendChild(bubble);
     return bubble;
 }
 
 function updateProgressBar(bubble, progress) {
+    if (!bubble) return;
     const bar = bubble.querySelector('.upload-progress-bar');
     if (bar) {
         bar.style.width = progress + '%';
@@ -557,23 +547,17 @@ async function uploadChatFileWithProgress(file, onProgress) {
 
     const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
-    // Simulate progress (Supabase upload doesn't provide real progress events easily)
     onProgress(10);
-    
     const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
-    
     if (error) throw error;
-    
     onProgress(90);
-    
     const publicUrl = _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
-    
     onProgress(100);
-    
     return publicUrl;
 }
+
 // =========================================================
-// 11. VOICE RECORDING (SAME AS NEW-ORDER)
+// 11. VOICE RECORDING
 // =========================================================
 async function startVoiceRecording() {
     if (!navigator.mediaDevices) return alert("Microphone access blocked.");
@@ -591,16 +575,16 @@ async function startVoiceRecording() {
         };
         
         audioRecorder.onstop = async () => {
-    const finalMime = audioRecorder.mimeType || "audio/webm";
-    const audioBlob = new Blob(audioChunks, { type: finalMime });
-    aStream.getTracks().forEach(track => track.stop());
-    stopVoiceTimer();          // UI hide, timer band
-    const micIcon = document.getElementById("micIcon");
-    micIcon.className = "fas fa-microphone text-white";
-    const vBtn = document.getElementById("chatVoiceBtn");
-    vBtn.classList.remove("voice-active");
-    window.recordedVoiceBlob = audioBlob;
-};
+            const finalMime = audioRecorder.mimeType || "audio/webm";
+            const audioBlob = new Blob(audioChunks, { type: finalMime });
+            aStream.getTracks().forEach(track => track.stop());
+            stopVoiceTimer();
+            const micIcon = document.getElementById("micIcon");
+            if (micIcon) micIcon.className = "fas fa-microphone text-white";
+            const vBtn = document.getElementById("chatVoiceBtn");
+            if (vBtn) vBtn.classList.remove("voice-active");
+            window.recordedVoiceBlob = audioBlob;
+        };
         
         audioRecorder.start();
         startVoiceTimer();
@@ -620,37 +604,33 @@ function stopVoiceRecording() {
 // =========================================================
 // 12. EVENT LISTENERS
 // =========================================================
+if (msgInput) {
+    msgInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (sendBtn) sendBtn.click();
+        }
+    });
 
-// Send on Enter (Shift+Enter for new line)
-msgInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
-    }
-});
+    msgInput.addEventListener('input', () => {
+        if (!isTyping) {
+            isTyping = true;
+            const typingChannel = _supabase.channel(`typing-${conversationId}`);
+            typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
+            setTimeout(() => { isTyping = false; }, 2000);
+        }
+        msgInput.style.height = 'auto';
+        msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
+    });
+}
 
-// Typing broadcast
-msgInput.addEventListener('input', () => {
-    if (!isTyping) {
-        isTyping = true;
-        const typingChannel = _supabase.channel(`typing-${conversationId}`);
-        typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
-        setTimeout(() => { isTyping = false; }, 2000);
-    }
-});
-
-// Auto-resize textarea
-msgInput.addEventListener('input', () => {
-    msgInput.style.height = 'auto';
-    msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
-});
-
-// Infinite Scroll
-messageContainer.addEventListener('scroll', () => {
-    if (messageContainer.scrollTop === 0 && hasMoreMessages) {
-        loadMessages(true);
-    }
-});
+if (messageContainer) {
+    messageContainer.addEventListener('scroll', () => {
+        if (messageContainer.scrollTop === 0 && hasMoreMessages) {
+            loadMessages(true);
+        }
+    });
+}
 
 // =========================================================
 // 13. MEDIA VIEWER
@@ -658,6 +638,7 @@ messageContainer.addEventListener('scroll', () => {
 function openMediaViewer(src, type) {
     const viewer = document.getElementById('mediaViewer');
     const content = document.getElementById('mediaViewerContent');
+    if (!viewer || !content) return;
     viewer.classList.remove('hidden');
     viewer.classList.add('flex');
     if (type === 'image') {
@@ -668,17 +649,24 @@ function openMediaViewer(src, type) {
 }
 
 function closeMediaViewer() {
-    document.getElementById('mediaViewer').classList.add('hidden');
-    document.getElementById('mediaViewer').classList.remove('flex');
+    const viewer = document.getElementById('mediaViewer');
+    if (viewer) {
+        viewer.classList.add('hidden');
+        viewer.classList.remove('flex');
+    }
 }
 
 // =========================================================
-// 14. FIXED INITIALIZATION
+// 14. INITIALIZATION
 // =========================================================
 async function init() {
-    window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
+    window.addEventListener('offline', () => {
+        const banner = document.getElementById('offlineBanner');
+        if (banner) banner.style.top = '0';
+    });
     window.addEventListener('online', () => {
-        document.getElementById('offlineBanner').style.top = '-50px';
+        const banner = document.getElementById('offlineBanner');
+        if (banner) banner.style.top = '-50px';
         loadMessages(false);
     });
 
@@ -699,64 +687,68 @@ function updateChatHeight() {
 
 window.addEventListener("resize", updateChatHeight);
 window.addEventListener("orientationchange", updateChatHeight);
-
 updateChatHeight();
 
-// =========================================================
-// NEW CHAT FUNCTIONS FOR THE FOOTER
-// =========================================================
-
-// 1. Chat Send Function (HTML footer click ke liye)
 function sendChatMessage() {
+    if (!msgInput) return;
     const text = msgInput.value.trim();
     if (text) sendMessage(text);
 }
 
-// 2. Chat Voice Function (HTML footer mic click ke liye)
 function handleChatVoice() {
     const vBtn = document.getElementById('chatVoiceBtn');
     const micIcon = document.getElementById('micIcon');
     
     if (audioRecorder && audioRecorder.state === 'recording') {
-    stopVoiceRecording();
-    stopVoiceTimer();   // ✅ ye line add karo
-    vBtn.classList.remove('voice-active');
-    micIcon.className = 'fas fa-microphone text-white';
-}
-    else {
+        stopVoiceRecording();
+        stopVoiceTimer();
+        if (vBtn) vBtn.classList.remove('voice-active');
+        if (micIcon) micIcon.className = 'fas fa-microphone text-white';
+    } else {
         startVoiceRecording();
-        vBtn.classList.add('voice-active');
-        micIcon.className = 'fas fa-stop text-red-500';
+        if (vBtn) vBtn.classList.add('voice-active');
+        if (micIcon) micIcon.className = 'fas fa-stop text-red-500';
     }
 }
 
 // =========================================================
-// ADVANCED MEDIA PREVIEW (Draw + Crop + Send)
+// ADVANCED MEDIA PREVIEW (FIXED & RESTORED CANVAS)
 // =========================================================
 let pendingMediaFile = null;
 let pendingMediaType = 'image';
-let canvasImage = null; // Original image object
+let canvasImage = null;
 let canvas = null;
 let ctx = null;
 
-// Drawing state
 let isDrawingMode = false;
 let isDrawing = false;
 let currentTool = 'pen';
 let drawColor = '#ff0000';
 let startX, startY;
-let drawings = []; // Array of drawing actions (for undo)
+let drawings = [];
 
-// Crop state
 let isCropMode = false;
 let cropBox = null;
 let cropOverlay = null;
-let isDraggingCrop = false;
-let isResizingCrop = false;
-let cropStartX, cropStartY;
-let cropBoxStartLeft, cropBoxStartTop, cropBoxStartWidth, cropBoxStartHeight;
 
-// 1. Preview open karne ka function (Canvas setup) - FIXED
+// Ensure Canvas Element Exists inside Container
+function ensureCanvasExists() {
+    let container = document.getElementById('canvasContainer');
+    if (!container) return null;
+    
+    let canvasEl = document.getElementById('imageCanvas');
+    if (!canvasEl) {
+        // Clear non-canvas children and rebuild canvas
+        container.innerHTML = '';
+        canvasEl = document.createElement('canvas');
+        canvasEl.id = 'imageCanvas';
+        canvasEl.className = 'max-w-full rounded-lg cursor-crosshair';
+        container.appendChild(canvasEl);
+    }
+    return canvasEl;
+}
+
+// 1. Preview open karne ka main function (FIXED)
 async function previewChatMedia(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
@@ -764,78 +756,94 @@ async function previewChatMedia(input) {
     pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
 
     const ui = document.getElementById('mediaPreviewUI');
+    if (!ui) {
+        console.error("❌ mediaPreviewUI popup not found in HTML!");
+        return;
+    }
+
     const captionInput = document.getElementById('mediaCaptionInput');
-    captionInput.value = '';
+    if (captionInput) captionInput.value = '';
 
     const url = URL.createObjectURL(file);
     
-    console.log("📸 Preview called:", { file, url, pendingMediaType });
-    
     if (pendingMediaType === 'image') {
-        // 🟢 FIX: UI pehle show karo
+        // 🟢 Canvas restore karein
+        const canvasEl = ensureCanvasExists();
+        if (!canvasEl) {
+            alert("Canvas container missing.");
+            return;
+        }
+
+        // 🟢 UI and Controls Visible karein
         ui.classList.remove('hidden');
-        ui.style.display = 'flex';  // ✅ Force display
+        ui.style.display = 'flex';
         
-        console.log("🟢 UI shown");
+        const vid = document.getElementById('mediaPreviewVideo');
+        if (vid) vid.classList.add('hidden');
         
+        const imgPrev = document.getElementById('mediaPreviewImg');
+        if (imgPrev) imgPrev.classList.add('hidden');
+
+        canvasEl.classList.remove('hidden');
+        canvasEl.style.display = 'block';
+
+        const editorTopBar = document.getElementById('editorTopBar');
+        if (editorTopBar) editorTopBar.style.display = 'flex';
+
+        const captionBar = document.getElementById('captionBar');
+        if (captionBar) {
+            captionBar.classList.remove('hidden');
+            captionBar.style.display = 'block';
+        }
+
+        const drawBtn = document.getElementById('toggleDrawBtn');
+        if (drawBtn) drawBtn.classList.remove('hidden');
+
+        const cropBtn = document.getElementById('toggleCropBtn');
+        if (cropBtn) cropBtn.classList.remove('hidden');
+
         canvasImage = new Image();
         canvasImage.onload = () => {
-            console.log("✅ Image loaded successfully");
             setupCanvas(canvasImage);
             resetEditorState();
-            
-            // 🟢 Canvas container ko visible karo
-            const canvasContainer = document.getElementById('canvasContainer');
-            if (canvasContainer) {
-                canvasContainer.style.display = 'block';
-                console.log("✅ Canvas container shown");
-            }
-            
-            // 🟢 Canvas ko visible karo
-            const canvas = document.getElementById('imageCanvas');
-            if (canvas) {
-                canvas.classList.remove('hidden');
-                canvas.style.display = 'block';
-                console.log("✅ Canvas shown");
-            }
-            
-            // 🟢 Editor top bar show karo
-            const editorTopBar = document.getElementById('editorTopBar');
-            if (editorTopBar) {
-                editorTopBar.style.display = 'flex';
-                console.log("✅ Editor top bar shown");
-            }
-            
-            // 🟢 Caption bar show karo
-            const captionBar = document.getElementById('captionBar');
-            if (captionBar) {
-                captionBar.classList.remove('hidden');
-                captionBar.style.display = 'block';
-                console.log("✅ Caption bar shown");
-            }
         };
         canvasImage.onerror = (err) => {
             console.error("❌ Image load failed:", err);
             ui.classList.add('hidden');
-            alert("Image could not be loaded. Please try again.");
+            alert("Image load nahi ho saki.");
         };
         canvasImage.src = url;
         
     } else {
-        // Video ke liye simple preview
+        // Video Preview
         const vid = document.getElementById('mediaPreviewVideo');
-        vid.src = url;
-        vid.classList.remove('hidden');
-        vid.style.display = 'block';
-        document.getElementById('mediaPreviewImg').classList.add('hidden');
-        document.getElementById('imageCanvas').classList.add('hidden');
-        document.getElementById('toggleDrawBtn').classList.add('hidden');
-        document.getElementById('toggleCropBtn').classList.add('hidden');
-        document.getElementById('drawingTools').classList.add('hidden');
-        document.getElementById('captionBar').classList.remove('hidden');
+        if (vid) {
+            vid.src = url;
+            vid.classList.remove('hidden');
+            vid.style.display = 'block';
+        }
+
+        const canvasEl = document.getElementById('imageCanvas');
+        if (canvasEl) canvasEl.classList.add('hidden');
+
+        const safeHide = (id) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        };
+
+        safeHide('mediaPreviewImg');
+        safeHide('toggleDrawBtn');
+        safeHide('toggleCropBtn');
+        safeHide('drawingTools');
+
+        const captionBar = document.getElementById('captionBar');
+        if (captionBar) {
+            captionBar.classList.remove('hidden');
+            captionBar.style.display = 'block';
+        }
+
         ui.classList.remove('hidden');
         ui.style.display = 'flex';
-        console.log("🎬 Video preview opened");
     }
 
     input.value = '';
@@ -843,23 +851,17 @@ async function previewChatMedia(input) {
 
 // Setup Canvas with Image
 function setupCanvas(img) {
-    canvas = document.getElementById('imageCanvas');
-    if (!canvas) {
-        console.error("❌ Canvas element not found");
-        return;
-    }
-    
-    console.log("🟢 Setting up canvas");
+    canvas = ensureCanvasExists();
+    if (!canvas) return;
     
     ctx = canvas.getContext('2d');
     canvas.classList.remove('hidden');
-    canvas.style.display = 'block';  // ✅ Force display
+    canvas.style.display = 'block';
     
-    // Calculate canvas size (fit screen)
-    const maxWidth = window.innerWidth - 32;
-    const maxHeight = window.innerHeight - 250;
-    let width = img.width;
-    let height = img.height;
+    const maxWidth = Math.max(window.innerWidth - 32, 280);
+    const maxHeight = Math.max(window.innerHeight - 250, 280);
+    let width = img.width || 300;
+    let height = img.height || 300;
     
     const ratio = Math.min(maxWidth / width, maxHeight / height);
     width *= ratio;
@@ -869,21 +871,11 @@ function setupCanvas(img) {
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
     
-    console.log("✅ Canvas drawn:", { width, height });
-    
-    // 🟢 Canvas container ko visible karo
-    const canvasContainer = document.getElementById('canvasContainer');
-    if (canvasContainer) {
-        canvasContainer.style.display = 'block';
-        console.log("✅ Canvas container shown");
-    }
-    
     setupCanvasEvents();
 }
 
-// 🟢 Naya function jo event listeners setup karta hai
 function setupCanvasEvents() {
-    // Purane listeners hatane ke liye (agar dobara setup ho)
+    if (!canvas) return;
     canvas.onmousedown = null;
     canvas.onmousemove = null;
     canvas.onmouseup = null;
@@ -892,7 +884,6 @@ function setupCanvasEvents() {
     canvas.ontouchmove = null;
     canvas.ontouchend = null;
     
-    // Mouse Events
     canvas.addEventListener('mousedown', (e) => {
         if (!isDrawingMode || isCropMode) return;
         isDrawing = true;
@@ -907,20 +898,16 @@ function setupCanvasEvents() {
         const rect = canvas.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (canvas.width / rect.width);
         const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-        drawings[drawings.length - 1].endX = x;
-        drawings[drawings.length - 1].endY = y;
-        redrawCanvas();
+        if (drawings.length > 0) {
+            drawings[drawings.length - 1].endX = x;
+            drawings[drawings.length - 1].endY = y;
+            redrawCanvas();
+        }
     });
 
-    canvas.addEventListener('mouseup', () => {
-        isDrawing = false;
-    });
+    canvas.addEventListener('mouseup', () => { isDrawing = false; });
+    canvas.addEventListener('mouseleave', () => { isDrawing = false; });
 
-    canvas.addEventListener('mouseleave', () => {
-        isDrawing = false;
-    });
-
-    // Touch Events for Mobile
     canvas.addEventListener('touchstart', (e) => {
         if (!isDrawingMode || isCropMode) return;
         e.preventDefault();
@@ -939,45 +926,55 @@ function setupCanvasEvents() {
         const touch = e.touches[0];
         const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
         const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        drawings[drawings.length - 1].endX = x;
-        drawings[drawings.length - 1].endY = y;
-        redrawCanvas();
+        if (drawings.length > 0) {
+            drawings[drawings.length - 1].endX = x;
+            drawings[drawings.length - 1].endY = y;
+            redrawCanvas();
+        }
     });
 
-    canvas.addEventListener('touchend', () => {
-        isDrawing = false;
-    });
+    canvas.addEventListener('touchend', () => { isDrawing = false; });
 }
 
-// Reset all editor states
+// Reset Editor State (Safely)
 function resetEditorState() {
     isDrawingMode = false;
     isCropMode = false;
     drawings = [];
-    // ❌ DON'T reset pendingMediaFile here!
-    // ✅ Only reset UI elements
     
-    document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
-    document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
-    document.getElementById('toggleCropBtn').classList.remove('bg-[#0077b9]');
-    document.getElementById('toggleCropBtn').classList.add('bg-white/10');
-    document.getElementById('applyCropBtn').classList.add('hidden');
-    document.getElementById('captionBar').classList.remove('hidden');
+    const drawTools = document.getElementById('drawingTools');
+    if (drawTools) drawTools.classList.add('hidden');
+
+    const toggleDraw = document.getElementById('toggleDrawBtn');
+    if (toggleDraw) {
+        toggleDraw.classList.remove('bg-[#0077b9]');
+        toggleDraw.classList.add('bg-white/10');
+    }
+
+    const toggleCrop = document.getElementById('toggleCropBtn');
+    if (toggleCrop) {
+        toggleCrop.classList.remove('bg-[#0077b9]');
+        toggleCrop.classList.add('bg-white/10');
+    }
+
+    const applyCrop = document.getElementById('applyCropBtn');
+    if (applyCrop) applyCrop.classList.add('hidden');
+
+    const captionBar = document.getElementById('captionBar');
+    if (captionBar) captionBar.classList.remove('hidden');
+
     cropBox = document.getElementById('cropBox');
     cropOverlay = document.getElementById('cropOverlay');
-    cropBox.classList.add('hidden');
-    cropOverlay.classList.add('hidden');
+    if (cropBox) cropBox.classList.add('hidden');
+    if (cropOverlay) cropOverlay.classList.add('hidden');
+
     setupCropBoxEvents();
-    document.getElementById('imageCanvas').classList.remove('drawing-mode');
-    
-    // ✅ Keep these, but DON'T touch pendingMediaFile
+    if (canvas) canvas.classList.remove('drawing-mode');
 }
 
-// 🟢 Naya function
 function setupCropBoxEvents() {
-    cropBox.onmousedown = null; // Purana listener hatao
-    
+    if (!cropBox) return;
+    cropBox.onmousedown = null;
     cropBox.addEventListener('mousedown', (e) => {
         if (!isCropMode) return;
         e.stopPropagation();
@@ -990,28 +987,33 @@ function setupCropBoxEvents() {
         };
     });
 }
-// ==================== DRAWING FUNCTIONS ====================
 
 function toggleDrawingMode() {
-    if (isCropMode) toggleCropMode(); // Close crop first
+    if (isCropMode) toggleCropMode();
     
     isDrawingMode = !isDrawingMode;
     const tools = document.getElementById('drawingTools');
     const btn = document.getElementById('toggleDrawBtn');
     
     if (isDrawingMode) {
-        tools.classList.remove('hidden');
-        btn.classList.add('bg-[#0077b9]');
-        btn.classList.remove('bg-white/10');
-        canvas.classList.add('drawing-mode');
-        document.getElementById('captionBar').classList.add('hidden');
+        if (tools) tools.classList.remove('hidden');
+        if (btn) {
+            btn.classList.add('bg-[#0077b9]');
+            btn.classList.remove('bg-white/10');
+        }
+        if (canvas) canvas.classList.add('drawing-mode');
+        const cap = document.getElementById('captionBar');
+        if (cap) cap.classList.add('hidden');
         setDrawingTool('pen');
     } else {
-        tools.classList.add('hidden');
-        btn.classList.remove('bg-[#0077b9]');
-        btn.classList.add('bg-white/10');
-        canvas.classList.remove('drawing-mode');
-        document.getElementById('captionBar').classList.remove('hidden');
+        if (tools) tools.classList.add('hidden');
+        if (btn) {
+            btn.classList.remove('bg-[#0077b9]');
+            btn.classList.add('bg-white/10');
+        }
+        if (canvas) canvas.classList.remove('drawing-mode');
+        const cap = document.getElementById('captionBar');
+        if (cap) cap.classList.remove('hidden');
     }
 }
 
@@ -1021,8 +1023,11 @@ function setDrawingTool(tool) {
         btn.classList.add('bg-white/10');
         btn.classList.remove('bg-[#0077b9]');
     });
-    document.getElementById(tool + 'Tool').classList.add('bg-[#0077b9]');
-    document.getElementById(tool + 'Tool').classList.remove('bg-white/10');
+    const target = document.getElementById(tool + 'Tool');
+    if (target) {
+        target.classList.add('bg-[#0077b9]');
+        target.classList.remove('bg-white/10');
+    }
 }
 
 function setDrawingColor() {
@@ -1030,11 +1035,11 @@ function setDrawingColor() {
     const current = document.getElementById('currentColor');
     const idx = colors.indexOf(drawColor);
     drawColor = colors[(idx + 1) % colors.length];
-    current.style.backgroundColor = drawColor;
+    if (current) current.style.backgroundColor = drawColor;
 }
 
 function redrawCanvas() {
-    if (!ctx || !canvasImage) return;
+    if (!ctx || !canvasImage || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(canvasImage, 0, 0, canvas.width, canvas.height);
     
@@ -1054,15 +1059,9 @@ function redrawCanvas() {
             const angle = Math.atan2(d.endY - d.startY, d.endX - d.startX);
             ctx.moveTo(d.startX, d.startY);
             ctx.lineTo(d.endX, d.endY);
-            ctx.lineTo(
-                d.endX - 10 * Math.cos(angle - Math.PI / 6),
-                d.endY - 10 * Math.sin(angle - Math.PI / 6)
-            );
+            ctx.lineTo(d.endX - 10 * Math.cos(angle - Math.PI / 6), d.endY - 10 * Math.sin(angle - Math.PI / 6));
             ctx.moveTo(d.endX, d.endY);
-            ctx.lineTo(
-                d.endX - 10 * Math.cos(angle + Math.PI / 6),
-                d.endY - 10 * Math.sin(angle + Math.PI / 6)
-            );
+            ctx.lineTo(d.endX - 10 * Math.cos(angle + Math.PI / 6), d.endY - 10 * Math.sin(angle + Math.PI / 6));
         }
         ctx.stroke();
     });
@@ -1073,10 +1072,8 @@ function undoDrawing() {
     redrawCanvas();
 }
 
-// ==================== CROP FUNCTIONS ====================
-
 function toggleCropMode() {
-    if (isDrawingMode) toggleDrawingMode(); // Close drawing first
+    if (isDrawingMode) toggleDrawingMode();
     
     isCropMode = !isCropMode;
     cropBox = document.getElementById('cropBox');
@@ -1085,29 +1082,35 @@ function toggleCropMode() {
     const applyBtn = document.getElementById('applyCropBtn');
     
     if (isCropMode) {
-        btn.classList.add('bg-[#0077b9]');
-        btn.classList.remove('bg-white/10');
-        applyBtn.classList.remove('hidden');
-        cropOverlay.classList.remove('hidden');
-        cropBox.classList.remove('hidden');
-        document.getElementById('captionBar').classList.add('hidden');
-        document.getElementById('toggleDrawBtn').classList.add('hidden');
+        if (btn) {
+            btn.classList.add('bg-[#0077b9]');
+            btn.classList.remove('bg-white/10');
+        }
+        if (applyBtn) applyBtn.classList.remove('hidden');
+        if (cropOverlay) cropOverlay.classList.remove('hidden');
+        if (cropBox) cropBox.classList.remove('hidden');
+        const cap = document.getElementById('captionBar');
+        if (cap) cap.classList.add('hidden');
+        const drawBtn = document.getElementById('toggleDrawBtn');
+        if (drawBtn) drawBtn.classList.add('hidden');
     } else {
-        btn.classList.remove('bg-[#0077b9]');
-        btn.classList.add('bg-white/10');
-        applyBtn.classList.add('hidden');
-        cropOverlay.classList.add('hidden');
-        cropBox.classList.add('hidden');
-        document.getElementById('captionBar').classList.remove('hidden');
-        document.getElementById('toggleDrawBtn').classList.remove('hidden');
+        if (btn) {
+            btn.classList.remove('bg-[#0077b9]');
+            btn.classList.add('bg-white/10');
+        }
+        if (applyBtn) applyBtn.classList.add('hidden');
+        if (cropOverlay) cropOverlay.classList.add('hidden');
+        if (cropBox) cropBox.classList.add('hidden');
+        const cap = document.getElementById('captionBar');
+        if (cap) cap.classList.remove('hidden');
+        const drawBtn = document.getElementById('toggleDrawBtn');
+        if (drawBtn) drawBtn.classList.remove('hidden');
     }
 }
 
-// Crop box dragging logic (simplified - production mein aur detailed hoga)
 let cropDragState = null;
-
 document.addEventListener('mousemove', (e) => {
-    if (!cropDragState) return;
+    if (!cropDragState || !cropBox) return;
     const dx = e.clientX - cropDragState.startX;
     const dy = e.clientY - cropDragState.startY;
     cropBox.style.left = (cropDragState.startLeft + dx) + 'px';
@@ -1115,12 +1118,10 @@ document.addEventListener('mousemove', (e) => {
     cropBox.style.transform = 'none';
 });
 
-document.addEventListener('mouseup', () => {
-    cropDragState = null;
-});
+document.addEventListener('mouseup', () => { cropDragState = null; });
 
 function applyCrop() {
-    if (!isCropMode || !canvasImage) return;
+    if (!isCropMode || !canvasImage || !canvas || !cropBox) return;
     
     const canvasRect = canvas.getBoundingClientRect();
     const boxRect = cropBox.getBoundingClientRect();
@@ -1137,39 +1138,40 @@ function applyCrop() {
     canvas.height = sh;
     ctx.drawImage(canvasImage, sx, sy, sw, sh, 0, 0, sw, sh);
     
-    // Update canvasImage to cropped version
     canvasImage = new Image();
     canvasImage.src = canvas.toDataURL();
     
     toggleCropMode();
 }
 
-// ==================== SEND FUNCTIONS ====================
-
 function closeMediaPreview() {
     const ui = document.getElementById('mediaPreviewUI');
-    ui.classList.add('hidden');
+    if (ui) {
+        ui.classList.add('hidden');
+        ui.style.display = 'none';
+    }
     pendingMediaFile = null;
     canvasImage = null;
     drawings = [];
-    if (canvas) {
+    if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         canvas.classList.add('hidden');
     }
-    document.getElementById('mediaCaptionInput').value = '';
+    const capInp = document.getElementById('mediaCaptionInput');
+    if (capInp) capInp.value = '';
     resetEditorState();
 }
 
 async function sendCaptionedMedia() {
     if (!canvasImage && !pendingMediaFile) return;
     
-    const caption = document.getElementById('mediaCaptionInput').value.trim();
+    const capEl = document.getElementById('mediaCaptionInput');
+    const caption = capEl ? capEl.value.trim() : '';
     const ui = document.getElementById('mediaPreviewUI');
     
     let fileToUpload;
     
-    if (pendingMediaType === 'image' && canvasImage) {
-        // Canvas se edited image lo
+    if (pendingMediaType === 'image' && canvasImage && canvas) {
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
         fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
     } else if (pendingMediaType === 'document') {
@@ -1178,34 +1180,28 @@ async function sendCaptionedMedia() {
         const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
         
         pendingMediaFile = null;
-        ui.classList.add('hidden');
-        document.getElementById('mediaCaptionInput').value = '';
+        if (ui) ui.classList.add('hidden');
+        if (capEl) capEl.value = '';
         
         await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
         closeMediaPreview();
         return;
     } else if (pendingMediaType === 'video') {
-        // 🟢 VIDEO CASE — direct file with caption
         fileToUpload = pendingMediaFile;
-        const videoCaption = caption || '';
-        
         pendingMediaFile = null;
-        ui.classList.add('hidden');
-        document.getElementById('mediaCaptionInput').value = '';
+        if (ui) ui.classList.add('hidden');
+        if (capEl) capEl.value = '';
         
-        await sendMessageWithProgress(videoCaption, fileToUpload, 'video');
+        await sendMessageWithProgress(caption || '', fileToUpload, 'video');
         closeMediaPreview();
         return;
     } else if (pendingMediaType === 'audio') {
-        // 🟢 AUDIO CASE — direct file with caption
         fileToUpload = pendingMediaFile;
-        const audioCaption = caption || '';
-        
         pendingMediaFile = null;
-        ui.classList.add('hidden');
-        document.getElementById('mediaCaptionInput').value = '';
+        if (ui) ui.classList.add('hidden');
+        if (capEl) capEl.value = '';
         
-        await sendMessageWithProgress(audioCaption, fileToUpload, 'audio');
+        await sendMessageWithProgress(caption || '', fileToUpload, 'audio');
         closeMediaPreview();
         return;
     } else {
@@ -1213,123 +1209,114 @@ async function sendCaptionedMedia() {
     }
     
     pendingMediaFile = null;
-    ui.classList.add('hidden');
-    document.getElementById('mediaCaptionInput').value = '';
+    if (ui) ui.classList.add('hidden');
+    if (capEl) capEl.value = '';
 
     await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
-    
     closeMediaPreview();
 }
 
-// =========================================================
-// NEW VOICE RECORDING UI (WhatsApp Style)
-// =========================================================
-const voiceRecorderUI = document.getElementById('voiceRecorderUI');
-const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
-const voiceWaveform = document.getElementById('voiceWaveform');
-const voicePauseBtn = document.getElementById('voicePauseBtn');
-const voicePauseIcon = document.getElementById('voicePauseIcon');
-const voicePauseText = document.getElementById('voicePauseText');
-
-let isVoicePaused = false;
-
-// 1. Start Voice Recording & Show UI (سیف ورژن)
+// Voice Timer
 function startVoiceTimer() {
-    if (!voiceRecorderUI) return;
-    voiceSeconds = 0;
-    voiceRecorderUI.style.display = 'flex';
-    voiceRecorderUI.style.transform = 'translateY(0)';
-    voiceTimerDisplay.textContent = '00:00';
-    isVoicePaused = false;
-    voicePauseIcon.className = 'fas fa-pause text-sm';
-    voicePauseText.textContent = 'Pause';
+    const recorderUI = document.getElementById('voiceRecorderUI');
+    const timerDisplay = document.getElementById('voiceTimerDisplay');
+    const waveform = document.getElementById('voiceWaveform');
+    const pauseIcon = document.getElementById('voicePauseIcon');
+    const pauseText = document.getElementById('voicePauseText');
     
-    // 🟢 Waveform bars create karo
-    voiceWaveform.innerHTML = '';
-    for (let i = 0; i < 40; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'w-[2px] bg-white rounded-full';
-        bar.style.height = '3px';
-        bar.style.animationDelay = (i * 0.05) + 's';
-        voiceWaveform.appendChild(bar);
+    if (!recorderUI) return;
+    voiceSeconds = 0;
+    recorderUI.style.display = 'flex';
+    recorderUI.style.transform = 'translateY(0)';
+    if (timerDisplay) timerDisplay.textContent = '00:00';
+    isVoicePaused = false;
+    if (pauseIcon) pauseIcon.className = 'fas fa-pause text-sm';
+    if (pauseText) pauseText.textContent = 'Pause';
+    
+    if (waveform) {
+        waveform.innerHTML = '';
+        for (let i = 0; i < 40; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'w-[2px] bg-white rounded-full';
+            bar.style.height = '3px';
+            bar.style.animationDelay = (i * 0.05) + 's';
+            waveform.appendChild(bar);
+        }
+        waveform.classList.add('recording');
     }
-    voiceWaveform.classList.add('recording');
 
     if (voiceTimerInterval) clearInterval(voiceTimerInterval);
     voiceTimerInterval = setInterval(() => {
         voiceSeconds++;
         const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
         const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-        voiceTimerDisplay.textContent = `${mins}:${secs}`;
+        if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
     }, 1000);
 }
 
-// 2. Stop Timer & Hide UI
 function stopVoiceTimer() {
     clearInterval(voiceTimerInterval);
     voiceTimerInterval = null;
     voiceSeconds = 0;
-    voiceWaveform.classList.remove('recording');
-    // Inline style hatao taaki 'hidden' class kaam kare
-    voiceRecorderUI.style.display = '';
-    voiceRecorderUI.style.transform = '';
-    voiceRecorderUI.classList.add('hidden');
+    const waveform = document.getElementById('voiceWaveform');
+    if (waveform) waveform.classList.remove('recording');
+    
+    const recorderUI = document.getElementById('voiceRecorderUI');
+    if (recorderUI) {
+        recorderUI.style.display = '';
+        recorderUI.style.transform = '';
+        recorderUI.classList.add('hidden');
+    }
 }
 
-// 3. Cancel Recording (Delete Voice)
 function cancelVoiceRecording() {
     if (audioRecorder) {
-        // Stop and discard chunks
         audioRecorder.onstop = null; 
         audioRecorder.stop();
         audioRecorder = null;
         audioChunks = [];
     }
     stopVoiceTimer();
-    // Reset mic icon in footer
     const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
+    if (micIcon) micIcon.className = 'fas fa-microphone text-white';
     const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
+    if (vBtn) vBtn.classList.remove('voice-active');
     window.recordedVoiceBlob = null;
 }
 
-// 4. Toggle Pause/Resume
 function toggleVoicePause() {
     if (!audioRecorder) return;
+    const pauseIcon = document.getElementById('voicePauseIcon');
+    const pauseText = document.getElementById('voicePauseText');
 
     if (audioRecorder.state === 'recording') {
-        // Pause recording
         audioRecorder.pause();
         isVoicePaused = true;
-        voicePauseIcon.className = 'fas fa-play text-sm';
-        voicePauseText.textContent = 'Resume';
+        if (pauseIcon) pauseIcon.className = 'fas fa-play text-sm';
+        if (pauseText) pauseText.textContent = 'Resume';
 
-        // 🛑 Timer interval rok do
         if (voiceTimerInterval) {
             clearInterval(voiceTimerInterval);
             voiceTimerInterval = null;
         }
     } else if (audioRecorder.state === 'paused') {
-        // Resume recording
         audioRecorder.resume();
         isVoicePaused = false;
-        voicePauseIcon.className = 'fas fa-pause text-sm';
-        voicePauseText.textContent = 'Pause';
+        if (pauseIcon) pauseIcon.className = 'fas fa-pause text-sm';
+        if (pauseText) pauseText.textContent = 'Pause';
 
-        // ▶️ Timer interval dobara shuru karo
-        if (voiceTimerInterval) clearInterval(voiceTimerInterval); // safety
+        if (voiceTimerInterval) clearInterval(voiceTimerInterval);
         voiceTimerInterval = setInterval(() => {
             voiceSeconds++;
             const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
             const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-            voiceTimerDisplay.textContent = `${mins}:${secs}`;
+            const timerDisplay = document.getElementById('voiceTimerDisplay');
+            if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
         }, 1000);
     }
 }
-// 5. Send the Recorded Voice (triggers upload & send)
+
 async function sendRecordedVoice() {
-    // Agar recording abhi chal rahi hai, pehle use roko aur blob ka wait karo
     if (audioRecorder && audioRecorder.state !== 'inactive') {
         const blobPromise = new Promise(resolve => {
             const originalOnStop = audioRecorder.onstop;
@@ -1345,7 +1332,6 @@ async function sendRecordedVoice() {
     if (!window.recordedVoiceBlob) return;
 
     try {
-        // 🟢 Blob ko File object mein convert karo
         const voiceFile = new File([window.recordedVoiceBlob], 'voice_' + Date.now() + '.webm', { type: 'audio/webm' });
         await sendMessageWithProgress('', voiceFile, 'voice');
     } catch (e) {
@@ -1355,30 +1341,26 @@ async function sendRecordedVoice() {
     window.recordedVoiceBlob = null;
     stopVoiceTimer();
     const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
+    if (micIcon) micIcon.className = 'fas fa-microphone text-white';
     const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
+    if (vBtn) vBtn.classList.remove('voice-active');
 }
 
-// =========================================================
-// ATTACHMENT POPUP MENU FUNCTIONS
-// =========================================================
-
-// Open popup
+// ATTACHMENT MENU
 function toggleAttachMenu() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
+    if (!popup || !overlay) return;
     popup.classList.remove('hidden');
     overlay.classList.remove('hidden');
-    // Force reflow for animation
     void popup.offsetWidth;
     popup.style.transform = 'translateY(0)';
 }
 
-// Close popup
 function closeAttachPopup() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
+    if (!popup || !overlay) return;
     popup.style.transform = 'translateY(100%)';
     setTimeout(() => {
         popup.classList.add('hidden');
@@ -1386,374 +1368,62 @@ function closeAttachPopup() {
     }, 300);
 }
 
-// 1. Gallery
 function openGallery() {
     closeAttachPopup();
     setTimeout(() => {
-        document.getElementById('hiddenGalleryInput').click();
+        const input = document.getElementById('hiddenGalleryInput');
+        if (input) input.click();
     }, 350);
 }
 
-// 2. Camera
 function openCamera() {
     closeAttachPopup();
     setTimeout(() => {
-        document.getElementById('hiddenCameraInput').click();
+        const input = document.getElementById('hiddenCameraInput');
+        if (input) input.click();
     }, 350);
 }
-// =========================================================
-// LOCATION FUNCTIONS (FULL SCREEN - REVAMPED)
-// =========================================================
 
-let selectedLat = null;
-let selectedLng = null;
-let selectedLocName = '';
-let selectedLocAddress = '';
-let locationMap = null;
-let locationMarker = null;
-let liveLocationDuration = 15;
-
-// Open full screen location
-function shareLocation() {
-    closeAttachPopup();
-    setTimeout(() => {
-        const popup = document.getElementById('locationPopup');
-        const overlay = document.getElementById('locationPopupOverlay');
-        popup.classList.remove('hidden');
-        overlay.classList.remove('hidden');
-        popup.style.display = 'flex';
-        
-                        // Reset
-        selectedLat = null;
-        selectedLng = null;
-        var sendBtn = document.getElementById('sendLocationBtn');
-        if (sendBtn) sendBtn.disabled = true;
-        var selCard = document.getElementById('locationSelectedCard');
-        if (selCard) selCard.classList.add('hidden');
-        var searchRes = document.getElementById('locationSearchResults');
-        if (searchRes) searchRes.classList.add('hidden');
-        var searchInp = document.getElementById('locationSearchInput');
-        if (searchInp) searchInp.value = '';
-        
-        // Init map
-        setTimeout(() => initLocationMap(), 300);
-    }, 350);
-}
-// Close location
-function closeLocationPopup() {
-    const popup = document.getElementById('locationPopup');
-    const overlay = document.getElementById('locationPopupOverlay');
-    popup.classList.add('hidden');
-    overlay.classList.add('hidden');
-    popup.style.display = '';
-    if (locationMap) {
-        locationMap.remove();
-        locationMap = null;
-    }
-}
-
-// Initialize Map
-function initLocationMap() {
-    const container = document.getElementById('locationMap');
-    if (!container) return;
-    
-    if (locationMap) {
-        locationMap.remove();
-        locationMap = null;
-    }
-    
-    const defaultLat = 30.3753;
-    const defaultLng = 69.3451;
-    
-    locationMap = L.map('locationMap', {
-        center: [defaultLat, defaultLng],
-        zoom: 13,
-        zoomControl: false,
-        attributionControl: false
-    });
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(locationMap);
-    
-    // 🟢🟢🟢 FIX MAP SIZE — YEH LINE ADD KARO 🟢🟢🟢
-    setTimeout(() => {
-        locationMap.invalidateSize();
-    }, 500);
-    
-    // Update location on map move
-    locationMap.on('moveend', function() {
-        const center = locationMap.getCenter();
-        updateLocationInfo(center.lat, center.lng);
-    });
-    
-    // Get user location
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
-                updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
-            },
-            () => {
-                updateLocationInfo(defaultLat, defaultLng);
-            }
-        );
-    }
-}
-
-// Go to my location
-function goToMyLocation() {
-    if (!locationMap) return;
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
-            },
-            () => alert("Location access denied.")
-        );
-    }
-}
-
-// Update location info
-function updateLocationInfo(lat, lng) {
-    selectedLat = lat;
-    selectedLng = lng;
-    
-    const card = document.getElementById('locationSelectedCard');
-    const nameEl = document.getElementById('locationCardName');
-    const addrEl = document.getElementById('locationCardAddress');
-    const sendBtn = document.getElementById('sendLocationBtn');
-    
-    nameEl.textContent = 'Selected Location';
-    addrEl.textContent = '';
-    card.classList.remove('hidden');
-    sendBtn.disabled = false;
-    
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.display_name) {
-                selectedLocName = data.display_name.split(',')[0] || 'Selected Location';
-                selectedLocAddress = data.display_name;
-            } else {
-                selectedLocName = 'Selected Location';
-                selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            }
-            nameEl.textContent = selectedLocName;
-            addrEl.textContent = selectedLocAddress;
-        })
-        .catch(() => {
-            selectedLocName = 'Selected Location';
-            selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            nameEl.textContent = selectedLocName;
-            addrEl.textContent = selectedLocAddress;
-        });
-}
-
-// Search location
-async function searchLocation() {
-    const query = document.getElementById('locationSearchInput').value.trim();
-    if (!query) return;
-    
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
-        const data = await response.json();
-        const container = document.getElementById('locationSearchResults');
-        
-        if (data && data.length > 0) {
-            container.classList.remove('hidden');
-            container.innerHTML = data.map((place, i) => `
-                <div onclick="selectLocationResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name)}')"
-                     class="loc-result-item px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                    <p class="text-gray-900 text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
-                    <p class="text-gray-500 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
-                </div>
-            `).join('');
-        } else {
-            container.classList.add('hidden');
-            alert("Location not found.");
-        }
-    } catch (err) {
-        alert("Search failed.");
-    }
-}
-
-// Select search result
-function selectLocationResult(lat, lng, name) {
-    document.getElementById('locationSearchResults').classList.add('hidden');
-    document.getElementById('locationSearchInput').value = name.split(',')[0];
-    
-    if (locationMap) {
-        locationMap.setView([parseFloat(lat), parseFloat(lng)], 16);
-    }
-}
-
-// Confirm and send location
-async function confirmLocation() {
-    if (!selectedLat || !selectedLng) {
-        alert("Select a location first.");
-        return;
-    }
-    const comment = document.getElementById('locationComment').value.trim();
-    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const msg = `📍 ${selectedLocName}${comment ? '\n' + comment : ''}\n${mapUrl}`;
-    closeLocationPopup();
-    await sendMessage(msg);
-}
-
-// Smart Back Button Handling
-function handleLocationBack() {
-    closeLocationPopup();
-}
-
-// Override back button
-document.addEventListener('DOMContentLoaded', function() {
-    const backBtn = document.querySelector('#locationTopBar button');
-    if (backBtn) {
-        backBtn.onclick = handleLocationBack;
-    }
-});
-
-// Handle back button
-let isLocationOpen = false;
-
-const origShareLoc = shareLocation;
-shareLocation = function() {
-    isLocationOpen = true;
-    history.pushState({ popup: 'location' }, '');
-    origShareLoc();
-};
-
-const origCloseLoc = closeLocationPopup;
-closeLocationPopup = function() {
-    if (isLocationOpen) {
-        isLocationOpen = false;
-        history.back();
-    }
-    origCloseLoc();
-};
-
-window.addEventListener('popstate', function(e) {
-    if (isLocationOpen) {
-        isLocationOpen = false;
-        origCloseLoc();
-    }
-});
-
-// 4. Contacts (Fixed - No Double Send)
-async function shareContact() {
-    closeAttachPopup();
-    
-    if ('contacts' in navigator && 'select' in navigator.contacts) {
-        try {
-            const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-            if (contacts && contacts.length > 0) {
-                const contact = contacts[0];
-                const name = contact.name || 'Unknown';
-                const phone = contact.tel || '';
-                
-                // 🟢 Fix: Sirf EK BAAR send karo
-                const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
-                await sendMessage(contactMsg);
-                // ❌ Doosri bar call mat karo — yahi galti thi!
-            }
-        } catch (err) {
-            console.error("Contact selection failed:", err);
-            alert("Contact access denied.");
-        }
-    } else {
-        // Manual contact share prompt
-        const name = prompt("Enter contact name:");
-        if (!name) return;
-        const phone = prompt("Enter phone number:");
-        if (!phone) return;
-        const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
-        await sendMessage(contactMsg);
-    }
-}
-
-// 5. Documents
 function openDocuments() {
     closeAttachPopup();
     setTimeout(() => {
-        document.getElementById('hiddenDocumentInput').click();
+        const input = document.getElementById('hiddenDocumentInput');
+        if (input) input.click();
     }, 350);
 }
 
-// 6. Audio
 function openAudio() {
     closeAttachPopup();
     setTimeout(() => {
-        document.getElementById('hiddenAudioInput').click();
+        const input = document.getElementById('hiddenAudioInput');
+        if (input) input.click();
     }, 350);
 }
 
-// =========================================================
-// FILE HANDLERS FOR DIFFERENT TYPES
-// =========================================================
-
-// Gallery & Camera Picks (Images + Videos)
+// FILE PICK HANDLERS
 async function handleGalleryPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     
     if (file.type.startsWith('image/')) {
-        // Image → Preview with editor
         await previewChatMedia(input);
     } else if (file.type.startsWith('video/')) {
-    // Video → Preview with video player + caption
-    pendingMediaFile = file;
-    pendingMediaType = 'video';
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    const vid = document.getElementById('mediaPreviewVideo');
-    const img = document.getElementById('mediaPreviewImg');
-    const captionInput = document.getElementById('mediaCaptionInput');
-    
-    captionInput.value = '';
-    const url = URL.createObjectURL(file);
-    vid.src = url;
-    vid.classList.remove('hidden');
-    img.classList.add('hidden');
-    
-    // Hide drawing/crop tools for video
-    document.getElementById('imageCanvas').classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.add('hidden');
-    document.getElementById('toggleCropBtn').classList.add('hidden');
-    document.getElementById('applyCropBtn').classList.add('hidden');
-    document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('captionBar').classList.remove('hidden');
-    
-    // 🟢 Ensure top bar and caption bar are visible
-    document.getElementById('editorTopBar').style.display = 'flex';
-    document.getElementById('captionBar').style.display = 'block';
-    
-    // 🟢 Clear canvas container for video
-    document.getElementById('canvasContainer').innerHTML = '';
-    document.getElementById('canvasContainer').appendChild(vid);
-    
-    ui.classList.remove('hidden');
-    input.value = '';
-    console.log("🎬 Video preview opened:", file.name); // Debug
-}
+        await previewChatMedia(input);
+    }
 }
 
-// Document Pick (With Preview + Caption + Spinner// Document Pick (With Preview + Caption + Spinner)
 async function handleDocumentPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-    console.log("📄 Document picked:", file.name);
-    
     pendingMediaFile = file;
     pendingMediaType = 'document';
     
     const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) { console.error("❌ mediaPreviewUI not found!"); return; }
+    if (!ui) return;
     
     const captionInput = document.getElementById('mediaCaptionInput');
     if (captionInput) captionInput.value = '';
     
-    // 🟢 SAFELY hide elements that exist
     const safeHide = (id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
@@ -1767,15 +1437,12 @@ async function handleDocumentPick(input) {
     safeHide('applyCropBtn');
     safeHide('drawingTools');
     
-    // Show caption bar
     const captionBar = document.getElementById('captionBar');
     if (captionBar) captionBar.classList.remove('hidden');
     
-    // Show editor top bar
     const editorTopBar = document.getElementById('editorTopBar');
     if (editorTopBar) editorTopBar.style.display = 'flex';
     
-    // 🟢 Set document preview content
     const canvasContainer = document.getElementById('canvasContainer');
     if (canvasContainer) {
         canvasContainer.innerHTML = `
@@ -1793,39 +1460,31 @@ async function handleDocumentPick(input) {
         `;
     }
     
-    // 🟢 Force show UI
     ui.classList.remove('hidden');
     ui.style.display = 'flex';
-    console.log("✅ Document preview opened:", file.name);
-    
     input.value = '';
 }
 
-// Helper: Format file size
 function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-// Helper: Escape HTML
 function escapeHTML(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
-// Audio Pick (With Preview + Caption + Spinner)
 async function handleAudioPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
-    console.log("🎵 Audio picked:", file.name);
-    
     pendingMediaFile = file;
     pendingMediaType = 'audio';
     
     const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) { console.error("❌ mediaPreviewUI not found!"); return; }
+    if (!ui) return;
     
     const captionInput = document.getElementById('mediaCaptionInput');
     if (captionInput) captionInput.value = '';
@@ -1868,143 +1527,212 @@ async function handleAudioPick(input) {
     
     ui.classList.remove('hidden');
     ui.style.display = 'flex';
-    console.log("✅ Audio preview opened:", file.name);
-    
     input.value = '';
 }
-// =========================================================
-// LONG PRESS TO COPY CONTACT NUMBER
-// =========================================================
-let longPressTimer;
-let longPressTarget;
 
-document.addEventListener('touchstart', function(e) {
-    const contactBubble = e.target.closest('.bubble-sent, .bubble-received');
-    if (!contactBubble) return;
-    
-    const text = contactBubble.textContent || '';
-    
-    // Check if it contains a phone number (simple pattern)
-    const phoneMatch = text.match(/📞\s*([+\d\s-]+)/);
-    if (!phoneMatch) return;
-    
-    longPressTarget = phoneMatch[1].replace(/\s+/g, '');
-    
-    longPressTimer = setTimeout(() => {
-        if (longPressTarget) {
-            copyToClipboard(longPressTarget);
-            showCopyToast(contactBubble);
+// LOCATION
+let selectedLat = null;
+let selectedLng = null;
+let selectedLocName = '';
+let selectedLocAddress = '';
+let locationMap = null;
+
+function shareLocation() {
+    closeAttachPopup();
+    setTimeout(() => {
+        const popup = document.getElementById('locationPopup');
+        const overlay = document.getElementById('locationPopupOverlay');
+        if (popup && overlay) {
+            popup.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            popup.style.display = 'flex';
         }
-    }, 800); // 800ms long press
-});
+        selectedLat = null;
+        selectedLng = null;
+        const sendBtn = document.getElementById('sendLocationBtn');
+        if (sendBtn) sendBtn.disabled = true;
+        
+        setTimeout(() => initLocationMap(), 300);
+    }, 350);
+}
 
-document.addEventListener('touchend', function() {
-    clearTimeout(longPressTimer);
-    longPressTarget = null;
-});
-
-document.addEventListener('touchmove', function() {
-    clearTimeout(longPressTimer);
-    longPressTarget = null;
-});
-
-function copyToClipboard(text) {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => {
-            console.log("📋 Copied:", text);
-        }).catch(err => {
-            console.error("Copy failed:", err);
-        });
-    } else {
-        // Fallback
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
+function closeLocationPopup() {
+    const popup = document.getElementById('locationPopup');
+    const overlay = document.getElementById('locationPopupOverlay');
+    if (popup) {
+        popup.classList.add('hidden');
+        popup.style.display = '';
+    }
+    if (overlay) overlay.classList.add('hidden');
+    if (locationMap) {
+        locationMap.remove();
+        locationMap = null;
     }
 }
 
-function showCopyToast(element) {
-    const toast = document.createElement('div');
-    toast.className = 'fixed bg-black/80 text-white text-xs px-3 py-2 rounded-full z-[100000] animate-pop';
-    toast.textContent = '📋 Phone number copied!';
-    toast.style.left = '50%';
-    toast.style.transform = 'translateX(-50%)';
-    toast.style.bottom = '100px';
-    document.body.appendChild(toast);
+function initLocationMap() {
+    const container = document.getElementById('locationMap');
+    if (!container || typeof L === 'undefined') return;
+    
+    if (locationMap) {
+        locationMap.remove();
+        locationMap = null;
+    }
+    
+    const defaultLat = 30.3753;
+    const defaultLng = 69.3451;
+    
+    locationMap = L.map('locationMap', {
+        center: [defaultLat, defaultLng],
+        zoom: 13,
+        zoomControl: false,
+        attributionControl: false
+    });
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(locationMap);
     
     setTimeout(() => {
-        toast.remove();
-    }, 2000);
+        if (locationMap) locationMap.invalidateSize();
+    }, 500);
+    
+    locationMap.on('moveend', function() {
+        if (!locationMap) return;
+        const center = locationMap.getCenter();
+        updateLocationInfo(center.lat, center.lng);
+    });
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                if (locationMap) {
+                    locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                    updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
+                }
+            },
+            () => updateLocationInfo(defaultLat, defaultLng)
+        );
+    }
 }
+
+function updateLocationInfo(lat, lng) {
+    selectedLat = lat;
+    selectedLng = lng;
+    
+    const card = document.getElementById('locationSelectedCard');
+    const nameEl = document.getElementById('locationCardName');
+    const addrEl = document.getElementById('locationCardAddress');
+    const sendBtn = document.getElementById('sendLocationBtn');
+    
+    if (nameEl) nameEl.textContent = 'Selected Location';
+    if (addrEl) addrEl.textContent = '';
+    if (card) card.classList.remove('hidden');
+    if (sendBtn) sendBtn.disabled = false;
+    
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.display_name) {
+                selectedLocName = data.display_name.split(',')[0] || 'Selected Location';
+                selectedLocAddress = data.display_name;
+            } else {
+                selectedLocName = 'Selected Location';
+                selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            }
+            if (nameEl) nameEl.textContent = selectedLocName;
+            if (addrEl) addrEl.textContent = selectedLocAddress;
+        })
+        .catch(() => {
+            selectedLocName = 'Selected Location';
+            selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            if (nameEl) nameEl.textContent = selectedLocName;
+            if (addrEl) addrEl.textContent = selectedLocAddress;
+        });
+}
+
+async function confirmLocation() {
+    if (!selectedLat || !selectedLng) {
+        alert("Select a location first.");
+        return;
+    }
+    const commEl = document.getElementById('locationComment');
+    const comment = commEl ? commEl.value.trim() : '';
+    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
+    const msg = `📍 ${selectedLocName}${comment ? '\n' + comment : ''}\n${mapUrl}`;
+    closeLocationPopup();
+    await sendMessage(msg);
+}
+
+// Contact Sharing
+async function shareContact() {
+    closeAttachPopup();
+    if ('contacts' in navigator && 'select' in navigator.contacts) {
+        try {
+            const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+            if (contacts && contacts.length > 0) {
+                const contact = contacts[0];
+                const name = contact.name || 'Unknown';
+                const phone = contact.tel || '';
+                const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
+                await sendMessage(contactMsg);
+            }
+        } catch (err) {
+            console.error("Contact selection failed:", err);
+            alert("Contact access denied.");
+        }
+    } else {
+        const name = prompt("Enter contact name:");
+        if (!name) return;
+        const phone = prompt("Enter phone number:");
+        if (!phone) return;
+        const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
+        await sendMessage(contactMsg);
+    }
+}
+
+// Audio Player Click Listener
 document.addEventListener("click", function (e) {
-
     const btn = e.target.closest(".play-btn-custom");
-
     if (!btn) return;
 
     const container = btn.closest(".voice-player-container");
+    if (!container) return;
 
     const audio = container.querySelector("audio");
-
     const icon = btn.querySelector("i");
-
     const timer = container.querySelector(".time-current");
 
     document.querySelectorAll(".voice-player-container audio").forEach(a => {
-
         if (a !== audio) {
-
             a.pause();
-
             a.currentTime = 0;
-
             const c = a.closest(".voice-player-container");
-
-            c.querySelector(".play-btn-custom i").className =
-                "fas fa-play text-[10px] ml-0.5";
-
-            c.querySelector(".time-current").textContent = "0:00";
-
+            if (c) {
+                const ic = c.querySelector(".play-btn-custom i");
+                if (ic) ic.className = "fas fa-play text-[10px] ml-0.5";
+                const tm = c.querySelector(".time-current");
+                if (tm) tm.textContent = "0:00";
+            }
         }
-
     });
 
     if (audio.paused) {
-
         audio.play();
-
-        icon.className = "fas fa-pause text-[10px]";
-
+        if (icon) icon.className = "fas fa-pause text-[10px]";
     } else {
-
         audio.pause();
-
-        icon.className = "fas fa-play text-[10px] ml-0.5";
-
+        if (icon) icon.className = "fas fa-play text-[10px] ml-0.5";
     }
 
     audio.ontimeupdate = () => {
-
         const m = Math.floor(audio.currentTime / 60);
-
         const s = Math.floor(audio.currentTime % 60);
-
-        timer.textContent =
-            `${m}:${String(s).padStart(2,"0")}`;
-
+        if (timer) timer.textContent = `${m}:${String(s).padStart(2,"0")}`;
     };
 
     audio.onended = () => {
-
-        icon.className = "fas fa-play text-[10px] ml-0.5";
-
-        timer.textContent = "0:00";
-
+        if (icon) icon.className = "fas fa-play text-[10px] ml-0.5";
+        if (timer) timer.textContent = "0:00";
     };
-
 });
