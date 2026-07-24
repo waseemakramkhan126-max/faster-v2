@@ -290,3 +290,19 @@ footer{
     margin: 8px 12px !important;
     font-size: 13px !important;
 }
+
+/* Fix Leaflet map full screen */
+#locationMapContainer {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+#locationMap {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
