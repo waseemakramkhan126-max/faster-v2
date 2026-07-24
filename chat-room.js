@@ -158,7 +158,7 @@ if (urlMatch) {
     if (latLngMatch) {
         const lat = latLngMatch[1];
         const lng = latLngMatch[2];
-        const staticMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=14&size=600x300&markers=${lat},${lng},red-pushpin`;
+        const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=600x300&markers=color:red%7C${lat},${lng}&key=YOUR_API_KEY`;
         mapImageHTML = `
             <div class="mt-2 rounded-xl overflow-hidden shadow-md" style="max-width:280px;">
                 <img src="${staticMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
