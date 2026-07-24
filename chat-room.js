@@ -156,6 +156,21 @@ function renderMessages(messages, appendAtTop = false) {
     contentHTML = `
         <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
     `;
+        } else if (msg.type === 'text' && msg.content && msg.content.includes('📍')) {
+    // Location message — make link clickable
+    const locationText = msg.content;
+    const urlMatch = locationText.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
+    if (urlMatch) {
+        const url = urlMatch[0];
+        contentHTML = `
+            <div class="cursor-pointer" onclick="window.open('${url}', '_blank')">
+                <p class="whitespace-pre-wrap">${locationText.replace(url, `<span class="text-blue-300 underline">📍 Open in Maps</span>`)}</p>
+            </div>
+        `;
+    } else {
+        contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+    }
+} else if (msg.type === 'text') {
 } else if (msg.type === 'document') {
     contentHTML = `
         <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
@@ -1073,7 +1088,6 @@ async function sendCaptionedMedia() {
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
         fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
     } else if (pendingMediaType === 'document') {
-        // 🟢 Document — direct file with caption
         fileToUpload = pendingMediaFile;
         const docName = pendingMediaFile.name;
         const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
@@ -1082,8 +1096,31 @@ async function sendCaptionedMedia() {
         ui.classList.add('hidden');
         document.getElementById('mediaCaptionInput').value = '';
         
-        // Send with spinner/progress
         await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
+        closeMediaPreview();
+        return;
+    } else if (pendingMediaType === 'video') {
+        // 🟢 VIDEO CASE — direct file with caption
+        fileToUpload = pendingMediaFile;
+        const videoCaption = caption || '';
+        
+        pendingMediaFile = null;
+        ui.classList.add('hidden');
+        document.getElementById('mediaCaptionInput').value = '';
+        
+        await sendMessageWithProgress(videoCaption, fileToUpload, 'video');
+        closeMediaPreview();
+        return;
+    } else if (pendingMediaType === 'audio') {
+        // 🟢 AUDIO CASE — direct file with caption
+        fileToUpload = pendingMediaFile;
+        const audioCaption = caption || '';
+        
+        pendingMediaFile = null;
+        ui.classList.add('hidden');
+        document.getElementById('mediaCaptionInput').value = '';
+        
+        await sendMessageWithProgress(audioCaption, fileToUpload, 'audio');
         closeMediaPreview();
         return;
     } else {
@@ -1094,10 +1131,8 @@ async function sendCaptionedMedia() {
     ui.classList.add('hidden');
     document.getElementById('mediaCaptionInput').value = '';
 
-    // Send with upload progress indicator
     await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
     
-    // Cleanup
     closeMediaPreview();
 }
 
@@ -1325,26 +1360,29 @@ function closeLocationPopup() {
     }, 300);
 }
 
-// Search location (Google Maps Geocoding API)
+// Search location (Google Maps Geocoding API// Search location with multiple results
 async function searchLocation() {
     const query = document.getElementById('locationSearchInput').value.trim();
     if (!query) return;
     
     try {
-        // Using OpenStreetMap Nominatim (free, no API key)
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
         const data = await response.json();
         
+        const resultsContainer = document.getElementById('locationSearchResults');
+        
         if (data && data.length > 0) {
-            const place = data[0];
-            selectedLat = parseFloat(place.lat);
-            selectedLng = parseFloat(place.lon);
-            selectedLocName = place.display_name.split(',')[0];
-            selectedLocAddress = place.display_name;
-            
-            // Show on map
-            showLocationOnMap(selectedLat, selectedLng, selectedLocName, selectedLocAddress);
+            // Show results dropdown
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.innerHTML = data.map((place, index) => `
+                <div onclick="selectSearchResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name.split(',')[0])}', '${escapeHTML(place.display_name)}')" 
+                     class="px-4 py-3 cursor-pointer hover:bg-[#3a3a3a] border-b border-gray-700 last:border-0 transition-colors">
+                    <p class="text-white text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
+                    <p class="text-gray-400 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
+                </div>
+            `).join('');
         } else {
+            resultsContainer.classList.add('hidden');
             alert("Location not found. Try a different search.");
         }
     } catch (err) {
@@ -1353,6 +1391,18 @@ async function searchLocation() {
     }
 }
 
+// Select a search result
+function selectSearchResult(lat, lng, name, address) {
+    selectedLat = parseFloat(lat);
+    selectedLng = parseFloat(lng);
+    selectedLocName = name;
+    selectedLocAddress = address;
+    
+    document.getElementById('locationSearchResults').classList.add('hidden');
+    document.getElementById('locationSearchInput').value = name;
+    
+    showLocationOnMap(selectedLat, selectedLng, selectedLocName, selectedLocAddress);
+}
 // Show location on map
 function showLocationOnMap(lat, lng, name, address) {
     const mapImg = document.getElementById('locationMapImage');
@@ -1373,8 +1423,48 @@ function showLocationOnMap(lat, lng, name, address) {
     addrEl.textContent = address;
     info.classList.remove('hidden');
     sendBtn.disabled = false;
+    // 🟢 Map click to move pin
+setupMapClickHandler(lat, lng);
 }
-
+// Allow manual pin placement by clicking on map
+function setupMapClickHandler(lat, lng) {
+    const mapImg = document.getElementById('locationMapImage');
+    
+    mapImg.onclick = function(e) {
+        const rect = mapImg.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Calculate lat/lng from click position (approximate)
+        const latRange = 0.02; // Approximate visible range
+        const lngRange = 0.02;
+        
+        const newLat = lat + (0.5 - y / rect.height) * latRange;
+        const newLng = lng + (x / rect.width - 0.5) * lngRange;
+        
+        selectedLat = newLat;
+        selectedLng = newLng;
+        
+        // Reverse geocode to get address
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.display_name) {
+                    selectedLocName = data.display_name.split(',')[0];
+                    selectedLocAddress = data.display_name;
+                    document.getElementById('selectedLocationName').textContent = selectedLocName;
+                    document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+                }
+            });
+        
+        // Update map image with new pin
+        mapImg.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${newLat},${newLng}&zoom=15&size=800x400&markers=${newLat},${newLng},red-pushpin`;
+        document.getElementById('sendLocationBtn').disabled = false;
+        document.getElementById('selectedLocationInfo').classList.remove('hidden');
+    };
+    
+    mapImg.style.cursor = 'crosshair';
+}
 // Send selected location
 async function sendSelectedLocation() {
     if (!selectedLat || !selectedLng) {
