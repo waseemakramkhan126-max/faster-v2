@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Faster - Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js CSS + JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="chat-room.css">
@@ -156,20 +159,14 @@
                    onkeydown="if(event.key==='Enter')searchLocation()">
         </div>
     </div>
-    <!-- Search Results Dropdown -->
-<div id="locationSearchResults" class="hidden bg-[#2a2a2a] rounded-xl mb-2 max-h-40 overflow-y-auto"></div>
+    
+    <!-- Map Area (Leaflet.js Interactive Map) -->
+      <div id="locationMapArea" class="w-full h-64 bg-[#2a2a2a] rounded-xl mb-3 overflow-hidden relative z-10">
+        <div id="locationMap" class="w-full h-full" style="z-index: 1;"></div>
+      </div>
 
-    <!-- Map Area (Google Maps Static or Placeholder) -->
-    <div id="locationMapArea" class="w-full h-48 bg-[#2a2a2a] rounded-xl mb-3 flex items-center justify-center overflow-hidden relative">
-        <div id="locationMapPlaceholder" class="text-gray-500 text-sm">
-            <i class="fas fa-map-marker-alt text-3xl mb-2 block text-center"></i>
-            <span>Search a location or use options below</span>
-        </div>
-        <img id="locationMapImage" src="" class="absolute inset-0 w-full h-full object-cover hidden" alt="Map">
-        <div id="locationPin" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full hidden">
-            <i class="fas fa-map-pin text-3xl text-red-500"></i>
-        </div>
-    </div>
+<!-- Search Results Dropdown -->
+<div id="locationSearchResults" class="hidden bg-[#2a2a2a] rounded-xl mb-2 max-h-40 overflow-y-auto"></div>
 
     <!-- Selected Location Info -->
     <div id="selectedLocationInfo" class="hidden bg-[#2a2a2a] rounded-xl p-3 mb-3">
