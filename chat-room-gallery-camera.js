@@ -84,23 +84,48 @@ function setupCanvas(img) {
     canvas.classList.remove('hidden');
     canvas.style.display = 'block';
     
-    const maxWidth = window.innerWidth - 32;
-    const maxHeight = window.innerHeight - 250;
+    // 🟢 FIXED: Better size calculation for all image types
+    const containerWidth = document.getElementById('canvasContainer').clientWidth || window.innerWidth;
+    const containerHeight = document.getElementById('canvasContainer').clientHeight || window.innerHeight - 200;
+    
     let width = img.width;
     let height = img.height;
     
-    const ratio = Math.min(maxWidth / width, maxHeight / height);
-    width *= ratio;
-    height *= ratio;
+    // Fit image within container while maintaining aspect ratio
+    const ratioX = containerWidth / width;
+    const ratioY = containerHeight / height;
+    const ratio = Math.min(ratioX, ratioY, 1); // Don't upscale
+    
+    width = Math.floor(width * ratio);
+    height = Math.floor(height * ratio);
     
     canvas.width = width;
     canvas.height = height;
+    
+    // Center canvas
+    canvas.style.margin = 'auto';
+    canvas.style.position = 'absolute';
+    canvas.style.top = '50%';
+    canvas.style.left = '50%';
+    canvas.style.transform = 'translate(-50%, -50%)';
+    
     ctx.drawImage(img, 0, 0, width, height);
     
-    document.getElementById('canvasContainer').style.display = 'block';
-    document.getElementById('editorTopBar').style.display = 'flex';
-    document.getElementById('captionBar').classList.remove('hidden');
-    document.getElementById('captionBar').style.display = 'block';
+    // Show UI elements
+    const canvasContainer = document.getElementById('canvasContainer');
+    if (canvasContainer) {
+        canvasContainer.style.display = 'block';
+        canvasContainer.style.position = 'relative';
+    }
+    
+    const editorTopBar = document.getElementById('editorTopBar');
+    if (editorTopBar) editorTopBar.style.display = 'flex';
+    
+    const captionBar = document.getElementById('captionBar');
+    if (captionBar) {
+        captionBar.classList.remove('hidden');
+        captionBar.style.display = 'block';
+    }
     
     setupCanvasEvents();
 }
@@ -342,18 +367,69 @@ function applyCrop() {
 // 7. Send Functions
 function closeMediaPreview() {
     const ui = document.getElementById('mediaPreviewUI');
+    
+    // 🟢 FIXED: Force hide all UI elements
     ui.classList.add('hidden');
+    ui.style.display = 'none';
+    
+    // Clear canvas
+    if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.classList.add('hidden');
+        canvas.style.display = 'none';
+    }
+    
+    // Hide video element
+    const vid = document.getElementById('mediaPreviewVideo');
+    if (vid) {
+        vid.classList.add('hidden');
+        vid.style.display = 'none';
+        vid.src = '';
+    }
+    
+    // Hide image element
+    const img = document.getElementById('mediaPreviewImg');
+    if (img) {
+        img.classList.add('hidden');
+        img.style.display = 'none';
+        img.src = '';
+    }
+    
+    // Reset canvas container
+    const canvasContainer = document.getElementById('canvasContainer');
+    if (canvasContainer) {
+        canvasContainer.innerHTML = '';
+        canvasContainer.style.display = '';
+    }
+    
+    // Hide editor top bar
+    const editorTopBar = document.getElementById('editorTopBar');
+    if (editorTopBar) {
+        editorTopBar.style.display = 'none';
+    }
+    
+    // Hide caption bar
+    const captionBar = document.getElementById('captionBar');
+    if (captionBar) {
+        captionBar.classList.add('hidden');
+        captionBar.style.display = 'none';
+    }
+    
+    // Hide drawing tools
+    const drawingTools = document.getElementById('drawingTools');
+    if (drawingTools) {
+        drawingTools.classList.add('hidden');
+    }
+    
+    // Reset state
     pendingMediaFile = null;
     canvasImage = null;
     drawings = [];
-    if (canvas) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.classList.add('hidden');
-    }
+    isDrawingMode = false;
+    isCropMode = false;
+    
     document.getElementById('mediaCaptionInput').value = '';
-    resetEditorState();
 }
-
 async function sendCaptionedMedia() {
     if (!canvasImage && !pendingMediaFile) return;
     
