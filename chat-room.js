@@ -674,11 +674,30 @@ function openMediaViewer(src, type) {
     }
 }
 
-function closeMediaViewer() {
-    const viewer = document.getElementById('mediaViewer');
-    if (viewer) {
-        viewer.classList.add('hidden');
-        viewer.classList.remove('flex');
+function closeMediaPreview() {
+    console.log("🔄 closeMediaPreview called");
+    const ui = document.getElementById('mediaPreviewUI');
+    ui.classList.add('hidden');
+    ui.style.display = 'none';
+    
+    // ✅ Clean up but DON'T nullify before send
+    if (canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.classList.add('hidden');
+    }
+    document.getElementById('mediaCaptionInput').value = '';
+    resetEditorState();
+    
+    // Clean up blob URLs
+    const vid = document.getElementById('mediaPreviewVideo');
+    if (vid) {
+        vid.src = '';
+        vid.classList.add('hidden');
+    }
+    const img = document.getElementById('mediaPreviewImg');
+    if (img) {
+        img.src = '';
+        img.classList.add('hidden');
     }
 }
 
@@ -966,41 +985,26 @@ function setupCanvasEvents() {
 }
 
 function resetEditorState() {
+    console.log("🔄 resetEditorState called");
     isDrawingMode = false;
     isCropMode = false;
     drawings = [];
     
-    const drawTools = document.getElementById('drawingTools');
-    if (drawTools) drawTools.classList.add('hidden');
-
-    const drawBtn = document.getElementById('toggleDrawBtn');
-    if (drawBtn) {
-        drawBtn.classList.remove('bg-[#0077b9]', 'hidden');
-        drawBtn.classList.add('bg-white/10');
-    }
-
-    const cropBtn = document.getElementById('toggleCropBtn');
-    if (cropBtn) {
-        cropBtn.classList.remove('bg-[#0077b9]', 'hidden');
-        cropBtn.classList.add('bg-white/10');
-    }
-
-    const applyBtn = document.getElementById('applyCropBtn');
-    if (applyBtn) applyBtn.classList.add('hidden');
-
-    const capBar = document.getElementById('captionBar');
-    if (capBar) {
-        capBar.classList.remove('hidden');
-        capBar.style.display = 'block';
-    }
-
+    // ✅ DON'T reset pendingMediaFile or canvasImage here!
+    
+    document.getElementById('drawingTools').classList.add('hidden');
+    document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
+    document.getElementById('toggleCropBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleCropBtn').classList.add('bg-white/10');
+    document.getElementById('applyCropBtn').classList.add('hidden');
+    document.getElementById('captionBar').classList.remove('hidden');
     cropBox = document.getElementById('cropBox');
     cropOverlay = document.getElementById('cropOverlay');
-    if (cropBox) cropBox.classList.add('hidden');
-    if (cropOverlay) cropOverlay.classList.add('hidden');
-    
+    cropBox.classList.add('hidden');
+    cropOverlay.classList.add('hidden');
     setupCropBoxEvents();
-    if (canvas) canvas.classList.remove('drawing-mode');
+    document.getElementById('imageCanvas').classList.remove('drawing-mode');
 }
 
 function setupCropBoxEvents() {
@@ -1202,57 +1206,86 @@ function closeMediaPreview() {
 }
 
 async function sendCaptionedMedia() {
-    if (!canvasImage && !pendingMediaFile) return;
+    console.log("🟢 sendCaptionedMedia START");
+    console.log("📁 pendingMediaFile:", pendingMediaFile);
+    console.log("🖼️ canvasImage:", canvasImage);
+    console.log("📝 pendingMediaType:", pendingMediaType);
     
-    const capInp = document.getElementById('mediaCaptionInput');
-    const caption = capInp ? capInp.value.trim() : '';
-    const ui = document.getElementById('mediaPreviewUI');
-    
-    let fileToUpload;
-    
-    if (pendingMediaType === 'image' && canvasImage && canvas) {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-        fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-    } else if (pendingMediaType === 'document') {
-        fileToUpload = pendingMediaFile;
-        const docName = pendingMediaFile ? pendingMediaFile.name : 'document';
-        const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
-        
-        pendingMediaFile = null;
-        if (ui) ui.classList.add('hidden');
-        if (capInp) capInp.value = '';
-        
-        await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
-        closeMediaPreview();
+    // ✅ Check if we have media to send
+    if (!canvasImage && !pendingMediaFile) {
+        console.error("❌ No media to send!");
+        alert("Please select an image first!");
         return;
-    } else if (pendingMediaType === 'video') {
-        fileToUpload = pendingMediaFile;
-        pendingMediaFile = null;
-        if (ui) ui.classList.add('hidden');
-        if (capInp) capInp.value = '';
-        
-        await sendMessageWithProgress(caption || '', fileToUpload, 'video');
-        closeMediaPreview();
-        return;
-    } else if (pendingMediaType === 'audio') {
-        fileToUpload = pendingMediaFile;
-        pendingMediaFile = null;
-        if (ui) ui.classList.add('hidden');
-        if (capInp) capInp.value = '';
-        
-        await sendMessageWithProgress(caption || '', fileToUpload, 'audio');
-        closeMediaPreview();
-        return;
-    } else {
-        fileToUpload = pendingMediaFile;
     }
     
-    pendingMediaFile = null;
-    if (ui) ui.classList.add('hidden');
-    if (capInp) capInp.value = '';
-
-    await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
-    closeMediaPreview();
+    const caption = document.getElementById('mediaCaptionInput').value.trim();
+    console.log("📝 Caption:", caption);
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    let fileToUpload;
+    
+    try {
+        if (pendingMediaType === 'image' && canvasImage) {
+            console.log("🔄 Converting canvas to blob...");
+            const canvas = document.getElementById('imageCanvas');
+            if (!canvas) {
+                console.error("❌ Canvas not found!");
+                alert("Canvas not found!");
+                return;
+            }
+            
+            const blob = await new Promise((resolve) => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.9);
+            });
+            
+            if (!blob) {
+                console.error("❌ Failed to create blob");
+                alert("Image processing failed!");
+                return;
+            }
+            
+            fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+            console.log("✅ File created:", fileToUpload);
+            
+        } else if (pendingMediaFile) {
+            console.log("🔄 Using pendingMediaFile directly");
+            fileToUpload = pendingMediaFile;
+        } else {
+            console.error("❌ No file available!");
+            alert("No image to send!");
+            return;
+        }
+        
+        console.log("📤 Sending file:", fileToUpload);
+        
+        // ✅ Store type before clearing
+        const mediaType = pendingMediaType;
+        
+        // ✅ Clear UI but KEEP variables until send completes
+        ui.classList.add('hidden');
+        ui.style.display = 'none';
+        document.getElementById('mediaCaptionInput').value = '';
+        
+        // ✅ Send message
+        await sendMessageWithProgress(caption || '', fileToUpload, mediaType);
+        console.log("✅ Message sent!");
+        
+        // ✅ Now clear variables AFTER successful send
+        pendingMediaFile = null;
+        canvasImage = null;
+        pendingMediaType = 'image';
+        
+        // Clean up canvas
+        if (canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.classList.add('hidden');
+        }
+        resetEditorState();
+        
+    } catch (error) {
+        console.error("❌ Error:", error);
+        alert("Failed to send: " + error.message);
+    }
 }
 
 // =========================================================
