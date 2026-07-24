@@ -954,6 +954,9 @@ function resetEditorState() {
     isDrawingMode = false;
     isCropMode = false;
     drawings = [];
+    // ❌ DON'T reset pendingMediaFile here!
+    // ✅ Only reset UI elements
+    
     document.getElementById('drawingTools').classList.add('hidden');
     document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
     document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
@@ -967,6 +970,8 @@ function resetEditorState() {
     cropOverlay.classList.add('hidden');
     setupCropBoxEvents();
     document.getElementById('imageCanvas').classList.remove('drawing-mode');
+    
+    // ✅ Keep these, but DON'T touch pendingMediaFile
 }
 
 // 🟢 Naya function
