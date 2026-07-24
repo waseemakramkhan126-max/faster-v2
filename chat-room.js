@@ -1348,7 +1348,6 @@ let liveLocationDuration = 15;
 // Open full screen location
 function shareLocation() {
     closeAttachPopup();
-    history.pushState({ locationOpen: true }, ''); // ✅ ADD THIS LINE
     setTimeout(() => {
         const popup = document.getElementById('locationPopup');
         const overlay = document.getElementById('locationPopupOverlay');
@@ -1376,7 +1375,6 @@ function shareLocation() {
 function closeLocationPopup() {
     const popup = document.getElementById('locationPopup');
     const overlay = document.getElementById('locationPopupOverlay');
-    history.back(); // ✅ ADD THIS LINE
     popup.classList.add('hidden');
     overlay.classList.add('hidden');
     popup.style.display = '';
@@ -1548,12 +1546,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Android back button support
+// Handle back button
+let isLocationOpen = false;
+
+const origShareLoc = shareLocation;
+shareLocation = function() {
+    isLocationOpen = true;
+    history.pushState({ popup: 'location' }, '');
+    origShareLoc();
+};
+
+const origCloseLoc = closeLocationPopup;
+closeLocationPopup = function() {
+    if (isLocationOpen) {
+        isLocationOpen = false;
+        history.back();
+    }
+    origCloseLoc();
+};
+
 window.addEventListener('popstate', function(e) {
-    const popup = document.getElementById('locationPopup');
-    if (popup && !popup.classList.contains('hidden')) {
-        e.preventDefault();
-        handleLocationBack();
+    if (isLocationOpen) {
+        isLocationOpen = false;
+        origCloseLoc();
     }
 });
 
