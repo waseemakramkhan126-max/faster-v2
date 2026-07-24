@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Faster - Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet.js CSS + JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -25,9 +24,7 @@
     <!-- Chat Header -->
     <header id="chatHeader" class="bg-[#0077b9] text-white px-4 py-3 flex items-center gap-3 shadow-md shrink-0 z-10 transition-all">
         <i class="fas fa-arrow-left text-xl cursor-pointer active:scale-90 transition-transform" onclick="history.back()"></i>
-        <div id="headerAvatar" class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
-            ...
-        </div>
+        <div id="headerAvatar" class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">...</div>
         <div class="flex-1 min-w-0">
             <div id="headerName" class="font-bold text-base truncate">Loading...</div>
             <div id="headerStatus" class="text-[11px] opacity-80">Online</div>
@@ -36,283 +33,151 @@
 
     <!-- Messages Container -->
     <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth relative">
-        <!-- Loader for older messages -->
         <div id="loadMoreLoader" class="text-center text-gray-400 text-[10px] py-2 hidden"><i class="fas fa-spinner fa-spin mr-1"></i> Loading older messages...</div>
-        <!-- Messages will be injected here -->
     </div>
 
-    <!-- Typing Indicator (Fixed at bottom of chat area) -->
+    <!-- Typing Indicator -->
     <div id="typingIndicator" class="hidden absolute bottom-20 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md text-xs font-bold text-gray-600 z-20 border border-gray-200">
         <i class="fas fa-circle text-[6px] text-green-500 animate-pulse mr-2"></i> typing...
     </div>
 
     <!-- Input Footer -->
     <footer class="fixed bottom-0 left-0 right-0 bg-white p-2.5 pb-safe flex items-end gap-2 z-[9999] border-t border-gray-200">
-    <!-- 1. Plus Button (Attachment) -->
-    <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
-        <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
-    </button>
-    
-    <!-- 2. Chat Input (ID orderInput -> msgInput change kiya) -->
-    <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
-        <textarea id="msgInput" placeholder="Type a message..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
-    </div>
-
-    <!-- 3. Recording Timer (Hidden) -->
-    <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
-        <i class="fas fa-circle text-[8px] animate-pulse"></i>
-        <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
-    </div>
-
-    <!-- 4. Send Button (ID sendBtn -> sendMsgBtn change, onclick sendChatMessage) -->
-    <button id="sendMsgBtn" onclick="sendChatMessage()" class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-        <i class="fas fa-paper-plane text-sm ml-0.5"></i>
-    </button>
-
-    <!-- 5. Voice Button (ID voiceBtn -> chatVoiceBtn, onclick handleChatVoice) -->
-    <button id="chatVoiceBtn" onclick="handleChatVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-        <i class="fas fa-microphone" id="micIcon"></i>
-    </button>
-</footer>
-    <!-- ========================================= -->
-<!-- Half-Screen Attachment Popup Menu -->
-<!-- ========================================= -->
-<div id="attachPopupOverlay" class="fixed inset-0 bg-black/50 z-[99998] hidden" onclick="closeAttachPopup()"></div>
-<div id="attachPopup" class="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] z-[99999] rounded-t-2xl p-6 pb-safe hidden transform translate-y-full transition-transform duration-300">
-    
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
-        <h3 class="text-white font-bold text-lg">Share</h3>
-        <button onclick="closeAttachPopup()" class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
-            <i class="fas fa-times text-sm"></i>
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
+            <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
-    </div>
-
-    <!-- Grid of Options (2 rows x 3 cols) -->
-    <div class="grid grid-cols-3 gap-4 mb-4">
-        
-        <!-- 1. Gallery -->
-        <button onclick="openGallery()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-            <div class="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center">
-                <i class="fas fa-images text-xl text-white"></i>
-            </div>
-            <span class="text-white text-xs">Gallery</span>
-        </button>
-
-        <!-- 2. Camera -->
-        <button onclick="openCamera()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-            <div class="w-14 h-14 rounded-full bg-pink-600 flex items-center justify-center">
-                <i class="fas fa-camera text-xl text-white"></i>
-            </div>
-            <span class="text-white text-xs">Camera</span>
-        </button>
-
-        <!-- 3. Location -->
-<button onclick="shareLocation()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-    <div class="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center">
-        <i class="fas fa-map-marker-alt text-xl text-white"></i>
-    </div>
-    <span class="text-white text-xs">Location</span>
-</button>
-
-        <!-- 4. Contacts -->
-        <button onclick="shareContact()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-            <div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center">
-                <i class="fas fa-address-book text-xl text-white"></i>
-            </div>
-            <span class="text-white text-xs">Contacts</span>
-        </button>
-
-        <!-- 5. Documents -->
-        <button onclick="openDocuments()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-            <div class="w-14 h-14 rounded-full bg-orange-600 flex items-center justify-center">
-                <i class="fas fa-file-alt text-xl text-white"></i>
-            </div>
-            <span class="text-white text-xs">Documents</span>
-        </button>
-
-        <!-- 6. Audio -->
-        <button onclick="openAudio()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform">
-            <div class="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center">
-                <i class="fas fa-music text-xl text-white"></i>
-            </div>
-            <span class="text-white text-xs">Audio</span>
-        </button>
-    </div>
-</div>
-    
-<!-- ========================================= -->
-<!-- Full Screen Location Picker -->
-<!-- ========================================= -->
-<div id="locationPopupOverlay" class="fixed inset-0 bg-black z-[99999] hidden"></div>
-<div id="locationPopup" class="fixed inset-0 bg-[#0d0d0d] z-[100000] hidden flex-col">
-    
-    <!-- Top App Bar -->
-    <div id="locationTopBar" class="flex items-center gap-3 px-4 py-3 bg-[#0d0d0d] shrink-0">
-        <button onclick="closeLocationPopup()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white flex-shrink-0">
-            <i class="fas fa-arrow-left text-lg"></i>
-        </button>
-        <h3 class="text-white font-bold text-lg">Send Location</h3>
-    </div>
-
-    <!-- Map Container -->
-    <div id="locationMapContainer" class="flex-1 relative">
-        <div id="locationMap" class="w-full h-full"></div>
-        
-        <!-- Center Pin Icon -->
-        <div id="locationCenterPin" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full pointer-events-none z-10">
-            <i class="fas fa-map-pin text-4xl text-red-500" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></i>
+        <div id="textInputWrapper" class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200 shadow-inner">
+            <textarea id="msgInput" placeholder="Type a message..." rows="1" class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
         </div>
-        
-        <!-- My Location Button -->
-        <button onclick="goToMyLocation()" 
-                class="absolute bottom-38 right-4 w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center z-10 active:scale-95 transition-transform">
-            <i class="fas fa-crosshairs text-[#0077b9] text-xl"></i>
+        <div id="recordingTimerUI" class="hidden flex-1 bg-red-50 rounded-3xl flex items-center justify-center px-4 border border-red-200 shadow-inner h-11 text-red-500 gap-2">
+            <i class="fas fa-circle text-[8px] animate-pulse"></i>
+            <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
+        </div>
+        <button id="sendMsgBtn" onclick="sendChatMessage()" class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
         </button>
-        
-        
-        
-        <!-- Selected Location Card -->
-        <div id="locationSelectedCard" class="hidden absolute bottom-20 left-3 right-3 bg-white rounded-xl px-4 py-3 shadow-lg z-10">
-            <p id="locationCardName" class="text-gray-900 font-bold text-sm"></p>
-            <p id="locationCardAddress" class="text-gray-500 text-xs mt-0.5 truncate"></p>
+        <button id="chatVoiceBtn" onclick="handleChatVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
+            <i class="fas fa-microphone" id="micIcon"></i>
+        </button>
+    </footer>
+
+    <!-- Attachment Popup -->
+    <div id="attachPopupOverlay" class="fixed inset-0 bg-black/50 z-[99998] hidden" onclick="closeAttachPopup()"></div>
+    <div id="attachPopup" class="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] z-[99999] rounded-t-2xl p-6 pb-safe hidden transform translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-white font-bold text-lg">Share</h3>
+            <button onclick="closeAttachPopup()" class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white"><i class="fas fa-times text-sm"></i></button>
+        </div>
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <button onclick="openGallery()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center"><i class="fas fa-images text-xl text-white"></i></div><span class="text-white text-xs">Gallery</span></button>
+            <button onclick="openCamera()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-pink-600 flex items-center justify-center"><i class="fas fa-camera text-xl text-white"></i></div><span class="text-white text-xs">Camera</span></button>
+            <button onclick="shareLocation()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center"><i class="fas fa-map-marker-alt text-xl text-white"></i></div><span class="text-white text-xs">Location</span></button>
+            <button onclick="shareContact()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center"><i class="fas fa-address-book text-xl text-white"></i></div><span class="text-white text-xs">Contacts</span></button>
+            <button onclick="openDocuments()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-orange-600 flex items-center justify-center"><i class="fas fa-file-alt text-xl text-white"></i></div><span class="text-white text-xs">Documents</span></button>
+            <button onclick="openAudio()" class="flex flex-col items-center gap-2 active:scale-95 transition-transform"><div class="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center"><i class="fas fa-music text-xl text-white"></i></div><span class="text-white text-xs">Audio</span></button>
         </div>
     </div>
 
-    <!-- Bottom Bar -->
-<div id="locationBottomBar" class="bg-[#0d0d0d] px-4 py-3 pb-safe shrink-0">
-    <!-- Comment + Send -->
-    <div class="flex gap-2 mb-2">
-        <div class="flex-1 bg-gray-800 rounded-full flex items-center px-4">
-            <input id="locationComment" type="text" placeholder="Add a comment..." 
-                   class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500">
+    <!-- Location Popup -->
+    <div id="locationPopupOverlay" class="fixed inset-0 bg-black z-[99999] hidden"></div>
+    <div id="locationPopup" class="fixed inset-0 bg-[#0d0d0d] z-[100000] hidden flex-col">
+        <div id="locationTopBar" class="flex items-center gap-3 px-4 py-3 bg-[#0d0d0d] shrink-0">
+            <button onclick="closeLocationPopup()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white flex-shrink-0"><i class="fas fa-arrow-left text-lg"></i></button>
+            <h3 class="text-white font-bold text-lg">Send Location</h3>
         </div>
-        <button onclick="confirmLocation()" id="sendLocationBtn"
-                class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-            <i class="fas fa-paper-plane text-sm"></i>
-        </button>
+        <div id="locationMapContainer" class="flex-1 relative">
+            <div id="locationMap" class="w-full h-full"></div>
+            <div id="locationCenterPin" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full pointer-events-none z-10">
+                <i class="fas fa-map-pin text-4xl text-red-500" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></i>
+            </div>
+            <button onclick="goToMyLocation()" class="absolute bottom-32 right-4 w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center z-10 active:scale-95 transition-transform">
+                <i class="fas fa-location-arrow text-[#0077b9] text-xl"></i>
+            </button>
+            <div id="locationSelectedCard" class="hidden absolute bottom-20 left-3 right-3 bg-white rounded-xl px-4 py-3 shadow-lg z-10">
+                <p id="locationCardName" class="text-gray-900 font-bold text-sm"></p>
+                <p id="locationCardAddress" class="text-gray-500 text-xs mt-0.5 truncate"></p>
+            </div>
+        </div>
+        <div id="locationBottomBar" class="bg-[#0d0d0d] px-4 py-3 pb-safe shrink-0">
+            <div class="flex gap-2 mb-2">
+                <div class="flex-1 bg-gray-800 rounded-full flex items-center px-4">
+                    <input id="locationComment" type="text" placeholder="Add a comment..." class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500">
+                </div>
+                <button onclick="confirmLocation()" id="sendLocationBtn" class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-paper-plane text-sm"></i>
+                </button>
+            </div>
+        </div>
     </div>
-</div>
-    <!-- Location picker+popup END -->
-    
-    
-    <!-- Voice Recorder UI (WhatsApp Style) -->
-<div id="voiceRecorderUI"
-     class="fixed bottom-0 left-0 right-0 bg-[#111827] p-4 z-[99999] hidden flex-col"
-     style="border-top-left-radius: 24px; border-top-right-radius: 24px;">
 
-    <!-- Top Row -->
-    <div class="flex items-center gap-3 mb-3">
-        <button onclick="cancelVoiceRecording()"
-                class="w-10 h-10 rounded-full bg-red-600 text-white">
-            <i class="fas fa-trash"></i>
-        </button>
-        <span id="voiceTimerDisplay" class="text-white font-bold">00:00</span>
-        <div id="voiceWaveform" class="flex-1 flex items-center gap-[2px] px-2"></div>
+    <!-- Voice Recorder UI -->
+    <div id="voiceRecorderUI" class="fixed bottom-0 left-0 right-0 bg-[#111827] p-4 z-[99999] hidden flex-col" style="border-top-left-radius: 24px; border-top-right-radius: 24px;">
+        <div class="flex items-center gap-3 mb-3">
+            <button onclick="cancelVoiceRecording()" class="w-10 h-10 rounded-full bg-red-600 text-white"><i class="fas fa-trash"></i></button>
+            <span id="voiceTimerDisplay" class="text-white font-bold">00:00</span>
+            <div id="voiceWaveform" class="flex-1 flex items-center gap-[2px] px-2"></div>
+        </div>
+        <div class="flex gap-3">
+            <button id="voicePauseBtn" onclick="toggleVoicePause()" class="flex-1 h-11 rounded-full bg-gray-700 text-white"><i id="voicePauseIcon" class="fas fa-pause"></i> <span id="voicePauseText">Pause</span></button>
+            <button onclick="sendRecordedVoice()" class="w-14 h-11 rounded-full bg-green-600 text-white"><i class="fas fa-paper-plane"></i></button>
+        </div>
     </div>
 
-    <!-- Bottom Row -->
-    <div class="flex gap-3">
-        <button id="voicePauseBtn" onclick="toggleVoicePause()"
-                class="flex-1 h-11 rounded-full bg-gray-700 text-white">
-            <i id="voicePauseIcon" class="fas fa-pause"></i>
-            <span id="voicePauseText">Pause</span>
-        </button>
-        <button onclick="sendRecordedVoice()"
-                class="w-14 h-11 rounded-full bg-green-600 text-white">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-    </div>
-</div>
-    
-    <!-- Media Preview Modal (for full screen image) -->
+    <!-- Media Viewer -->
     <div id="mediaViewer" class="fixed inset-0 bg-black/95 z-[100000] hidden flex-col items-center justify-center" onclick="closeMediaViewer()">
         <i class="fas fa-times absolute top-6 right-6 text-white text-3xl cursor-pointer"></i>
         <div id="mediaViewerContent" class="w-full max-h-[90vh] flex items-center justify-center p-4"></div>
-        <div id="mediaViewerCaption" class="text-white text-xs font-semibold mt-3 hidden bg-black/40 px-4 py-1.5 rounded-xl max-w-md text-center"></div>
-    </div>
-    <!-- ========================================= -->
-<!-- Advanced Media Editor (Draw + Crop + Preview) -->
-<!-- ========================================= -->
-<div id="mediaPreviewUI" class="fixed inset-0 bg-[#0d0d0d] z-[99999] hidden flex-col">
-
-    <!-- Top Bar -->
-    <div id="editorTopBar" class="flex items-center justify-between px-4 py-3 bg-black/80 absolute top-0 left-0 right-0 z-20">
-        <button onclick="closeMediaPreview()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-transform">
-            <i class="fas fa-times text-lg"></i>
-        </button>
-        
-        <!-- Drawing Tools -->
-        <div id="drawingTools" class="flex gap-3 hidden">
-            <button onclick="setDrawingTool('pen')" id="penTool" class="w-10 h-10 rounded-full bg-[#0077b9] flex items-center justify-center text-white transition-colors">
-                <i class="fas fa-pencil-alt text-sm"></i>
-            </button>
-            <button onclick="setDrawingTool('circle')" id="circleTool" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-colors">
-                <i class="far fa-circle text-sm"></i>
-            </button>
-            <button onclick="setDrawingTool('arrow')" id="arrowTool" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white transition-colors">
-                <i class="fas fa-arrow-right text-sm"></i>
-            </button>
-            <button onclick="setDrawingColor()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white">
-                <div id="currentColor" class="w-5 h-5 rounded-full bg-red-500"></div>
-            </button>
-            <button onclick="undoDrawing()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white">
-                <i class="fas fa-undo text-sm"></i>
-            </button>
-        </div>
-
-        <div class="flex gap-3">
-            <!-- Pencil (Drawing Mode) -->
-            <button onclick="toggleDrawingMode()" id="toggleDrawBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors">
-                <i class="fas fa-pen text-lg"></i>
-            </button>
-            <!-- Crop Button -->
-            <button onclick="toggleCropMode()" id="toggleCropBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors">
-                <i class="fas fa-crop-alt text-lg"></i>
-            </button>
-            <!-- Done (Crop Apply) -->
-            <button onclick="applyCrop()" id="applyCropBtn" class="hidden w-10 h-10 rounded-full bg-[#0077b9] flex items-center justify-center text-white">
-                <i class="fas fa-check text-sm"></i>
-            </button>
-        </div>
     </div>
 
-    <!-- Canvas Container -->
-    <div id="canvasContainer" class="flex-1 flex items-center justify-center pt-16 pb-24 overflow-hidden relative">
-        <canvas id="imageCanvas" class="max-w-full max-h-full"></canvas>
-        <!-- Crop Overlay -->
-        <div id="cropOverlay" class="absolute inset-0 bg-black/50 hidden pointer-events-none"></div>
-        <div id="cropBox" class="absolute border-2 border-white border-dashed hidden cursor-move" style="width:200px; height:200px; top:50%; left:50%; transform:translate(-50%,-50%);">
-            <div class="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full cursor-nw-resize"></div>
-            <div class="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full cursor-ne-resize"></div>
-            <div class="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-full cursor-sw-resize"></div>
-            <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full cursor-se-resize"></div>
-        </div>
-    </div>
-
-    <!-- Bottom Caption Bar -->
-    <div id="captionBar" class="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] px-4 py-3 pb-safe border-t border-gray-800 z-20">
-        <div class="flex items-center gap-3">
-            <div class="flex-1 bg-[#2a2a2a] rounded-full flex items-center px-4">
-                <input id="mediaCaptionInput" type="text" placeholder="Add a caption..." 
-                       class="w-full bg-transparent py-3 outline-none text-white text-sm placeholder-gray-500">
+    <!-- Media Preview UI -->
+    <div id="mediaPreviewUI" class="fixed inset-0 bg-[#0d0d0d] z-[99999] hidden flex-col">
+        <div id="editorTopBar" class="flex items-center justify-between px-4 py-3 bg-black/80 absolute top-0 left-0 right-0 z-20">
+            <button onclick="closeMediaPreview()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-transform"><i class="fas fa-times text-lg"></i></button>
+            <div id="drawingTools" class="flex gap-3 hidden">
+                <button onclick="setDrawingTool('pen')" id="penTool" class="w-10 h-10 rounded-full bg-[#0077b9] flex items-center justify-center text-white"><i class="fas fa-pencil-alt text-sm"></i></button>
+                <button onclick="setDrawingTool('circle')" id="circleTool" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><i class="far fa-circle text-sm"></i></button>
+                <button onclick="setDrawingTool('arrow')" id="arrowTool" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><i class="fas fa-arrow-right text-sm"></i></button>
+                <button onclick="setDrawingColor()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><div id="currentColor" class="w-5 h-5 rounded-full bg-red-500"></div></button>
+                <button onclick="undoDrawing()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><i class="fas fa-undo text-sm"></i></button>
             </div>
-            <button onclick="sendCaptionedMedia()" 
-                    class="w-11 h-11 rounded-full bg-[#0077b9] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform flex-shrink-0">
-                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
-            </button>
+            <div class="flex gap-3">
+                <button onclick="toggleDrawingMode()" id="toggleDrawBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-pen text-lg"></i></button>
+                <button onclick="toggleCropMode()" id="toggleCropBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-crop-alt text-lg"></i></button>
+                <button onclick="applyCrop()" id="applyCropBtn" class="hidden w-10 h-10 rounded-full bg-[#0077b9] flex items-center justify-center text-white"><i class="fas fa-check text-sm"></i></button>
+            </div>
+        </div>
+        <div id="canvasContainer" class="flex-1 flex items-center justify-center pt-16 pb-24 overflow-hidden relative">
+            <canvas id="imageCanvas" class="max-w-full max-h-full"></canvas>
+            <div id="cropOverlay" class="absolute inset-0 bg-black/50 hidden pointer-events-none"></div>
+            <div id="cropBox" class="absolute border-2 border-white border-dashed hidden cursor-move" style="width:200px; height:200px; top:50%; left:50%; transform:translate(-50%,-50%);">
+                <div class="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full cursor-nw-resize"></div>
+                <div class="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full cursor-ne-resize"></div>
+                <div class="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-full cursor-sw-resize"></div>
+                <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full cursor-se-resize"></div>
+            </div>
+        </div>
+        <div id="captionBar" class="absolute bottom-0 left-0 right-0 bg-[#1a1a1a] px-4 py-3 pb-safe border-t border-gray-800 z-20">
+            <div class="flex items-center gap-3">
+                <div class="flex-1 bg-[#2a2a2a] rounded-full flex items-center px-4">
+                    <input id="mediaCaptionInput" type="text" placeholder="Add a caption..." class="w-full bg-transparent py-3 outline-none text-white text-sm placeholder-gray-500">
+                </div>
+                <button onclick="sendCaptionedMedia()" class="w-11 h-11 rounded-full bg-[#0077b9] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform flex-shrink-0"><i class="fas fa-paper-plane text-sm ml-0.5"></i></button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Hidden Inputs for Different File Types -->
-<input type="file" id="hiddenGalleryInput" accept="image/*,video/*" style="display:none;" onchange="handleGalleryPick(this)">
-<input type="file" id="hiddenCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleGalleryPick(this)">
-<input type="file" id="hiddenDocumentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" style="display:none;" onchange="handleDocumentPick(this)">
-<input type="file" id="hiddenAudioInput" accept="audio/*" style="display:none;" onchange="handleAudioPick(this)">
+    <!-- Hidden Inputs -->
+    <input type="file" id="hiddenGalleryInput" accept="image/*,video/*" style="display:none;" onchange="handleGalleryPick(this)">
+    <input type="file" id="hiddenCameraInput" accept="image/*" capture="environment" style="display:none;" onchange="handleGalleryPick(this)">
+    <input type="file" id="hiddenDocumentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" style="display:none;" onchange="handleDocumentPick(this)">
+    <input type="file" id="hiddenAudioInput" accept="audio/*" style="display:none;" onchange="handleAudioPick(this)">
+
+    <!-- JS Files (ORDER MATTERS!) -->
     <script src="chat-room.js"></script>
+    <script src="chat-room-gallery-camera.js"></script>
+    <script src="chat-room-location.js"></script>
+    <script src="chat-room-contacts.js"></script>
+    <script src="chat-room-documents.js"></script>
+    <script src="chat-room-audio.js"></script>
 </body>
 </html>
-
-
-
