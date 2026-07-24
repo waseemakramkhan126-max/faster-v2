@@ -1347,8 +1347,6 @@ function shareLocation() {
         document.getElementById('locationSelectedCard').classList.add('hidden');
         document.getElementById('locationSearchResults').classList.add('hidden');
         document.getElementById('locationSearchInput').value = '';
-        document.getElementById('locationMainButtons').classList.remove('hidden');
-        document.getElementById('locationLiveOptions').classList.add('hidden');
         
         // Init map
         setTimeout(() => initLocationMap(), 300);
@@ -1367,8 +1365,6 @@ function closeLocationPopup() {
         locationMap.remove();
         locationMap = null;
     }
-    document.getElementById('locationMainButtons').classList.remove('hidden');
-    document.getElementById('locationLiveOptions').classList.add('hidden');
 }
 
 // Initialize Map
@@ -1508,37 +1504,15 @@ async function confirmLocation() {
         alert("Select a location first.");
         return;
     }
+    const comment = document.getElementById('locationComment').value.trim();
     const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const msg = `📍 ${selectedLocName}\n${mapUrl}`;
+    const msg = `📍 ${selectedLocName}${comment ? '\n' + comment : ''}\n${mapUrl}`;
     closeLocationPopup();
     await sendMessage(msg);
 }
 
-// Open live location options
-function openLiveLocationOptions() {
-    document.getElementById('locationMainButtons').classList.add('hidden');
-    document.getElementById('locationLiveOptions').classList.remove('hidden');
-    document.getElementById('locationTopBar').querySelector('h3').textContent = 'Share Live Location';
-}
-
-// Back from live location options
-function backFromLiveLocation() {
-    document.getElementById('locationMainButtons').classList.remove('hidden');
-    document.getElementById('locationLiveOptions').classList.add('hidden');
-    document.getElementById('locationTopBar').querySelector('h3').textContent = 'Send Location';
-}
-
 // Smart Back Button Handling
 function handleLocationBack() {
-    const liveOptions = document.getElementById('locationLiveOptions');
-    
-    // Agar live location options khule hain to wapas main buttons par jao
-    if (liveOptions && !liveOptions.classList.contains('hidden')) {
-        backFromLiveLocation();
-        return;
-    }
-    
-    // Agar main location screen hai to close karo
     closeLocationPopup();
 }
 
@@ -1558,42 +1532,6 @@ window.addEventListener('popstate', function(e) {
         handleLocationBack();
     }
 });
-        
-// Share live location
-function shareLiveLocation(minutes) {
-    liveLocationDuration = minutes;
-    document.getElementById('liveLocationComment').focus();
-}
-
-// Confirm live location
-async function confirmLiveLocation() {
-    if (!selectedLat || !selectedLng) {
-        alert("Select a location first.");
-        return;
-    }
-    const comment = document.getElementById('liveLocationComment').value.trim();
-    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const msg = `🔴 Live Location${comment ? '\n' + comment : ''}\n${mapUrl}`;
-    closeLocationPopup();
-    await sendMessage(msg);
-}
-
-// Send current location
-function sendCurrentLocation() {
-    if (!navigator.geolocation) {
-        alert("Geolocation not supported.");
-        return;
-    }
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
-        const msg = `📍 My Current Location\n${mapUrl}`;
-        closeLocationPopup();
-        await sendMessage(msg);
-    }, () => {
-        alert("Location access denied.");
-    });
-}
 
 // 4. Contacts (Fixed - No Double Send)
 async function shareContact() {
