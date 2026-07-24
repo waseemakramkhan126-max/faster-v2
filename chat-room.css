@@ -151,6 +151,7 @@ footer{
 
 /* Temp message blur effect */
 .bubble-sent img.opacity-60 { transition: opacity 0.5s, filter 0.5s; }
+
 /* Attachment Popup */
 #attachPopup {
     will-change: transform;
@@ -201,53 +202,37 @@ footer{
     font-weight: bold;
 }
 
-.leaflet-control-attribution {
-    font-size: 8px !important;
-    display: none !important; /* Hide attribution for cleaner look */
-}
-.leaflet-control-zoom {
-    border-radius: 8px !important;
-    overflow: hidden;
-}
-.leaflet-control-zoom a {
-    width: 32px !important;
-    height: 32px !important;
-    line-height: 32px !important;
-}
-
-/* Location Search Results */
-#locationSearchResults {
-    scrollbar-width: thin;
-    scrollbar-color: #4a4a4a transparent;
-}
-#locationSearchResults::-webkit-scrollbar {
-    width: 4px;
-}
-#locationSearchResults::-webkit-scrollbar-thumb {
-    background: #4a4a4a;
-    border-radius: 4px;
-}
-#locationSearchResults .search-result-item {
-    transition: background-color 0.2s;
-}
-#locationSearchResults .search-result-item:active {
-    background-color: #4a4a4a !important;
-}
-
-/* Quick Access Tags */
-#locationQuickAccess span {
-    transition: all 0.2s;
-}
-#locationQuickAccess span:active {
-    transform: scale(0.95);
-}
-
 /* Full Screen Location Picker */
 #locationPopup {
     transition: transform 0.3s ease-out;
 }
+
+/* Fix Leaflet map full screen */
 #locationMapContainer {
+    flex: 1;
+    min-height: 0;
+    position: relative;
     background: #1a1a1a;
+    overflow: hidden;
+}
+#locationMap {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+}
+
+/* Center Pin Pulse */
+#locationCenterPin i {
+    animation: pinBounce 0.5s ease-out;
+}
+@keyframes pinBounce {
+    0% { transform: translateY(-10px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(-3px); }
+    100% { transform: translateY(0); }
 }
 
 /* Location Search Results */
@@ -266,17 +251,6 @@ footer{
     background-color: #f3f4f6 !important;
 }
 
-/* Center Pin Pulse */
-#locationCenterPin i {
-    animation: pinBounce 0.5s ease-out;
-}
-@keyframes pinBounce {
-    0% { transform: translateY(-10px); }
-    50% { transform: translateY(0); }
-    75% { transform: translateY(-3px); }
-    100% { transform: translateY(0); }
-}
-
 /* Custom Leaflet Popup */
 .leaflet-popup-content-wrapper {
     border-radius: 12px !important;
@@ -286,21 +260,16 @@ footer{
     margin: 8px 12px !important;
     font-size: 13px !important;
 }
-
-/* Fix Leaflet map full screen */
-#locationMapContainer {
-    flex: 1;
-    min-height: 0;
-    position: relative;
-    background: #1a1a1a;
+.leaflet-control-attribution {
+    font-size: 8px !important;
+    display: none !important;
 }
-#locationMap {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 1 !important;
+.leaflet-control-zoom {
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+.leaflet-control-zoom a {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
 }
