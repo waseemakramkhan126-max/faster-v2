@@ -142,71 +142,89 @@
 </div>
     
 <!-- ========================================= -->
-<!-- Location Picker Popup -->
+<!-- Full Screen Location Picker -->
 <!-- ========================================= -->
-<div id="locationPopupOverlay" class="fixed inset-0 bg-black/50 z-[99998] hidden" onclick="closeLocationPopup()"></div>
-<div id="locationPopup" class="fixed bottom-0 left-0 right-0 bg-[#1a1a1a] z-[99999] rounded-t-2xl p-4 pb-safe hidden transform translate-y-full transition-transform duration-300" style="max-height: 80vh;">
+<div id="locationPopupOverlay" class="fixed inset-0 bg-black z-[99999] hidden"></div>
+<div id="locationPopup" class="fixed inset-0 bg-[#0d0d0d] z-[100000] hidden flex-col">
     
-    <!-- Header with Search -->
-    <div class="flex items-center gap-3 mb-3">
-        <button onclick="closeLocationPopup()" class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white flex-shrink-0">
-            <i class="fas fa-times text-sm"></i>
+    <!-- Top App Bar -->
+    <div id="locationTopBar" class="flex items-center gap-3 px-4 py-3 bg-[#0d0d0d] shrink-0">
+        <button onclick="closeLocationPopup()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white flex-shrink-0">
+            <i class="fas fa-arrow-left text-lg"></i>
         </button>
-        <div class="flex-1 bg-[#2a2a2a] rounded-full flex items-center px-4">
-            <i class="fas fa-search text-gray-400 mr-2"></i>
-            <input id="locationSearchInput" type="text" placeholder="Search location..." 
-                   class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500"
-                   onkeydown="if(event.key==='Enter')searchLocation()">
+        <h3 class="text-white font-bold text-lg">Send Location</h3>
+    </div>
+
+    <!-- Map Container -->
+    <div id="locationMapContainer" class="flex-1 relative">
+        <div id="locationMap" class="w-full h-full"></div>
+        
+        <!-- Center Pin Icon -->
+        <div id="locationCenterPin" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full pointer-events-none z-10">
+            <i class="fas fa-map-pin text-4xl text-red-500" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></i>
+        </div>
+        
+        <!-- My Location Button -->
+        <button onclick="goToMyLocation()" 
+                class="absolute bottom-24 right-4 w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center z-10 active:scale-95 transition-transform">
+            <i class="fas fa-location-arrow text-[#0077b9] text-xl"></i>
+        </button>
+        
+        <!-- Search Bar -->
+        <div class="absolute top-3 left-3 right-3 z-10">
+            <div class="bg-white rounded-full flex items-center px-4 shadow-lg">
+                <i class="fas fa-search text-gray-400 mr-2"></i>
+                <input id="locationSearchInput" type="text" placeholder="Search location..." 
+                       class="w-full bg-transparent py-3 outline-none text-sm text-gray-800">
+            </div>
+            <!-- Search Results -->
+            <div id="locationSearchResults" class="hidden bg-white rounded-xl mt-2 max-h-52 overflow-y-auto shadow-lg"></div>
+        </div>
+        
+        <!-- Selected Location Card -->
+        <div id="locationSelectedCard" class="hidden absolute bottom-20 left-3 right-3 bg-white rounded-xl px-4 py-3 shadow-lg z-10">
+            <p id="locationCardName" class="text-gray-900 font-bold text-sm"></p>
+            <p id="locationCardAddress" class="text-gray-500 text-xs mt-0.5 truncate"></p>
         </div>
     </div>
+
+    <!-- Bottom Bar -->
+    <div id="locationBottomBar" class="bg-[#0d0d0d] px-4 py-3 pb-safe shrink-0">
+        <!-- Main Buttons -->
+        <div id="locationMainButtons" class="flex gap-2">
+            <button onclick="confirmLocation()" id="sendLocationBtn"
+                    class="flex-1 py-3.5 bg-[#0077b9] text-white rounded-full font-bold text-sm active:scale-98 transition-transform disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <i class="fas fa-paper-plane mr-2"></i> Send This Location
+            </button>
+            <button onclick="openLiveLocationOptions()" 
+                    class="w-14 h-[54px] rounded-full bg-gray-700 text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
+                <i class="fas fa-clock text-lg"></i>
+            </button>
+        </div>
+        
+        <!-- Live Location Options (Hidden by default) -->
+        <div id="locationLiveOptions" class="hidden">
+            <p class="text-gray-400 text-xs text-center mb-2">Share live location for</p>
+            <div class="flex gap-2 mb-3">
+                <button onclick="shareLiveLocation(15)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">15 min</button>
+                <button onclick="shareLiveLocation(60)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">1 hour</button>
+                <button onclick="shareLiveLocation(480)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">8 hours</button>
+            </div>
+            <div class="flex gap-2">
+                <div class="flex-1 bg-gray-800 rounded-full flex items-center px-4">
+                    <input id="liveLocationComment" type="text" placeholder="Add a comment..." 
+                           class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500">
+                </div>
+                <button onclick="confirmLiveLocation()" 
+                        class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
+                    <i class="fas fa-paper-plane text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- Location picker+popup END -->
     
-    <!-- Map Area (Leaflet.js Interactive Map) -->
-      <div id="locationMapArea" class="w-full h-64 bg-[#2a2a2a] rounded-xl mb-3 overflow-hidden relative z-10">
-        <div id="locationMap" class="w-full h-full" style="z-index: 1;"></div>
-      </div>
-    <!-- Quick Access Tags -->
-<div id="locationQuickAccess" class="mb-3">
-    <p class="text-gray-400 text-xs mb-2 ml-1">Quick Access</p>
-    <div class="flex flex-wrap gap-2">
-        <span onclick="quickSearchLocation('Lahore, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Lahore</span>
-        <span onclick="quickSearchLocation('Karachi, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Karachi</span>
-        <span onclick="quickSearchLocation('Islamabad, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Islamabad</span>
-        <span onclick="quickSearchLocation('Dubai, UAE')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Dubai</span>
-        <span onclick="quickSearchLocation('Riyadh, Saudi Arabia')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Riyadh</span>
-        <span onclick="quickSearchLocation('London, UK')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 London</span>
-    </div>
-</div>
-
-<!-- Search Results Dropdown -->
-<div id="locationSearchResults" class="hidden bg-[#2a2a2a] rounded-xl mb-2 max-h-40 overflow-y-auto"></div>
-
-    <!-- Selected Location Info -->
-    <div id="selectedLocationInfo" class="hidden bg-[#2a2a2a] rounded-xl p-3 mb-3">
-        <p id="selectedLocationName" class="text-white text-sm font-bold"></p>
-        <p id="selectedLocationAddress" class="text-gray-400 text-xs mt-1"></p>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="space-y-2">
-        <!-- Send Selected Location -->
-        <button onclick="sendSelectedLocation()" id="sendLocationBtn" 
-                class="w-full py-3.5 bg-[#0077b9] text-white rounded-full font-bold text-sm active:scale-98 transition-transform disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-            <i class="fas fa-paper-plane mr-2"></i> Send This Location
-        </button>
-        
-        <!-- Share Live Location -->
-        <button onclick="shareLiveLocation()" 
-                class="w-full py-3.5 bg-green-700 text-white rounded-full font-bold text-sm active:scale-98 transition-transform">
-            <i class="fas fa-satellite-dish mr-2"></i> Share Live Location
-        </button>
-        
-        <!-- Send Current Location -->
-        <button onclick="sendCurrentLocation()" 
-                class="w-full py-3.5 bg-gray-700 text-white rounded-full font-bold text-sm active:scale-98 transition-transform">
-            <i class="fas fa-location-arrow mr-2"></i> Send Your Current Location
-        </button>
-    </div>
-</div>
     
     <!-- Voice Recorder UI (WhatsApp Style) -->
 <div id="voiceRecorderUI"
