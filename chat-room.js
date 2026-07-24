@@ -1391,6 +1391,11 @@ function initLocationMap() {
         maxZoom: 19
     }).addTo(locationMap);
     
+    // 🟢🟢🟢 FIX MAP SIZE — YEH LINE ADD KARO 🟢🟢🟢
+    setTimeout(() => {
+        locationMap.invalidateSize();
+    }, 500);
+    
     // Update location on map move
     locationMap.on('moveend', function() {
         const center = locationMap.getCenter();
