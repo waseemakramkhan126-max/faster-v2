@@ -1332,6 +1332,7 @@ let liveLocationDuration = 15;
 // Open full screen location
 function shareLocation() {
     closeAttachPopup();
+    history.pushState({ locationOpen: true }, ''); // ✅ ADD THIS LINE
     setTimeout(() => {
         const popup = document.getElementById('locationPopup');
         const overlay = document.getElementById('locationPopupOverlay');
@@ -1358,6 +1359,7 @@ function shareLocation() {
 function closeLocationPopup() {
     const popup = document.getElementById('locationPopup');
     const overlay = document.getElementById('locationPopupOverlay');
+    history.back(); // ✅ ADD THIS LINE
     popup.classList.add('hidden');
     overlay.classList.add('hidden');
     popup.style.display = '';
@@ -1436,7 +1438,7 @@ function updateLocationInfo(lat, lng) {
     const addrEl = document.getElementById('locationCardAddress');
     const sendBtn = document.getElementById('sendLocationBtn');
     
-    nameEl.textContent = 'Loading...';
+    nameEl.textContent = 'Selected Location';
     addrEl.textContent = '';
     card.classList.remove('hidden');
     sendBtn.disabled = false;
@@ -1526,20 +1528,37 @@ function backFromLiveLocation() {
     document.getElementById('locationTopBar').querySelector('h3').textContent = 'Send Location';
 }
 
-// Update back button behavior
+// Smart Back Button Handling
+function handleLocationBack() {
+    const liveOptions = document.getElementById('locationLiveOptions');
+    
+    // Agar live location options khule hain to wapas main buttons par jao
+    if (liveOptions && !liveOptions.classList.contains('hidden')) {
+        backFromLiveLocation();
+        return;
+    }
+    
+    // Agar main location screen hai to close karo
+    closeLocationPopup();
+}
+
+// Override back button
 document.addEventListener('DOMContentLoaded', function() {
     const backBtn = document.querySelector('#locationTopBar button');
     if (backBtn) {
-        backBtn.onclick = function() {
-            if (!document.getElementById('locationLiveOptions').classList.contains('hidden')) {
-                backFromLiveLocation();
-            } else {
-                closeLocationPopup();
-            }
-        };
+        backBtn.onclick = handleLocationBack;
     }
 });
 
+// Android back button support
+window.addEventListener('popstate', function(e) {
+    const popup = document.getElementById('locationPopup');
+    if (popup && !popup.classList.contains('hidden')) {
+        e.preventDefault();
+        handleLocationBack();
+    }
+});
+        
 // Share live location
 function shareLiveLocation(minutes) {
     liveLocationDuration = minutes;
@@ -1554,8 +1573,7 @@ async function confirmLiveLocation() {
     }
     const comment = document.getElementById('liveLocationComment').value.trim();
     const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const durationText = liveLocationDuration >= 60 ? `${liveLocationDuration/60} hour(s)` : `${liveLocationDuration} min`;
-    const msg = `🔴 Live Location (${durationText})${comment ? '\n' + comment : ''}\n${mapUrl}`;
+    const msg = `🔴 Live Location${comment ? '\n' + comment : ''}\n${mapUrl}`;
     closeLocationPopup();
     await sendMessage(msg);
 }
