@@ -1347,6 +1347,8 @@ function shareLocation() {
         document.getElementById('selectedLocationInfo').classList.add('hidden');
         document.getElementById('locationSearchResults').classList.add('hidden');
         document.getElementById('locationSearchInput').value = '';
+        document.getElementById('locationQuickAccess').classList.remove('hidden'); // ✅ ADD THIS
+        setupAutoSearch(); // ✅ ADD THIS
         
         // Initialize Leaflet map (after DOM is visible)
         setTimeout(() => {
@@ -1466,6 +1468,9 @@ function closeLocationPopup() {
             locationMap = null;
             locationMarker = null;
         }
+        // Cleanup
+document.getElementById('locationQuickAccess').classList.remove('hidden'); // ✅ ADD THIS
+document.getElementById('locationSearchResults').classList.add('hidden'); // ✅ ADD THIS
     }, 300);
 }
 
@@ -1481,14 +1486,20 @@ async function searchLocation() {
         const resultsContainer = document.getElementById('locationSearchResults');
         
         if (data && data.length > 0) {
-            resultsContainer.classList.remove('hidden');
-            resultsContainer.innerHTML = data.map((place) => `
-                <div onclick="selectSearchResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name.split(',')[0])}', '${escapeHTML(place.display_name)}')" 
-                     class="px-4 py-3 cursor-pointer hover:bg-[#3a3a3a] border-b border-gray-700 last:border-0 transition-colors">
-                    <p class="text-white text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
-                    <p class="text-gray-400 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
-                </div>
-            `).join('');
+    // Hide quick access when results show
+    document.getElementById('locationQuickAccess').classList.add('hidden'); // ✅ ADD THIS
+    
+    resultsContainer.classList.remove('hidden');
+    resultsContainer.innerHTML = data.map((place) => `
+        <div onclick="selectSearchResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name.split(',')[0])}', '${escapeHTML(place.display_name)}')" 
+             class="search-result-item px-4 py-3 cursor-pointer hover:bg-[#3a3a3a] border-b border-gray-700 last:border-0 transition-colors">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-map-marker-alt text-red-400 text-xs"></i>
+                <p class="text-white text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
+            </div>
+            <p class="text-gray-400 text-xs mt-1 ml-5 truncate">${escapeHTML(place.display_name)}</p>
+        </div>
+    `).join('');
         } else {
             resultsContainer.classList.add('hidden');
             alert("Location not found. Try a different search.");
@@ -1498,7 +1509,36 @@ async function searchLocation() {
         alert("Search failed. Please try again.");
     }
 }
+// Quick search from tags
+function quickSearchLocation(query) {
+    document.getElementById('locationSearchInput').value = query;
+    document.getElementById('locationSearchResults').classList.add('hidden');
+    searchLocation();
+}
 
+// Auto-search as user types (debounced)
+let locationSearchTimeout;
+function setupAutoSearch() {
+    const searchInput = document.getElementById('locationSearchInput');
+    if (!searchInput) return;
+    
+    // Remove old listener to avoid duplicates
+    searchInput.removeEventListener('input', autoSearchHandler);
+    searchInput.addEventListener('input', autoSearchHandler);
+}
+
+function autoSearchHandler(e) {
+    clearTimeout(locationSearchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length >= 2) {
+        locationSearchTimeout = setTimeout(() => searchLocation(), 400);
+    } else if (query.length === 0) {
+        document.getElementById('locationSearchResults').classList.add('hidden');
+        // Show quick access again
+        document.getElementById('locationQuickAccess').classList.remove('hidden');
+    }
+}
 // Select a search result
 function selectSearchResult(lat, lng, name, address) {
     selectedLat = parseFloat(lat);
@@ -1507,6 +1547,7 @@ function selectSearchResult(lat, lng, name, address) {
     selectedLocAddress = address;
     
     document.getElementById('locationSearchResults').classList.add('hidden');
+    document.getElementById('locationQuickAccess').classList.add('hidden'); // ✅ ADD THIS
     document.getElementById('locationSearchInput').value = name;
     
     // Move map to selected location
