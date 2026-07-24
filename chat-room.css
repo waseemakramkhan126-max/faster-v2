@@ -246,6 +246,41 @@ footer{
     transform: scale(0.95);
 }
 
+/* Full Screen Location Picker */
+#locationPopup {
+    transition: transform 0.3s ease-out;
+}
+#locationMapContainer {
+    background: #1a1a1a;
+}
+
+/* Location Search Results */
+#locationSearchResults {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+}
+#locationSearchResults::-webkit-scrollbar {
+    width: 4px;
+}
+#locationSearchResults::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+#locationSearchResults .loc-result-item:active {
+    background-color: #f3f4f6 !important;
+}
+
+/* Center Pin Pulse */
+#locationCenterPin i {
+    animation: pinBounce 0.5s ease-out;
+}
+@keyframes pinBounce {
+    0% { transform: translateY(-10px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(-3px); }
+    100% { transform: translateY(0); }
+}
+
 /* Custom Leaflet Popup */
 .leaflet-popup-content-wrapper {
     border-radius: 12px !important;
