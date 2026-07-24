@@ -145,32 +145,33 @@ function renderMessages(messages, appendAtTop = false) {
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
 
         let contentHTML = '';
-        if (msg.type === 'text') {
-            contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
-        } else if (msg.type === 'image') {
-            contentHTML = `
-                <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
-                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
-            `;
-        } else if (msg.type === 'video') {
-    contentHTML = `
-        <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
-    `;
-        } else if (msg.type === 'text' && msg.content && msg.content.includes('📍')) {
-    // Location message — make link clickable
-    const locationText = msg.content;
-    const urlMatch = locationText.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
+if (msg.type === 'text') {
+    // Check if it's a location message with Google Maps link
+    const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
     if (urlMatch) {
         const url = urlMatch[0];
+        const textWithoutUrl = msg.content.replace(url, '');
         contentHTML = `
-            <div class="cursor-pointer" onclick="window.open('${url}', '_blank')">
-                <p class="whitespace-pre-wrap">${locationText.replace(url, `<span class="text-blue-300 underline">📍 Open in Maps</span>`)}</p>
+            <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${url}', '_blank')">
+                <p class="whitespace-pre-wrap">${textWithoutUrl}</p>
+                <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <i class="fas fa-map-marker-alt text-blue-400"></i>
+                    <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
+                </div>
             </div>
         `;
     } else {
         contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
     }
-} else if (msg.type === 'text') {
+} else if (msg.type === 'image') {
+    contentHTML = `
+        <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
+        ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+    `;
+} else if (msg.type === 'video') {
+    contentHTML = `
+        <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+    `;
 } else if (msg.type === 'document') {
     contentHTML = `
         <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
@@ -1325,8 +1326,10 @@ let selectedLat = null;
 let selectedLng = null;
 let selectedLocName = '';
 let selectedLocAddress = '';
+let locationMap = null;      // Leaflet map instance
+let locationMarker = null;   // Draggable marker
 
-// Open location popup
+// Open location popup with Leaflet map
 function shareLocation() {
     closeAttachPopup();
     setTimeout(() => {
@@ -1342,14 +1345,114 @@ function shareLocation() {
         selectedLng = null;
         document.getElementById('sendLocationBtn').disabled = true;
         document.getElementById('selectedLocationInfo').classList.add('hidden');
-        document.getElementById('locationMapImage').classList.add('hidden');
-        document.getElementById('locationMapPlaceholder').classList.remove('hidden');
-        document.getElementById('locationPin').classList.add('hidden');
+        document.getElementById('locationSearchResults').classList.add('hidden');
         document.getElementById('locationSearchInput').value = '';
+        
+        // Initialize Leaflet map (after DOM is visible)
+        setTimeout(() => {
+            initLeafletMap();
+        }, 400);
     }, 350);
 }
 
-// Close location popup
+// Initialize Leaflet Map
+function initLeafletMap() {
+    const mapContainer = document.getElementById('locationMap');
+    if (!mapContainer) return;
+    
+    // Default center (Pakistan center)
+    const defaultLat = 30.3753;
+    const defaultLng = 69.3451;
+    const defaultZoom = 6;
+    
+    // Agar pehle se map hai to destroy karo
+    if (locationMap) {
+        locationMap.remove();
+        locationMap = null;
+        locationMarker = null;
+    }
+    
+    // Create map
+    locationMap = L.map('locationMap', {
+        center: [defaultLat, defaultLng],
+        zoom: defaultZoom,
+        zoomControl: true,
+        attributionControl: false
+    });
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(locationMap);
+    
+    // Add draggable marker
+    locationMarker = L.marker([defaultLat, defaultLng], {
+        draggable: true
+    }).addTo(locationMap);
+    
+    // Marker drag event
+    locationMarker.on('dragend', function(e) {
+        const pos = e.target.getLatLng();
+        updateLocationFromLatLng(pos.lat, pos.lng);
+    });
+    
+    // Map click event — move marker to clicked location
+    locationMap.on('click', function(e) {
+        const { lat, lng } = e.latlng;
+        locationMarker.setLatLng([lat, lng]);
+        updateLocationFromLatLng(lat, lng);
+    });
+    
+    // Get user's current location and zoom there
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                locationMap.setView([latitude, longitude], 15);
+                locationMarker.setLatLng([latitude, longitude]);
+                updateLocationFromLatLng(latitude, longitude);
+            },
+            () => {
+                // Default stay at Pakistan center
+                locationMap.setView([defaultLat, defaultLng], defaultZoom);
+            }
+        );
+    }
+}
+
+// Update location from lat/lng (reverse geocode)
+function updateLocationFromLatLng(lat, lng) {
+    selectedLat = lat;
+    selectedLng = lng;
+    
+    // Show loading
+    document.getElementById('selectedLocationName').textContent = 'Loading...';
+    document.getElementById('selectedLocationAddress').textContent = '';
+    document.getElementById('selectedLocationInfo').classList.remove('hidden');
+    document.getElementById('sendLocationBtn').disabled = false;
+    
+    // Reverse geocode
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.display_name) {
+                selectedLocName = data.display_name.split(',')[0] || 'Selected Location';
+                selectedLocAddress = data.display_name;
+            } else {
+                selectedLocName = 'Selected Location';
+                selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            }
+            document.getElementById('selectedLocationName').textContent = selectedLocName;
+            document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+        })
+        .catch(() => {
+            selectedLocName = 'Selected Location';
+            selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            document.getElementById('selectedLocationName').textContent = selectedLocName;
+            document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+        });
+}
+
 function closeLocationPopup() {
     const popup = document.getElementById('locationPopup');
     const overlay = document.getElementById('locationPopupOverlay');
@@ -1357,10 +1460,16 @@ function closeLocationPopup() {
     setTimeout(() => {
         popup.classList.add('hidden');
         overlay.classList.add('hidden');
+        // 🟢 Cleanup Leaflet map
+        if (locationMap) {
+            locationMap.remove();
+            locationMap = null;
+            locationMarker = null;
+        }
     }, 300);
 }
 
-// Search location (Google Maps Geocoding API// Search location with multiple results
+// Search location with multiple results
 async function searchLocation() {
     const query = document.getElementById('locationSearchInput').value.trim();
     if (!query) return;
@@ -1372,9 +1481,8 @@ async function searchLocation() {
         const resultsContainer = document.getElementById('locationSearchResults');
         
         if (data && data.length > 0) {
-            // Show results dropdown
             resultsContainer.classList.remove('hidden');
-            resultsContainer.innerHTML = data.map((place, index) => `
+            resultsContainer.innerHTML = data.map((place) => `
                 <div onclick="selectSearchResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name.split(',')[0])}', '${escapeHTML(place.display_name)}')" 
                      class="px-4 py-3 cursor-pointer hover:bg-[#3a3a3a] border-b border-gray-700 last:border-0 transition-colors">
                     <p class="text-white text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
@@ -1401,69 +1509,16 @@ function selectSearchResult(lat, lng, name, address) {
     document.getElementById('locationSearchResults').classList.add('hidden');
     document.getElementById('locationSearchInput').value = name;
     
-    showLocationOnMap(selectedLat, selectedLng, selectedLocName, selectedLocAddress);
-}
-// Show location on map
-function showLocationOnMap(lat, lng, name, address) {
-    const mapImg = document.getElementById('locationMapImage');
-    const placeholder = document.getElementById('locationMapPlaceholder');
-    const pin = document.getElementById('locationPin');
-    const info = document.getElementById('selectedLocationInfo');
-    const nameEl = document.getElementById('selectedLocationName');
-    const addrEl = document.getElementById('selectedLocationAddress');
-    const sendBtn = document.getElementById('sendLocationBtn');
+    // Move map to selected location
+    if (locationMap && locationMarker) {
+        locationMap.setView([selectedLat, selectedLng], 16);
+        locationMarker.setLatLng([selectedLat, selectedLng]);
+    }
     
-    // Use OpenStreetMap static map
-    mapImg.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=800x400&markers=${lat},${lng},red-pushpin`;
-    mapImg.classList.remove('hidden');
-    placeholder.classList.add('hidden');
-    pin.classList.remove('hidden');
-    
-    nameEl.textContent = name;
-    addrEl.textContent = address;
-    info.classList.remove('hidden');
-    sendBtn.disabled = false;
-    // 🟢 Map click to move pin
-setupMapClickHandler(lat, lng);
-}
-// Allow manual pin placement by clicking on map
-function setupMapClickHandler(lat, lng) {
-    const mapImg = document.getElementById('locationMapImage');
-    
-    mapImg.onclick = function(e) {
-        const rect = mapImg.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        // Calculate lat/lng from click position (approximate)
-        const latRange = 0.02; // Approximate visible range
-        const lngRange = 0.02;
-        
-        const newLat = lat + (0.5 - y / rect.height) * latRange;
-        const newLng = lng + (x / rect.width - 0.5) * lngRange;
-        
-        selectedLat = newLat;
-        selectedLng = newLng;
-        
-        // Reverse geocode to get address
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLat}&lon=${newLng}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.display_name) {
-                    selectedLocName = data.display_name.split(',')[0];
-                    selectedLocAddress = data.display_name;
-                    document.getElementById('selectedLocationName').textContent = selectedLocName;
-                    document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
-                }
-            });
-        
-        // Update map image with new pin
-        mapImg.src = `https://staticmap.openstreetmap.de/staticmap.php?center=${newLat},${newLng}&zoom=15&size=800x400&markers=${newLat},${newLng},red-pushpin`;
-        document.getElementById('sendLocationBtn').disabled = false;
-        document.getElementById('selectedLocationInfo').classList.remove('hidden');
-    };
-    
-    mapImg.style.cursor = 'crosshair';
+    document.getElementById('selectedLocationName').textContent = selectedLocName;
+    document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+    document.getElementById('selectedLocationInfo').classList.remove('hidden');
+    document.getElementById('sendLocationBtn').disabled = false;
 }
 // Send selected location
 async function sendSelectedLocation() {
