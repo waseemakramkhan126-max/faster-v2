@@ -769,12 +769,18 @@ async function previewChatMedia(input) {
 
     const url = URL.createObjectURL(file);
     
+    console.log("📸 Preview called:", { file, url, pendingMediaType });
+    
     if (pendingMediaType === 'image') {
-        // 🟢 FIX: UI pehle show karo, phir image load karo
+        // 🟢 FIX: UI pehle show karo
         ui.classList.remove('hidden');
+        ui.style.display = 'flex';  // ✅ Force display
+        
+        console.log("🟢 UI shown");
         
         canvasImage = new Image();
         canvasImage.onload = () => {
+            console.log("✅ Image loaded successfully");
             setupCanvas(canvasImage);
             resetEditorState();
             
@@ -782,22 +788,34 @@ async function previewChatMedia(input) {
             const canvasContainer = document.getElementById('canvasContainer');
             if (canvasContainer) {
                 canvasContainer.style.display = 'block';
+                console.log("✅ Canvas container shown");
             }
             
-            // 🟢 Media preview image ko hide karo
-            const img = document.getElementById('mediaPreviewImg');
-            if (img) img.classList.add('hidden');
+            // 🟢 Canvas ko visible karo
+            const canvas = document.getElementById('imageCanvas');
+            if (canvas) {
+                canvas.classList.remove('hidden');
+                canvas.style.display = 'block';
+                console.log("✅ Canvas shown");
+            }
             
             // 🟢 Editor top bar show karo
             const editorTopBar = document.getElementById('editorTopBar');
-            if (editorTopBar) editorTopBar.style.display = 'flex';
+            if (editorTopBar) {
+                editorTopBar.style.display = 'flex';
+                console.log("✅ Editor top bar shown");
+            }
             
             // 🟢 Caption bar show karo
             const captionBar = document.getElementById('captionBar');
-            if (captionBar) captionBar.classList.remove('hidden');
+            if (captionBar) {
+                captionBar.classList.remove('hidden');
+                captionBar.style.display = 'block';
+                console.log("✅ Caption bar shown");
+            }
         };
-        canvasImage.onerror = () => {
-            console.error("❌ Image load failed");
+        canvasImage.onerror = (err) => {
+            console.error("❌ Image load failed:", err);
             ui.classList.add('hidden');
             alert("Image could not be loaded. Please try again.");
         };
@@ -808,6 +826,7 @@ async function previewChatMedia(input) {
         const vid = document.getElementById('mediaPreviewVideo');
         vid.src = url;
         vid.classList.remove('hidden');
+        vid.style.display = 'block';
         document.getElementById('mediaPreviewImg').classList.add('hidden');
         document.getElementById('imageCanvas').classList.add('hidden');
         document.getElementById('toggleDrawBtn').classList.add('hidden');
@@ -815,6 +834,8 @@ async function previewChatMedia(input) {
         document.getElementById('drawingTools').classList.add('hidden');
         document.getElementById('captionBar').classList.remove('hidden');
         ui.classList.remove('hidden');
+        ui.style.display = 'flex';
+        console.log("🎬 Video preview opened");
     }
 
     input.value = '';
@@ -828,8 +849,11 @@ function setupCanvas(img) {
         return;
     }
     
+    console.log("🟢 Setting up canvas");
+    
     ctx = canvas.getContext('2d');
     canvas.classList.remove('hidden');
+    canvas.style.display = 'block';  // ✅ Force display
     
     // Calculate canvas size (fit screen)
     const maxWidth = window.innerWidth - 32;
@@ -845,10 +869,13 @@ function setupCanvas(img) {
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
     
+    console.log("✅ Canvas drawn:", { width, height });
+    
     // 🟢 Canvas container ko visible karo
     const canvasContainer = document.getElementById('canvasContainer');
     if (canvasContainer) {
         canvasContainer.style.display = 'block';
+        console.log("✅ Canvas container shown");
     }
     
     setupCanvasEvents();
