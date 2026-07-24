@@ -1340,13 +1340,13 @@ function shareLocation() {
         overlay.classList.remove('hidden');
         popup.style.display = 'flex';
         
-        // Reset
+                // Reset
         selectedLat = null;
         selectedLng = null;
         document.getElementById('sendLocationBtn').disabled = true;
         document.getElementById('locationSelectedCard').classList.add('hidden');
-        document.getElementById('locationSearchResults').classList.add('hidden');
-        document.getElementById('locationSearchInput').value = '';
+        document.getElementById('locationSearchResults')?.classList.add('hidden');
+        document.getElementById('locationSearchInput')?.value = '';
         
         // Init map
         setTimeout(() => initLocationMap(), 300);
