@@ -164,6 +164,18 @@
       <div id="locationMapArea" class="w-full h-64 bg-[#2a2a2a] rounded-xl mb-3 overflow-hidden relative z-10">
         <div id="locationMap" class="w-full h-full" style="z-index: 1;"></div>
       </div>
+    <!-- Quick Access Tags -->
+<div id="locationQuickAccess" class="mb-3">
+    <p class="text-gray-400 text-xs mb-2 ml-1">Quick Access</p>
+    <div class="flex flex-wrap gap-2">
+        <span onclick="quickSearchLocation('Lahore, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Lahore</span>
+        <span onclick="quickSearchLocation('Karachi, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Karachi</span>
+        <span onclick="quickSearchLocation('Islamabad, Pakistan')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Islamabad</span>
+        <span onclick="quickSearchLocation('Dubai, UAE')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Dubai</span>
+        <span onclick="quickSearchLocation('Riyadh, Saudi Arabia')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 Riyadh</span>
+        <span onclick="quickSearchLocation('London, UK')" class="px-3 py-1.5 bg-gray-700 text-white text-xs rounded-full cursor-pointer hover:bg-gray-600 active:scale-95 transition-all">📍 London</span>
+    </div>
+</div>
 
 <!-- Search Results Dropdown -->
 <div id="locationSearchResults" class="hidden bg-[#2a2a2a] rounded-xl mb-2 max-h-40 overflow-y-auto"></div>
