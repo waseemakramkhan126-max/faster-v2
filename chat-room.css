@@ -200,3 +200,31 @@ footer{
     color: white;
     font-weight: bold;
 }
+
+/* Leaflet Map Styles */
+#locationMap {
+    z-index: 1;
+}
+.leaflet-control-attribution {
+    font-size: 8px !important;
+    display: none !important; /* Hide attribution for cleaner look */
+}
+.leaflet-control-zoom {
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+.leaflet-control-zoom a {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+}
+
+/* Custom Leaflet Popup */
+.leaflet-popup-content-wrapper {
+    border-radius: 12px !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+.leaflet-popup-content {
+    margin: 8px 12px !important;
+    font-size: 13px !important;
+}
