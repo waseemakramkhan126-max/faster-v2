@@ -756,7 +756,7 @@ let isResizingCrop = false;
 let cropStartX, cropStartY;
 let cropBoxStartLeft, cropBoxStartTop, cropBoxStartWidth, cropBoxStartHeight;
 
-// 1. Preview open karne ka function (Canvas setup)
+// 1. Preview open karne ka function (Canvas setup) - FIXED
 async function previewChatMedia(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
@@ -770,26 +770,52 @@ async function previewChatMedia(input) {
     const url = URL.createObjectURL(file);
     
     if (pendingMediaType === 'image') {
+        // 🟢 FIX: UI pehle show karo, phir image load karo
+        ui.classList.remove('hidden');
+        
         canvasImage = new Image();
         canvasImage.onload = () => {
             setupCanvas(canvasImage);
-            ui.classList.remove('hidden');
             resetEditorState();
+            
+            // 🟢 Canvas container ko visible karo
+            const canvasContainer = document.getElementById('canvasContainer');
+            if (canvasContainer) {
+                canvasContainer.style.display = 'block';
+            }
+            
+            // 🟢 Media preview image ko hide karo
+            const img = document.getElementById('mediaPreviewImg');
+            if (img) img.classList.add('hidden');
+            
+            // 🟢 Editor top bar show karo
+            const editorTopBar = document.getElementById('editorTopBar');
+            if (editorTopBar) editorTopBar.style.display = 'flex';
+            
+            // 🟢 Caption bar show karo
+            const captionBar = document.getElementById('captionBar');
+            if (captionBar) captionBar.classList.remove('hidden');
+        };
+        canvasImage.onerror = () => {
+            console.error("❌ Image load failed");
+            ui.classList.add('hidden');
+            alert("Image could not be loaded. Please try again.");
         };
         canvasImage.src = url;
+        
     } else {
-    // Video ke liye simple preview (drawing support nahi)
-    const vid = document.getElementById('mediaPreviewVideo');
-    vid.src = url;
-    vid.classList.remove('hidden');
-    document.getElementById('mediaPreviewImg').classList.add('hidden'); // ✅ Add this
-    document.getElementById('imageCanvas').classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.add('hidden');
-    document.getElementById('toggleCropBtn').classList.add('hidden');
-    document.getElementById('drawingTools').classList.add('hidden'); // ✅ Add this
-    document.getElementById('captionBar').classList.remove('hidden'); // ✅ Add this
-    ui.classList.remove('hidden');
-}
+        // Video ke liye simple preview
+        const vid = document.getElementById('mediaPreviewVideo');
+        vid.src = url;
+        vid.classList.remove('hidden');
+        document.getElementById('mediaPreviewImg').classList.add('hidden');
+        document.getElementById('imageCanvas').classList.add('hidden');
+        document.getElementById('toggleDrawBtn').classList.add('hidden');
+        document.getElementById('toggleCropBtn').classList.add('hidden');
+        document.getElementById('drawingTools').classList.add('hidden');
+        document.getElementById('captionBar').classList.remove('hidden');
+        ui.classList.remove('hidden');
+    }
 
     input.value = '';
 }
@@ -797,12 +823,17 @@ async function previewChatMedia(input) {
 // Setup Canvas with Image
 function setupCanvas(img) {
     canvas = document.getElementById('imageCanvas');
+    if (!canvas) {
+        console.error("❌ Canvas element not found");
+        return;
+    }
+    
     ctx = canvas.getContext('2d');
     canvas.classList.remove('hidden');
     
     // Calculate canvas size (fit screen)
-    const maxWidth = window.innerWidth - 16;
-    const maxHeight = window.innerHeight - 200;
+    const maxWidth = window.innerWidth - 32;
+    const maxHeight = window.innerHeight - 250;
     let width = img.width;
     let height = img.height;
     
@@ -814,7 +845,12 @@ function setupCanvas(img) {
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
     
-    // 🟢 Ab event listeners add karo (canvas ab null nahi hai)
+    // 🟢 Canvas container ko visible karo
+    const canvasContainer = document.getElementById('canvasContainer');
+    if (canvasContainer) {
+        canvasContainer.style.display = 'block';
+    }
+    
     setupCanvasEvents();
 }
 
