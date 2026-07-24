@@ -180,38 +180,17 @@
     </div>
 
     <!-- Bottom Bar -->
-    <div id="locationBottomBar" class="bg-[#0d0d0d] px-4 py-3 pb-safe shrink-0">
-        <!-- Main Buttons -->
-        <div id="locationMainButtons" class="flex gap-2">
-            <button onclick="confirmLocation()" id="sendLocationBtn"
-                    class="flex-1 py-3.5 bg-[#0077b9] text-white rounded-full font-bold text-sm active:scale-98 transition-transform disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                <i class="fas fa-paper-plane mr-2"></i> Send This Location
-            </button>
-            <button onclick="openLiveLocationOptions()" 
-                    class="w-14 h-[54px] rounded-full bg-gray-700 text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
-                <i class="fas fa-clock text-lg"></i>
-            </button>
+<div id="locationBottomBar" class="bg-[#0d0d0d] px-4 py-3 pb-safe shrink-0">
+    <!-- Comment + Send -->
+    <div class="flex gap-2 mb-2">
+        <div class="flex-1 bg-gray-800 rounded-full flex items-center px-4">
+            <input id="locationComment" type="text" placeholder="Add a comment..." 
+                   class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500">
         </div>
-        
-        <!-- Live Location Options (Hidden by default) -->
-        <div id="locationLiveOptions" class="hidden">
-            <p class="text-gray-400 text-xs text-center mb-2">Share live location for</p>
-            <div class="flex gap-2 mb-3">
-                <button onclick="shareLiveLocation(15)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">15 min</button>
-                <button onclick="shareLiveLocation(60)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">1 hour</button>
-                <button onclick="shareLiveLocation(480)" class="flex-1 py-2.5 bg-gray-700 text-white rounded-full text-xs font-bold active:scale-95 transition-transform">8 hours</button>
-            </div>
-            <div class="flex gap-2">
-                <div class="flex-1 bg-gray-800 rounded-full flex items-center px-4">
-                    <input id="liveLocationComment" type="text" placeholder="Add a comment..." 
-                           class="w-full bg-transparent py-2.5 outline-none text-white text-sm placeholder-gray-500">
-                </div>
-                <button onclick="confirmLiveLocation()" 
-                        class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0">
-                    <i class="fas fa-paper-plane text-sm"></i>
-                </button>
-            </div>
-        </div>
+        <button onclick="confirmLocation()" id="sendLocationBtn"
+                class="w-12 h-12 rounded-full bg-[#0077b9] text-white flex items-center justify-center active:scale-95 transition-transform flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fas fa-paper-plane text-sm"></i>
+        </button>
     </div>
 </div>
     <!-- Location picker+popup END -->
