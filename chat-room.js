@@ -147,22 +147,38 @@ function renderMessages(messages, appendAtTop = false) {
         let contentHTML = '';
 if (msg.type === 'text') {
     // Check if it's a location message with Google Maps link
-    const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
-    if (urlMatch) {
-        const url = urlMatch[0];
-        const textWithoutUrl = msg.content.replace(url, '');
-        contentHTML = `
-            <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${url}', '_blank')">
-                <p class="whitespace-pre-wrap">${textWithoutUrl}</p>
-                <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                    <i class="fas fa-map-marker-alt text-blue-400"></i>
-                    <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
-                </div>
-            </div>
-        `;
-    } else {
-        contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
+if (urlMatch) {
+    const url = urlMatch[0];
+    const textWithoutUrl = msg.content.replace(url, '');
+    
+    // Extract lat/lng from URL for static map preview
+    const latLngMatch = url.match(/q=([-\d.]+),([-\d.]+)/);
+    let mapImageHTML = '';
+    if (latLngMatch) {
+        const lat = latLngMatch[1];
+        const lng = latLngMatch[2];
+        const staticMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=14&size=600x300&markers=${lat},${lng},red-pushpin`;
+        mapImageHTML = `
+            <div class="mt-2 rounded-xl overflow-hidden shadow-md" style="max-width:280px;">
+                <img src="${staticMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
+                     onerror="this.style.display='none'">
+            </div>`;
     }
+    
+    contentHTML = `
+        <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${url}', '_blank')">
+            <p class="whitespace-pre-wrap">${textWithoutUrl}</p>
+            ${mapImageHTML}
+            <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                <i class="fas fa-map-marker-alt text-blue-400"></i>
+                <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
+            </div>
+        </div>
+    `;
+} else {
+    contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+}
 } else if (msg.type === 'image') {
     contentHTML = `
         <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
