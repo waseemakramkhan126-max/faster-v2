@@ -1340,19 +1340,22 @@ function shareLocation() {
         overlay.classList.remove('hidden');
         popup.style.display = 'flex';
         
-                // Reset
+                        // Reset
         selectedLat = null;
         selectedLng = null;
-        document.getElementById('sendLocationBtn').disabled = true;
-        document.getElementById('locationSelectedCard').classList.add('hidden');
-        document.getElementById('locationSearchResults')?.classList.add('hidden');
-        document.getElementById('locationSearchInput')?.value = '';
+        var sendBtn = document.getElementById('sendLocationBtn');
+        if (sendBtn) sendBtn.disabled = true;
+        var selCard = document.getElementById('locationSelectedCard');
+        if (selCard) selCard.classList.add('hidden');
+        var searchRes = document.getElementById('locationSearchResults');
+        if (searchRes) searchRes.classList.add('hidden');
+        var searchInp = document.getElementById('locationSearchInput');
+        if (searchInp) searchInp.value = '';
         
         // Init map
         setTimeout(() => initLocationMap(), 300);
     }, 350);
 }
-
 // Close location
 function closeLocationPopup() {
     const popup = document.getElementById('locationPopup');
