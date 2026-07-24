@@ -145,64 +145,61 @@ function renderMessages(messages, appendAtTop = false) {
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
 
         let contentHTML = '';
-if (msg.type === 'text') {
-    // Check if it's a location message with Google Maps link
-const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=[^\s]+/);
-if (urlMatch) {
-    const url = urlMatch[0];
-    const textWithoutUrl = msg.content.replace(url, '');
-    
-    // Extract lat/lng from URL for static map preview
-    const latLngMatch = url.match(/q=([-\d.]+),([-\d.]+)/);
-    let mapImageHTML = '';
-    if (latLngMatch) {
-        const lat = latLngMatch[1];
-        const lng = latLngMatch[2];
-        const staticMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
-        mapImageHTML = `
-            <div class="mt-2 rounded-xl overflow-hidden shadow-md" style="max-width:280px;">
-                <img src="${staticMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
-                     onerror="this.style.display='none'">
-            </div>`;
-    }
-    
-    contentHTML = `
-        <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${url}', '_blank')">
-            <p class="whitespace-pre-wrap">${textWithoutUrl}</p>
-            ${mapImageHTML}
-            <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                <i class="fas fa-map-marker-alt text-blue-400"></i>
-                <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
-            </div>
-        </div>
-    `;
-} else {
-    contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
-}
-} else if (msg.type === 'image') {
-    contentHTML = `
-        <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
-        ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
-    `;
-} else if (msg.type === 'video') {
-    contentHTML = `
-        <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
-    `;
-} else if (msg.type === 'document') {
-    contentHTML = `
-        <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
-            <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
-                <i class="fas fa-file-alt text-white"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold truncate">${msg.content || 'Document'}</p>
-                <p class="text-[10px] opacity-70">Tap to download</p>
-            </div>
-        </div>
-    `;
-} else if (msg.type === 'voice') {
-    contentHTML = `
-        <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+        if (msg.type === 'text') {
+            // ✅ LOCATION DETECTION (IMPROVED)
+            const locationMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=([-\d.]+),([-\d.]+)/);
+            if (locationMatch) {
+                const lat = locationMatch[1];
+                const lng = locationMatch[2];
+                const fullUrl = locationMatch[0];
+                
+                // Remove URL from text to show only caption
+                const textWithoutUrl = msg.content.replace(fullUrl, '').trim();
+                
+                // Static Map URL (OpenStreetMap)
+                const staticMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
+                
+                contentHTML = `
+                    <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
+                        ${textWithoutUrl ? `<p class="whitespace-pre-wrap">${textWithoutUrl}</p>` : ''}
+                        <div class="mt-2 rounded-xl overflow-hidden shadow-md" style="max-width:280px;">
+                            <img src="${staticMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
+                                 onerror="this.style.display='none'">
+                        </div>
+                        <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
+                            <i class="fas fa-map-marker-alt text-blue-400"></i>
+                            <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Normal text message
+                contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
+            }
+        } else if (msg.type === 'image') {
+            contentHTML = `
+                <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
+                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+            `;
+        } else if (msg.type === 'video') {
+            contentHTML = `
+                <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+            `;
+        } else if (msg.type === 'document') {
+            contentHTML = `
+                <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
+                    <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-file-alt text-white"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold truncate">${msg.content || 'Document'}</p>
+                        <p class="text-[10px] opacity-70">Tap to download</p>
+                    </div>
+                </div>
+            `;
+        } else if (msg.type === 'voice') {
+            contentHTML = `
+                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
                     <button class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform">
                         <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
                     </button>
@@ -245,7 +242,6 @@ if (urlMatch) {
         messageContainer.appendChild(fragment);
     }
 }
-
 // =========================================================
 // 4. LOAD MESSAGES (WITH INFINITE SCROLL)
 // =========================================================
