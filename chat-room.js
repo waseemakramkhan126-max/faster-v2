@@ -1317,19 +1317,19 @@ function openCamera() {
         document.getElementById('hiddenCameraInput').click();
     }, 350);
 }
-// 3. Location
 // =========================================================
-// LOCATION FUNCTIONS
+// LOCATION FUNCTIONS (FULL SCREEN - REVAMPED)
 // =========================================================
 
 let selectedLat = null;
 let selectedLng = null;
 let selectedLocName = '';
 let selectedLocAddress = '';
-let locationMap = null;      // Leaflet map instance
-let locationMarker = null;   // Draggable marker
+let locationMap = null;
+let locationMarker = null;
+let liveLocationDuration = 15;
 
-// Open location popup with Leaflet map
+// Open full screen location
 function shareLocation() {
     closeAttachPopup();
     setTimeout(() => {
@@ -1337,103 +1337,110 @@ function shareLocation() {
         const overlay = document.getElementById('locationPopupOverlay');
         popup.classList.remove('hidden');
         overlay.classList.remove('hidden');
-        void popup.offsetWidth;
-        popup.style.transform = 'translateY(0)';
+        popup.style.display = 'flex';
         
-        // Reset state
+        // Reset
         selectedLat = null;
         selectedLng = null;
         document.getElementById('sendLocationBtn').disabled = true;
-        document.getElementById('selectedLocationInfo').classList.add('hidden');
+        document.getElementById('locationSelectedCard').classList.add('hidden');
         document.getElementById('locationSearchResults').classList.add('hidden');
         document.getElementById('locationSearchInput').value = '';
-        document.getElementById('locationQuickAccess').classList.remove('hidden'); // ✅ ADD THIS
-        setupAutoSearch(); // ✅ ADD THIS
+        document.getElementById('locationMainButtons').classList.remove('hidden');
+        document.getElementById('locationLiveOptions').classList.add('hidden');
         
-        // Initialize Leaflet map (after DOM is visible)
-        setTimeout(() => {
-            initLeafletMap();
-        }, 400);
+        // Init map
+        setTimeout(() => initLocationMap(), 300);
     }, 350);
 }
 
-// Initialize Leaflet Map
-function initLeafletMap() {
-    const mapContainer = document.getElementById('locationMap');
-    if (!mapContainer) return;
-    
-    // Default center (Pakistan center)
-    const defaultLat = 30.3753;
-    const defaultLng = 69.3451;
-    const defaultZoom = 6;
-    
-    // Agar pehle se map hai to destroy karo
+// Close location
+function closeLocationPopup() {
+    const popup = document.getElementById('locationPopup');
+    const overlay = document.getElementById('locationPopupOverlay');
+    popup.classList.add('hidden');
+    overlay.classList.add('hidden');
+    popup.style.display = '';
     if (locationMap) {
         locationMap.remove();
         locationMap = null;
-        locationMarker = null;
+    }
+    document.getElementById('locationMainButtons').classList.remove('hidden');
+    document.getElementById('locationLiveOptions').classList.add('hidden');
+}
+
+// Initialize Map
+function initLocationMap() {
+    const container = document.getElementById('locationMap');
+    if (!container) return;
+    
+    if (locationMap) {
+        locationMap.remove();
+        locationMap = null;
     }
     
-    // Create map
+    const defaultLat = 30.3753;
+    const defaultLng = 69.3451;
+    
     locationMap = L.map('locationMap', {
         center: [defaultLat, defaultLng],
-        zoom: defaultZoom,
-        zoomControl: true,
+        zoom: 13,
+        zoomControl: false,
         attributionControl: false
     });
     
-    // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
     }).addTo(locationMap);
     
-    // Add draggable marker
-    locationMarker = L.marker([defaultLat, defaultLng], {
-        draggable: true
-    }).addTo(locationMap);
-    
-    // Marker drag event
-    locationMarker.on('dragend', function(e) {
-        const pos = e.target.getLatLng();
-        updateLocationFromLatLng(pos.lat, pos.lng);
+    // Update location on map move
+    locationMap.on('moveend', function() {
+        const center = locationMap.getCenter();
+        updateLocationInfo(center.lat, center.lng);
     });
     
-    // Map click event — move marker to clicked location
-    locationMap.on('click', function(e) {
-        const { lat, lng } = e.latlng;
-        locationMarker.setLatLng([lat, lng]);
-        updateLocationFromLatLng(lat, lng);
-    });
-    
-    // Get user's current location and zoom there
+    // Get user location
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                const { latitude, longitude } = pos.coords;
-                locationMap.setView([latitude, longitude], 15);
-                locationMarker.setLatLng([latitude, longitude]);
-                updateLocationFromLatLng(latitude, longitude);
+                locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
             },
             () => {
-                // Default stay at Pakistan center
-                locationMap.setView([defaultLat, defaultLng], defaultZoom);
+                updateLocationInfo(defaultLat, defaultLng);
             }
         );
     }
 }
 
-// Update location from lat/lng (reverse geocode)
-function updateLocationFromLatLng(lat, lng) {
+// Go to my location
+function goToMyLocation() {
+    if (!locationMap) return;
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+            },
+            () => alert("Location access denied.")
+        );
+    }
+}
+
+// Update location info
+function updateLocationInfo(lat, lng) {
     selectedLat = lat;
     selectedLng = lng;
     
-    // Show loading
-    document.getElementById('selectedLocationName').textContent = 'Loading...';
-    document.getElementById('selectedLocationAddress').textContent = '';
-    document.getElementById('selectedLocationInfo').classList.remove('hidden');
-    document.getElementById('sendLocationBtn').disabled = false;
+    const card = document.getElementById('locationSelectedCard');
+    const nameEl = document.getElementById('locationCardName');
+    const addrEl = document.getElementById('locationCardAddress');
+    const sendBtn = document.getElementById('sendLocationBtn');
     
-    // Reverse geocode
+    nameEl.textContent = 'Loading...';
+    addrEl.textContent = '';
+    card.classList.remove('hidden');
+    sendBtn.disabled = false;
+    
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
         .then(res => res.json())
         .then(data => {
@@ -1444,37 +1451,18 @@ function updateLocationFromLatLng(lat, lng) {
                 selectedLocName = 'Selected Location';
                 selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
             }
-            document.getElementById('selectedLocationName').textContent = selectedLocName;
-            document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+            nameEl.textContent = selectedLocName;
+            addrEl.textContent = selectedLocAddress;
         })
         .catch(() => {
             selectedLocName = 'Selected Location';
             selectedLocAddress = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-            document.getElementById('selectedLocationName').textContent = selectedLocName;
-            document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
+            nameEl.textContent = selectedLocName;
+            addrEl.textContent = selectedLocAddress;
         });
 }
 
-function closeLocationPopup() {
-    const popup = document.getElementById('locationPopup');
-    const overlay = document.getElementById('locationPopupOverlay');
-    popup.style.transform = 'translateY(100%)';
-    setTimeout(() => {
-        popup.classList.add('hidden');
-        overlay.classList.add('hidden');
-        // 🟢 Cleanup Leaflet map
-        if (locationMap) {
-            locationMap.remove();
-            locationMap = null;
-            locationMarker = null;
-        }
-        // Cleanup
-document.getElementById('locationQuickAccess').classList.remove('hidden'); // ✅ ADD THIS
-document.getElementById('locationSearchResults').classList.add('hidden'); // ✅ ADD THIS
-    }, 300);
-}
-
-// Search location with multiple results
+// Search location
 async function searchLocation() {
     const query = document.getElementById('locationSearchInput').value.trim();
     if (!query) return;
@@ -1482,138 +1470,110 @@ async function searchLocation() {
     try {
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
         const data = await response.json();
-        
-        const resultsContainer = document.getElementById('locationSearchResults');
+        const container = document.getElementById('locationSearchResults');
         
         if (data && data.length > 0) {
-    // Hide quick access when results show
-    document.getElementById('locationQuickAccess').classList.add('hidden'); // ✅ ADD THIS
-    
-    resultsContainer.classList.remove('hidden');
-    resultsContainer.innerHTML = data.map((place) => `
-        <div onclick="selectSearchResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name.split(',')[0])}', '${escapeHTML(place.display_name)}')" 
-             class="search-result-item px-4 py-3 cursor-pointer hover:bg-[#3a3a3a] border-b border-gray-700 last:border-0 transition-colors">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-map-marker-alt text-red-400 text-xs"></i>
-                <p class="text-white text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
-            </div>
-            <p class="text-gray-400 text-xs mt-1 ml-5 truncate">${escapeHTML(place.display_name)}</p>
-        </div>
-    `).join('');
+            container.classList.remove('hidden');
+            container.innerHTML = data.map((place, i) => `
+                <div onclick="selectLocationResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name)}')"
+                     class="loc-result-item px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0">
+                    <p class="text-gray-900 text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
+                    <p class="text-gray-500 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
+                </div>
+            `).join('');
         } else {
-            resultsContainer.classList.add('hidden');
-            alert("Location not found. Try a different search.");
+            container.classList.add('hidden');
+            alert("Location not found.");
         }
     } catch (err) {
-        console.error("Search error:", err);
-        alert("Search failed. Please try again.");
+        alert("Search failed.");
     }
-}
-// Quick search from tags
-function quickSearchLocation(query) {
-    document.getElementById('locationSearchInput').value = query;
-    document.getElementById('locationSearchResults').classList.add('hidden');
-    searchLocation();
 }
 
-// Auto-search as user types (debounced)
-let locationSearchTimeout;
-function setupAutoSearch() {
-    const searchInput = document.getElementById('locationSearchInput');
-    if (!searchInput) return;
+// Select search result
+function selectLocationResult(lat, lng, name) {
+    document.getElementById('locationSearchResults').classList.add('hidden');
+    document.getElementById('locationSearchInput').value = name.split(',')[0];
     
-    // Remove old listener to avoid duplicates
-    searchInput.removeEventListener('input', autoSearchHandler);
-    searchInput.addEventListener('input', autoSearchHandler);
+    if (locationMap) {
+        locationMap.setView([parseFloat(lat), parseFloat(lng)], 16);
+    }
 }
 
-function autoSearchHandler(e) {
-    clearTimeout(locationSearchTimeout);
-    const query = e.target.value.trim();
-    
-    if (query.length >= 2) {
-        locationSearchTimeout = setTimeout(() => searchLocation(), 400);
-    } else if (query.length === 0) {
-        document.getElementById('locationSearchResults').classList.add('hidden');
-        // Show quick access again
-        document.getElementById('locationQuickAccess').classList.remove('hidden');
-    }
-}
-// Select a search result
-function selectSearchResult(lat, lng, name, address) {
-    selectedLat = parseFloat(lat);
-    selectedLng = parseFloat(lng);
-    selectedLocName = name;
-    selectedLocAddress = address;
-    
-    document.getElementById('locationSearchResults').classList.add('hidden');
-    document.getElementById('locationQuickAccess').classList.add('hidden'); // ✅ ADD THIS
-    document.getElementById('locationSearchInput').value = name;
-    
-    // Move map to selected location
-    if (locationMap && locationMarker) {
-        locationMap.setView([selectedLat, selectedLng], 16);
-        locationMarker.setLatLng([selectedLat, selectedLng]);
-    }
-    
-    document.getElementById('selectedLocationName').textContent = selectedLocName;
-    document.getElementById('selectedLocationAddress').textContent = selectedLocAddress;
-    document.getElementById('selectedLocationInfo').classList.remove('hidden');
-    document.getElementById('sendLocationBtn').disabled = false;
-}
-// Send selected location
-async function sendSelectedLocation() {
+// Confirm and send location
+async function confirmLocation() {
     if (!selectedLat || !selectedLng) {
-        alert("Please search and select a location first.");
+        alert("Select a location first.");
         return;
     }
-    
     const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
-    const locationMsg = `📍 ${selectedLocName}\n${mapUrl}`;
-    
+    const msg = `📍 ${selectedLocName}\n${mapUrl}`;
     closeLocationPopup();
-    await sendMessage(locationMsg);
+    await sendMessage(msg);
 }
 
-// Share live location (simplified - sends periodic updates for 15 min)
-function shareLiveLocation() {
-    if (!navigator.geolocation) {
-        alert("Geolocation not supported.");
+// Open live location options
+function openLiveLocationOptions() {
+    document.getElementById('locationMainButtons').classList.add('hidden');
+    document.getElementById('locationLiveOptions').classList.remove('hidden');
+    document.getElementById('locationTopBar').querySelector('h3').textContent = 'Share Live Location';
+}
+
+// Back from live location options
+function backFromLiveLocation() {
+    document.getElementById('locationMainButtons').classList.remove('hidden');
+    document.getElementById('locationLiveOptions').classList.add('hidden');
+    document.getElementById('locationTopBar').querySelector('h3').textContent = 'Send Location';
+}
+
+// Update back button behavior
+document.addEventListener('DOMContentLoaded', function() {
+    const backBtn = document.querySelector('#locationTopBar button');
+    if (backBtn) {
+        backBtn.onclick = function() {
+            if (!document.getElementById('locationLiveOptions').classList.contains('hidden')) {
+                backFromLiveLocation();
+            } else {
+                closeLocationPopup();
+            }
+        };
+    }
+});
+
+// Share live location
+function shareLiveLocation(minutes) {
+    liveLocationDuration = minutes;
+    document.getElementById('liveLocationComment').focus();
+}
+
+// Confirm live location
+async function confirmLiveLocation() {
+    if (!selectedLat || !selectedLng) {
+        alert("Select a location first.");
         return;
     }
-    
+    const comment = document.getElementById('liveLocationComment').value.trim();
+    const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
+    const durationText = liveLocationDuration >= 60 ? `${liveLocationDuration/60} hour(s)` : `${liveLocationDuration} min`;
+    const msg = `🔴 Live Location (${durationText})${comment ? '\n' + comment : ''}\n${mapUrl}`;
     closeLocationPopup();
-    
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
-        const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
-        const liveMsg = `🔴 Live Location (15 min)\n${mapUrl}`;
-        await sendMessage(liveMsg);
-        
-        // Optional: Set interval to update location every 5 minutes
-        alert("Live location sharing started for 15 minutes.");
-    }, () => {
-        alert("Location access denied.");
-    });
+    await sendMessage(msg);
 }
 
-// Send current location instantly
+// Send current location
 function sendCurrentLocation() {
     if (!navigator.geolocation) {
         alert("Geolocation not supported.");
         return;
     }
-    
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude, longitude } = pos.coords;
         const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
-        const locationMsg = `📍 My Current Location\n${mapUrl}`;
-        
+        const msg = `📍 My Current Location\n${mapUrl}`;
         closeLocationPopup();
-        await sendMessage(locationMsg);
+        await sendMessage(msg);
     }, () => {
-        alert("Location access denied. Please enable GPS.");
-        closeLocationPopup();
+        alert("Location access denied.");
     });
 }
 
