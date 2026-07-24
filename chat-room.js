@@ -121,7 +121,7 @@ function formatTime(dateStr) {
 }
 
 // =========================================================
-// 3. RENDER MESSAGES (WITH DATE GROUPING)
+// 3. RENDER MESSAGES (WITH DATE GROUPING & MAP PREVIEW)
 // =========================================================
 function renderMessages(messages, appendAtTop = false) {
     if (!messages || messages.length === 0) return;
@@ -161,12 +161,14 @@ function renderMessages(messages, appendAtTop = false) {
                 contentHTML = `
                     <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
                         ${textWithoutUrl ? `<p class="whitespace-pre-wrap font-medium mb-1">${textWithoutUrl}</p>` : ''}
+                        
                         <div class="mt-2 rounded-xl overflow-hidden shadow-md border border-gray-200 relative bg-gray-100" style="max-width:280px;">
                             <img src="${primaryMapUrl}" 
                                  class="w-full h-36 object-cover" 
                                  alt="Location Map" 
                                  onerror="this.onerror=null; this.src='${fallbackMapUrl}';">
                         </div>
+
                         <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
                             <i class="fas fa-map-marker-alt text-blue-400"></i>
                             <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
@@ -184,6 +186,7 @@ function renderMessages(messages, appendAtTop = false) {
         } else if (msg.type === 'video') {
             contentHTML = `
                 <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
             `;
         } else if (msg.type === 'document') {
             contentHTML = `
@@ -237,14 +240,14 @@ function renderMessages(messages, appendAtTop = false) {
     });
 
     if (appendAtTop) {
-        if (messageContainer) messageContainer.prepend(fragment);
+        messageContainer.prepend(fragment);
     } else {
-        if (messageContainer) messageContainer.appendChild(fragment);
+        messageContainer.appendChild(fragment);
     }
 }
 
 // =========================================================
-// 4. LOAD MESSAGES
+// 4. LOAD MESSAGES (WITH INFINITE SCROLL)
 // =========================================================
 async function loadMessages(loadMore = false) {
     if (isLoadingMore || (!loadMore && !hasMoreMessages)) return;
@@ -313,7 +316,9 @@ async function markMessagesAsRead(messages) {
 // =========================================================
 function scrollToBottom() {
     setTimeout(() => {
-        if (messageContainer) messageContainer.scrollTop = messageContainer.scrollHeight;
+        if (messageContainer) {
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
     }, 100);
 }
 
@@ -402,11 +407,10 @@ function showTypingIndicator(show) {
 }
 
 // =========================================================
-// 10. MEDIA UPLOAD & PREVIEW
+// 10. MEDIA UPLOAD & PREVIEW LOGIC
 // =========================================================
 async function uploadChatFile(file) {
     let extension = "bin";
-
     if (file.name) {
         extension = file.name.split(".").pop();
     } else {
@@ -418,13 +422,21 @@ async function uploadChatFile(file) {
 
     const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
-    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
+    const { error } = await _supabase
+        .storage
+        .from("order-files")
+        .upload(fileName, file);
 
     if (error) throw error;
 
-    return _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
+    return _supabase
+        .storage
+        .from("order-files")
+        .getPublicUrl(fileName)
+        .data.publicUrl;
 }
 
+// Upload with progress + local preview
 async function sendMessageWithProgress(text, file, msgType) {
     if (!text && !file) return;
 
@@ -468,7 +480,7 @@ async function sendMessageWithProgress(text, file, msgType) {
         
         if (error) throw error;
 
-        if (tempBubble) tempBubble.remove();
+        tempBubble.remove();
         newMsg.created_at = new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
@@ -513,6 +525,15 @@ function renderTempMessage(msg) {
                 <span class="text-white text-xs">Uploading voice...</span>
             </div>
         `;
+    } else {
+        contentHTML = `
+            <div class="flex items-center gap-2">
+                <div class="upload-spinner w-6 h-6 rounded-full bg-black/30 flex items-center justify-center">
+                    <i class="fas fa-spinner fa-spin text-white text-xs"></i>
+                </div>
+                <span class="text-white text-xs">Uploading file...</span>
+            </div>
+        `;
     }
     
     bubble.innerHTML = contentHTML;
@@ -521,7 +542,6 @@ function renderTempMessage(msg) {
 }
 
 function updateProgressBar(bubble, progress) {
-    if (!bubble) return;
     const bar = bubble.querySelector('.upload-progress-bar');
     if (bar) {
         bar.style.width = progress + '%';
@@ -548,11 +568,17 @@ async function uploadChatFileWithProgress(file, onProgress) {
     const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
 
     onProgress(10);
+    
     const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
+    
     if (error) throw error;
+    
     onProgress(90);
+    
     const publicUrl = _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
+    
     onProgress(100);
+    
     return publicUrl;
 }
 
@@ -673,7 +699,7 @@ async function init() {
     try {
         await fetchOtherUser();
     } catch (e) {
-        console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
+        console.warn("Other user info fetch error:", e);
     }
 
     await loadMessages(false);
@@ -687,8 +713,12 @@ function updateChatHeight() {
 
 window.addEventListener("resize", updateChatHeight);
 window.addEventListener("orientationchange", updateChatHeight);
+
 updateChatHeight();
 
+// =========================================================
+// CHAT FOOTER BUTTON HANDLERS
+// =========================================================
 function sendChatMessage() {
     if (!msgInput) return;
     const text = msgInput.value.trim();
@@ -712,7 +742,7 @@ function handleChatVoice() {
 }
 
 // =========================================================
-// ADVANCED MEDIA PREVIEW (FIXED & RESTORED CANVAS)
+// ADVANCED MEDIA PREVIEW (DRAW + CROP + CAPTION) - ALL BUGS FIXED
 // =========================================================
 let pendingMediaFile = null;
 let pendingMediaType = 'image';
@@ -731,91 +761,87 @@ let isCropMode = false;
 let cropBox = null;
 let cropOverlay = null;
 
-// Ensure Canvas Element Exists inside Container
+// 🟢 CRITICAL HELPER: Restores canvas & preview structure whenever document/audio previously changed innerHTML
 function ensureCanvasExists() {
     let container = document.getElementById('canvasContainer');
     if (!container) return null;
-    
+
     let canvasEl = document.getElementById('imageCanvas');
     if (!canvasEl) {
-        // Clear non-canvas children and rebuild canvas
-        container.innerHTML = '';
-        canvasEl = document.createElement('canvas');
-        canvasEl.id = 'imageCanvas';
-        canvasEl.className = 'max-w-full rounded-lg cursor-crosshair';
-        container.appendChild(canvasEl);
+        container.innerHTML = `
+            <img id="mediaPreviewImg" class="hidden max-w-full max-h-[60vh] rounded-lg object-contain mx-auto">
+            <video id="mediaPreviewVideo" class="hidden max-w-full max-h-[60vh] rounded-lg mx-auto" controls></video>
+            <canvas id="imageCanvas" class="max-w-full max-h-[60vh] rounded-lg mx-auto shadow-lg"></canvas>
+        `;
+        canvasEl = document.getElementById('imageCanvas');
     }
     return canvasEl;
 }
 
-// 1. Preview open karne ka main function (FIXED)
+// 1. Preview Chat Media
 async function previewChatMedia(input) {
-    if (!input.files || input.files.length === 0) return;
+    if (!input || !input.files || input.files.length === 0) return;
     const file = input.files[0];
     pendingMediaFile = file;
     pendingMediaType = file.type.startsWith('video') ? 'video' : 'image';
 
     const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) {
-        console.error("❌ mediaPreviewUI popup not found in HTML!");
-        return;
-    }
+    if (!ui) return;
 
     const captionInput = document.getElementById('mediaCaptionInput');
     if (captionInput) captionInput.value = '';
 
     const url = URL.createObjectURL(file);
     
+    console.log("📸 Preview called:", { fileName: file.name, pendingMediaType });
+    
     if (pendingMediaType === 'image') {
-        // 🟢 Canvas restore karein
-        const canvasEl = ensureCanvasExists();
-        if (!canvasEl) {
-            alert("Canvas container missing.");
-            return;
-        }
+        ensureCanvasExists();
 
-        // 🟢 UI and Controls Visible karein
         ui.classList.remove('hidden');
         ui.style.display = 'flex';
         
-        const vid = document.getElementById('mediaPreviewVideo');
-        if (vid) vid.classList.add('hidden');
-        
-        const imgPrev = document.getElementById('mediaPreviewImg');
-        if (imgPrev) imgPrev.classList.add('hidden');
-
-        canvasEl.classList.remove('hidden');
-        canvasEl.style.display = 'block';
-
-        const editorTopBar = document.getElementById('editorTopBar');
-        if (editorTopBar) editorTopBar.style.display = 'flex';
-
-        const captionBar = document.getElementById('captionBar');
-        if (captionBar) {
-            captionBar.classList.remove('hidden');
-            captionBar.style.display = 'block';
-        }
-
-        const drawBtn = document.getElementById('toggleDrawBtn');
-        if (drawBtn) drawBtn.classList.remove('hidden');
-
-        const cropBtn = document.getElementById('toggleCropBtn');
-        if (cropBtn) cropBtn.classList.remove('hidden');
-
         canvasImage = new Image();
         canvasImage.onload = () => {
+            console.log("✅ Image loaded successfully");
             setupCanvas(canvasImage);
             resetEditorState();
+            
+            const container = document.getElementById('canvasContainer');
+            if (container) container.style.display = 'block';
+            
+            const canvasEl = document.getElementById('imageCanvas');
+            if (canvasEl) {
+                canvasEl.classList.remove('hidden');
+                canvasEl.style.display = 'block';
+            }
+            
+            const topBar = document.getElementById('editorTopBar');
+            if (topBar) topBar.style.display = 'flex';
+            
+            const capBar = document.getElementById('captionBar');
+            if (capBar) {
+                capBar.classList.remove('hidden');
+                capBar.style.display = 'block';
+            }
+
+            // Reset input safely AFTER successful load
+            input.value = '';
         };
+
         canvasImage.onerror = (err) => {
             console.error("❌ Image load failed:", err);
             ui.classList.add('hidden');
-            alert("Image load nahi ho saki.");
+            ui.style.display = 'none';
+            input.value = '';
+            alert("Image could not be loaded. Please try again.");
         };
+
         canvasImage.src = url;
         
     } else {
         // Video Preview
+        ensureCanvasExists();
         const vid = document.getElementById('mediaPreviewVideo');
         if (vid) {
             vid.src = url;
@@ -823,45 +849,49 @@ async function previewChatMedia(input) {
             vid.style.display = 'block';
         }
 
+        const img = document.getElementById('mediaPreviewImg');
+        if (img) img.classList.add('hidden');
+
         const canvasEl = document.getElementById('imageCanvas');
         if (canvasEl) canvasEl.classList.add('hidden');
 
-        const safeHide = (id) => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
-        };
+        const drawBtn = document.getElementById('toggleDrawBtn');
+        if (drawBtn) drawBtn.classList.add('hidden');
 
-        safeHide('mediaPreviewImg');
-        safeHide('toggleDrawBtn');
-        safeHide('toggleCropBtn');
-        safeHide('drawingTools');
+        const cropBtn = document.getElementById('toggleCropBtn');
+        if (cropBtn) cropBtn.classList.add('hidden');
 
-        const captionBar = document.getElementById('captionBar');
-        if (captionBar) {
-            captionBar.classList.remove('hidden');
-            captionBar.style.display = 'block';
+        const drawTools = document.getElementById('drawingTools');
+        if (drawTools) drawTools.classList.add('hidden');
+
+        const capBar = document.getElementById('captionBar');
+        if (capBar) {
+            capBar.classList.remove('hidden');
+            capBar.style.display = 'block';
         }
-
+        
         ui.classList.remove('hidden');
         ui.style.display = 'flex';
+        input.value = '';
     }
-
-    input.value = '';
 }
 
-// Setup Canvas with Image
+// 2. Setup Canvas
 function setupCanvas(img) {
     canvas = ensureCanvasExists();
-    if (!canvas) return;
+    if (!canvas) {
+        console.error("❌ Canvas element not found");
+        return;
+    }
     
     ctx = canvas.getContext('2d');
     canvas.classList.remove('hidden');
     canvas.style.display = 'block';
     
-    const maxWidth = Math.max(window.innerWidth - 32, 280);
-    const maxHeight = Math.max(window.innerHeight - 250, 280);
-    let width = img.width || 300;
-    let height = img.height || 300;
+    const maxWidth = window.innerWidth - 32;
+    const maxHeight = window.innerHeight - 250;
+    let width = img.width;
+    let height = img.height;
     
     const ratio = Math.min(maxWidth / width, maxHeight / height);
     width *= ratio;
@@ -870,6 +900,9 @@ function setupCanvas(img) {
     canvas.width = width;
     canvas.height = height;
     ctx.drawImage(img, 0, 0, width, height);
+    
+    const container = document.getElementById('canvasContainer');
+    if (container) container.style.display = 'block';
     
     setupCanvasEvents();
 }
@@ -898,11 +931,9 @@ function setupCanvasEvents() {
         const rect = canvas.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (canvas.width / rect.width);
         const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-        if (drawings.length > 0) {
-            drawings[drawings.length - 1].endX = x;
-            drawings[drawings.length - 1].endY = y;
-            redrawCanvas();
-        }
+        drawings[drawings.length - 1].endX = x;
+        drawings[drawings.length - 1].endY = y;
+        redrawCanvas();
     });
 
     canvas.addEventListener('mouseup', () => { isDrawing = false; });
@@ -926,17 +957,14 @@ function setupCanvasEvents() {
         const touch = e.touches[0];
         const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
         const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
-        if (drawings.length > 0) {
-            drawings[drawings.length - 1].endX = x;
-            drawings[drawings.length - 1].endY = y;
-            redrawCanvas();
-        }
+        drawings[drawings.length - 1].endX = x;
+        drawings[drawings.length - 1].endY = y;
+        redrawCanvas();
     });
 
     canvas.addEventListener('touchend', () => { isDrawing = false; });
 }
 
-// Reset Editor State (Safely)
 function resetEditorState() {
     isDrawingMode = false;
     isCropMode = false;
@@ -945,29 +973,32 @@ function resetEditorState() {
     const drawTools = document.getElementById('drawingTools');
     if (drawTools) drawTools.classList.add('hidden');
 
-    const toggleDraw = document.getElementById('toggleDrawBtn');
-    if (toggleDraw) {
-        toggleDraw.classList.remove('bg-[#0077b9]');
-        toggleDraw.classList.add('bg-white/10');
+    const drawBtn = document.getElementById('toggleDrawBtn');
+    if (drawBtn) {
+        drawBtn.classList.remove('bg-[#0077b9]', 'hidden');
+        drawBtn.classList.add('bg-white/10');
     }
 
-    const toggleCrop = document.getElementById('toggleCropBtn');
-    if (toggleCrop) {
-        toggleCrop.classList.remove('bg-[#0077b9]');
-        toggleCrop.classList.add('bg-white/10');
+    const cropBtn = document.getElementById('toggleCropBtn');
+    if (cropBtn) {
+        cropBtn.classList.remove('bg-[#0077b9]', 'hidden');
+        cropBtn.classList.add('bg-white/10');
     }
 
-    const applyCrop = document.getElementById('applyCropBtn');
-    if (applyCrop) applyCrop.classList.add('hidden');
+    const applyBtn = document.getElementById('applyCropBtn');
+    if (applyBtn) applyBtn.classList.add('hidden');
 
-    const captionBar = document.getElementById('captionBar');
-    if (captionBar) captionBar.classList.remove('hidden');
+    const capBar = document.getElementById('captionBar');
+    if (capBar) {
+        capBar.classList.remove('hidden');
+        capBar.style.display = 'block';
+    }
 
     cropBox = document.getElementById('cropBox');
     cropOverlay = document.getElementById('cropOverlay');
     if (cropBox) cropBox.classList.add('hidden');
     if (cropOverlay) cropOverlay.classList.add('hidden');
-
+    
     setupCropBoxEvents();
     if (canvas) canvas.classList.remove('drawing-mode');
 }
@@ -975,6 +1006,7 @@ function resetEditorState() {
 function setupCropBoxEvents() {
     if (!cropBox) return;
     cropBox.onmousedown = null;
+    
     cropBox.addEventListener('mousedown', (e) => {
         if (!isCropMode) return;
         e.stopPropagation();
@@ -1002,8 +1034,8 @@ function toggleDrawingMode() {
             btn.classList.remove('bg-white/10');
         }
         if (canvas) canvas.classList.add('drawing-mode');
-        const cap = document.getElementById('captionBar');
-        if (cap) cap.classList.add('hidden');
+        const capBar = document.getElementById('captionBar');
+        if (capBar) capBar.classList.add('hidden');
         setDrawingTool('pen');
     } else {
         if (tools) tools.classList.add('hidden');
@@ -1012,8 +1044,8 @@ function toggleDrawingMode() {
             btn.classList.add('bg-white/10');
         }
         if (canvas) canvas.classList.remove('drawing-mode');
-        const cap = document.getElementById('captionBar');
-        if (cap) cap.classList.remove('hidden');
+        const capBar = document.getElementById('captionBar');
+        if (capBar) capBar.classList.remove('hidden');
     }
 }
 
@@ -1059,9 +1091,15 @@ function redrawCanvas() {
             const angle = Math.atan2(d.endY - d.startY, d.endX - d.startX);
             ctx.moveTo(d.startX, d.startY);
             ctx.lineTo(d.endX, d.endY);
-            ctx.lineTo(d.endX - 10 * Math.cos(angle - Math.PI / 6), d.endY - 10 * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(
+                d.endX - 10 * Math.cos(angle - Math.PI / 6),
+                d.endY - 10 * Math.sin(angle - Math.PI / 6)
+            );
             ctx.moveTo(d.endX, d.endY);
-            ctx.lineTo(d.endX - 10 * Math.cos(angle + Math.PI / 6), d.endY - 10 * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(
+                d.endX - 10 * Math.cos(angle + Math.PI / 6),
+                d.endY - 10 * Math.sin(angle + Math.PI / 6)
+            );
         }
         ctx.stroke();
     });
@@ -1089,8 +1127,8 @@ function toggleCropMode() {
         if (applyBtn) applyBtn.classList.remove('hidden');
         if (cropOverlay) cropOverlay.classList.remove('hidden');
         if (cropBox) cropBox.classList.remove('hidden');
-        const cap = document.getElementById('captionBar');
-        if (cap) cap.classList.add('hidden');
+        const capBar = document.getElementById('captionBar');
+        if (capBar) capBar.classList.add('hidden');
         const drawBtn = document.getElementById('toggleDrawBtn');
         if (drawBtn) drawBtn.classList.add('hidden');
     } else {
@@ -1101,14 +1139,15 @@ function toggleCropMode() {
         if (applyBtn) applyBtn.classList.add('hidden');
         if (cropOverlay) cropOverlay.classList.add('hidden');
         if (cropBox) cropBox.classList.add('hidden');
-        const cap = document.getElementById('captionBar');
-        if (cap) cap.classList.remove('hidden');
+        const capBar = document.getElementById('captionBar');
+        if (capBar) capBar.classList.remove('hidden');
         const drawBtn = document.getElementById('toggleDrawBtn');
         if (drawBtn) drawBtn.classList.remove('hidden');
     }
 }
 
 let cropDragState = null;
+
 document.addEventListener('mousemove', (e) => {
     if (!cropDragState || !cropBox) return;
     const dx = e.clientX - cropDragState.startX;
@@ -1157,16 +1196,16 @@ function closeMediaPreview() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         canvas.classList.add('hidden');
     }
-    const capInp = document.getElementById('mediaCaptionInput');
-    if (capInp) capInp.value = '';
+    const captionInp = document.getElementById('mediaCaptionInput');
+    if (captionInp) captionInp.value = '';
     resetEditorState();
 }
 
 async function sendCaptionedMedia() {
     if (!canvasImage && !pendingMediaFile) return;
     
-    const capEl = document.getElementById('mediaCaptionInput');
-    const caption = capEl ? capEl.value.trim() : '';
+    const capInp = document.getElementById('mediaCaptionInput');
+    const caption = capInp ? capInp.value.trim() : '';
     const ui = document.getElementById('mediaPreviewUI');
     
     let fileToUpload;
@@ -1176,12 +1215,12 @@ async function sendCaptionedMedia() {
         fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
     } else if (pendingMediaType === 'document') {
         fileToUpload = pendingMediaFile;
-        const docName = pendingMediaFile.name;
+        const docName = pendingMediaFile ? pendingMediaFile.name : 'document';
         const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
         
         pendingMediaFile = null;
         if (ui) ui.classList.add('hidden');
-        if (capEl) capEl.value = '';
+        if (capInp) capInp.value = '';
         
         await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
         closeMediaPreview();
@@ -1190,7 +1229,7 @@ async function sendCaptionedMedia() {
         fileToUpload = pendingMediaFile;
         pendingMediaFile = null;
         if (ui) ui.classList.add('hidden');
-        if (capEl) capEl.value = '';
+        if (capInp) capInp.value = '';
         
         await sendMessageWithProgress(caption || '', fileToUpload, 'video');
         closeMediaPreview();
@@ -1199,7 +1238,7 @@ async function sendCaptionedMedia() {
         fileToUpload = pendingMediaFile;
         pendingMediaFile = null;
         if (ui) ui.classList.add('hidden');
-        if (capEl) capEl.value = '';
+        if (capInp) capInp.value = '';
         
         await sendMessageWithProgress(caption || '', fileToUpload, 'audio');
         closeMediaPreview();
@@ -1210,39 +1249,44 @@ async function sendCaptionedMedia() {
     
     pendingMediaFile = null;
     if (ui) ui.classList.add('hidden');
-    if (capEl) capEl.value = '';
+    if (capInp) capInp.value = '';
 
     await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
     closeMediaPreview();
 }
 
-// Voice Timer
+// =========================================================
+// VOICE RECORDING UI (WHATSAPP STYLE)
+// =========================================================
+const voiceRecorderUI = document.getElementById('voiceRecorderUI');
+const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
+const voiceWaveform = document.getElementById('voiceWaveform');
+const voicePauseBtn = document.getElementById('voicePauseBtn');
+const voicePauseIcon = document.getElementById('voicePauseIcon');
+const voicePauseText = document.getElementById('voicePauseText');
+
+let isVoicePaused = false;
+
 function startVoiceTimer() {
-    const recorderUI = document.getElementById('voiceRecorderUI');
-    const timerDisplay = document.getElementById('voiceTimerDisplay');
-    const waveform = document.getElementById('voiceWaveform');
-    const pauseIcon = document.getElementById('voicePauseIcon');
-    const pauseText = document.getElementById('voicePauseText');
-    
-    if (!recorderUI) return;
+    if (!voiceRecorderUI) return;
     voiceSeconds = 0;
-    recorderUI.style.display = 'flex';
-    recorderUI.style.transform = 'translateY(0)';
-    if (timerDisplay) timerDisplay.textContent = '00:00';
+    voiceRecorderUI.style.display = 'flex';
+    voiceRecorderUI.style.transform = 'translateY(0)';
+    if (voiceTimerDisplay) voiceTimerDisplay.textContent = '00:00';
     isVoicePaused = false;
-    if (pauseIcon) pauseIcon.className = 'fas fa-pause text-sm';
-    if (pauseText) pauseText.textContent = 'Pause';
+    if (voicePauseIcon) voicePauseIcon.className = 'fas fa-pause text-sm';
+    if (voicePauseText) voicePauseText.textContent = 'Pause';
     
-    if (waveform) {
-        waveform.innerHTML = '';
+    if (voiceWaveform) {
+        voiceWaveform.innerHTML = '';
         for (let i = 0; i < 40; i++) {
             const bar = document.createElement('div');
             bar.className = 'w-[2px] bg-white rounded-full';
             bar.style.height = '3px';
             bar.style.animationDelay = (i * 0.05) + 's';
-            waveform.appendChild(bar);
+            voiceWaveform.appendChild(bar);
         }
-        waveform.classList.add('recording');
+        voiceWaveform.classList.add('recording');
     }
 
     if (voiceTimerInterval) clearInterval(voiceTimerInterval);
@@ -1250,7 +1294,7 @@ function startVoiceTimer() {
         voiceSeconds++;
         const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
         const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-        if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
+        if (voiceTimerDisplay) voiceTimerDisplay.textContent = `${mins}:${secs}`;
     }, 1000);
 }
 
@@ -1258,14 +1302,11 @@ function stopVoiceTimer() {
     clearInterval(voiceTimerInterval);
     voiceTimerInterval = null;
     voiceSeconds = 0;
-    const waveform = document.getElementById('voiceWaveform');
-    if (waveform) waveform.classList.remove('recording');
-    
-    const recorderUI = document.getElementById('voiceRecorderUI');
-    if (recorderUI) {
-        recorderUI.style.display = '';
-        recorderUI.style.transform = '';
-        recorderUI.classList.add('hidden');
+    if (voiceWaveform) voiceWaveform.classList.remove('recording');
+    if (voiceRecorderUI) {
+        voiceRecorderUI.style.display = '';
+        voiceRecorderUI.style.transform = '';
+        voiceRecorderUI.classList.add('hidden');
     }
 }
 
@@ -1286,14 +1327,12 @@ function cancelVoiceRecording() {
 
 function toggleVoicePause() {
     if (!audioRecorder) return;
-    const pauseIcon = document.getElementById('voicePauseIcon');
-    const pauseText = document.getElementById('voicePauseText');
 
     if (audioRecorder.state === 'recording') {
         audioRecorder.pause();
         isVoicePaused = true;
-        if (pauseIcon) pauseIcon.className = 'fas fa-play text-sm';
-        if (pauseText) pauseText.textContent = 'Resume';
+        if (voicePauseIcon) voicePauseIcon.className = 'fas fa-play text-sm';
+        if (voicePauseText) voicePauseText.textContent = 'Resume';
 
         if (voiceTimerInterval) {
             clearInterval(voiceTimerInterval);
@@ -1302,16 +1341,15 @@ function toggleVoicePause() {
     } else if (audioRecorder.state === 'paused') {
         audioRecorder.resume();
         isVoicePaused = false;
-        if (pauseIcon) pauseIcon.className = 'fas fa-pause text-sm';
-        if (pauseText) pauseText.textContent = 'Pause';
+        if (voicePauseIcon) voicePauseIcon.className = 'fas fa-pause text-sm';
+        if (voicePauseText) voicePauseText.textContent = 'Pause';
 
         if (voiceTimerInterval) clearInterval(voiceTimerInterval);
         voiceTimerInterval = setInterval(() => {
             voiceSeconds++;
             const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
             const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-            const timerDisplay = document.getElementById('voiceTimerDisplay');
-            if (timerDisplay) timerDisplay.textContent = `${mins}:${secs}`;
+            if (voiceTimerDisplay) voiceTimerDisplay.textContent = `${mins}:${secs}`;
         }, 1000);
     }
 }
@@ -1346,7 +1384,9 @@ async function sendRecordedVoice() {
     if (vBtn) vBtn.classList.remove('voice-active');
 }
 
-// ATTACHMENT MENU
+// =========================================================
+// ATTACHMENT POPUP MENU
+// =========================================================
 function toggleAttachMenu() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
@@ -1371,166 +1411,38 @@ function closeAttachPopup() {
 function openGallery() {
     closeAttachPopup();
     setTimeout(() => {
-        const input = document.getElementById('hiddenGalleryInput');
-        if (input) input.click();
+        const inp = document.getElementById('hiddenGalleryInput');
+        if (inp) inp.click();
     }, 350);
 }
 
 function openCamera() {
     closeAttachPopup();
     setTimeout(() => {
-        const input = document.getElementById('hiddenCameraInput');
-        if (input) input.click();
+        const inp = document.getElementById('hiddenCameraInput');
+        if (inp) inp.click();
     }, 350);
 }
 
 function openDocuments() {
     closeAttachPopup();
     setTimeout(() => {
-        const input = document.getElementById('hiddenDocumentInput');
-        if (input) input.click();
+        const inp = document.getElementById('hiddenDocumentInput');
+        if (inp) inp.click();
     }, 350);
 }
 
 function openAudio() {
     closeAttachPopup();
     setTimeout(() => {
-        const input = document.getElementById('hiddenAudioInput');
-        if (input) input.click();
+        const inp = document.getElementById('hiddenAudioInput');
+        if (inp) inp.click();
     }, 350);
 }
 
-// FILE PICK HANDLERS
-async function handleGalleryPick(input) {
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    
-    if (file.type.startsWith('image/')) {
-        await previewChatMedia(input);
-    } else if (file.type.startsWith('video/')) {
-        await previewChatMedia(input);
-    }
-}
-
-async function handleDocumentPick(input) {
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    pendingMediaFile = file;
-    pendingMediaType = 'document';
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) return;
-    
-    const captionInput = document.getElementById('mediaCaptionInput');
-    if (captionInput) captionInput.value = '';
-    
-    const safeHide = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-    };
-    
-    safeHide('mediaPreviewImg');
-    safeHide('mediaPreviewVideo');
-    safeHide('imageCanvas');
-    safeHide('toggleDrawBtn');
-    safeHide('toggleCropBtn');
-    safeHide('applyCropBtn');
-    safeHide('drawingTools');
-    
-    const captionBar = document.getElementById('captionBar');
-    if (captionBar) captionBar.classList.remove('hidden');
-    
-    const editorTopBar = document.getElementById('editorTopBar');
-    if (editorTopBar) editorTopBar.style.display = 'flex';
-    
-    const canvasContainer = document.getElementById('canvasContainer');
-    if (canvasContainer) {
-        canvasContainer.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
-                <div style="width:96px;height:96px;border-radius:16px;background:#ea580c;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <i class="fas fa-file-alt" style="font-size:48px;color:white;"></i>
-                </div>
-                <div style="text-align:center;">
-                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
-                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
-                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">${file.type || 'Unknown type'}</p>
-                </div>
-                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
-            </div>
-        `;
-    }
-    
-    ui.classList.remove('hidden');
-    ui.style.display = 'flex';
-    input.value = '';
-}
-
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function escapeHTML(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-}
-
-async function handleAudioPick(input) {
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    pendingMediaFile = file;
-    pendingMediaType = 'audio';
-    
-    const ui = document.getElementById('mediaPreviewUI');
-    if (!ui) return;
-    
-    const captionInput = document.getElementById('mediaCaptionInput');
-    if (captionInput) captionInput.value = '';
-    
-    const safeHide = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-    };
-    
-    safeHide('mediaPreviewImg');
-    safeHide('mediaPreviewVideo');
-    safeHide('imageCanvas');
-    safeHide('toggleDrawBtn');
-    safeHide('toggleCropBtn');
-    safeHide('applyCropBtn');
-    safeHide('drawingTools');
-    
-    const captionBar = document.getElementById('captionBar');
-    if (captionBar) captionBar.classList.remove('hidden');
-    
-    const editorTopBar = document.getElementById('editorTopBar');
-    if (editorTopBar) editorTopBar.style.display = 'flex';
-    
-    const canvasContainer = document.getElementById('canvasContainer');
-    if (canvasContainer) {
-        canvasContainer.innerHTML = `
-            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
-                <div style="width:96px;height:96px;border-radius:16px;background:#dc2626;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                    <i class="fas fa-music" style="font-size:48px;color:white;"></i>
-                </div>
-                <div style="text-align:center;">
-                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
-                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
-                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">Audio File</p>
-                </div>
-                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
-            </div>
-        `;
-    }
-    
-    ui.classList.remove('hidden');
-    ui.style.display = 'flex';
-    input.value = '';
-}
-
-// LOCATION
+// =========================================================
+// LOCATION FUNCTIONS
+// =========================================================
 let selectedLat = null;
 let selectedLng = null;
 let selectedLocName = '';
@@ -1542,15 +1454,21 @@ function shareLocation() {
     setTimeout(() => {
         const popup = document.getElementById('locationPopup');
         const overlay = document.getElementById('locationPopupOverlay');
-        if (popup && overlay) {
-            popup.classList.remove('hidden');
-            overlay.classList.remove('hidden');
-            popup.style.display = 'flex';
-        }
+        if (!popup || !overlay) return;
+        popup.classList.remove('hidden');
+        overlay.classList.remove('hidden');
+        popup.style.display = 'flex';
+        
         selectedLat = null;
         selectedLng = null;
-        const sendBtn = document.getElementById('sendLocationBtn');
-        if (sendBtn) sendBtn.disabled = true;
+        const sendLocBtn = document.getElementById('sendLocationBtn');
+        if (sendLocBtn) sendLocBtn.disabled = true;
+        const selCard = document.getElementById('locationSelectedCard');
+        if (selCard) selCard.classList.add('hidden');
+        const searchRes = document.getElementById('locationSearchResults');
+        if (searchRes) searchRes.classList.add('hidden');
+        const searchInp = document.getElementById('locationSearchInput');
+        if (searchInp) searchInp.value = '';
         
         setTimeout(() => initLocationMap(), 300);
     }, 350);
@@ -1598,9 +1516,10 @@ function initLocationMap() {
     }, 500);
     
     locationMap.on('moveend', function() {
-        if (!locationMap) return;
-        const center = locationMap.getCenter();
-        updateLocationInfo(center.lat, center.lng);
+        if (locationMap) {
+            const center = locationMap.getCenter();
+            updateLocationInfo(center.lat, center.lng);
+        }
     });
     
     if (navigator.geolocation) {
@@ -1611,7 +1530,23 @@ function initLocationMap() {
                     updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
                 }
             },
-            () => updateLocationInfo(defaultLat, defaultLng)
+            () => {
+                updateLocationInfo(defaultLat, defaultLng);
+            }
+        );
+    }
+}
+
+function goToMyLocation() {
+    if (!locationMap) return;
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                if (locationMap) {
+                    locationMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                }
+            },
+            () => alert("Location access denied.")
         );
     }
 }
@@ -1623,12 +1558,12 @@ function updateLocationInfo(lat, lng) {
     const card = document.getElementById('locationSelectedCard');
     const nameEl = document.getElementById('locationCardName');
     const addrEl = document.getElementById('locationCardAddress');
-    const sendBtn = document.getElementById('sendLocationBtn');
+    const sendLocBtn = document.getElementById('sendLocationBtn');
     
     if (nameEl) nameEl.textContent = 'Selected Location';
     if (addrEl) addrEl.textContent = '';
     if (card) card.classList.remove('hidden');
-    if (sendBtn) sendBtn.disabled = false;
+    if (sendLocBtn) sendLocBtn.disabled = false;
     
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
         .then(res => res.json())
@@ -1651,22 +1586,63 @@ function updateLocationInfo(lat, lng) {
         });
 }
 
+async function searchLocation() {
+    const searchInp = document.getElementById('locationSearchInput');
+    if (!searchInp) return;
+    const query = searchInp.value.trim();
+    if (!query) return;
+    
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+        const data = await response.json();
+        const container = document.getElementById('locationSearchResults');
+        
+        if (data && data.length > 0 && container) {
+            container.classList.remove('hidden');
+            container.innerHTML = data.map((place) => `
+                <div onclick="selectLocationResult(${place.lat}, ${place.lon}, '${escapeHTML(place.display_name)}')"
+                     class="loc-result-item px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-0">
+                    <p class="text-gray-900 text-sm font-medium">${escapeHTML(place.display_name.split(',')[0])}</p>
+                    <p class="text-gray-500 text-xs mt-0.5 truncate">${escapeHTML(place.display_name)}</p>
+                </div>
+            `).join('');
+        } else if (container) {
+            container.classList.add('hidden');
+            alert("Location not found.");
+        }
+    } catch (err) {
+        alert("Search failed.");
+    }
+}
+
+function selectLocationResult(lat, lng, name) {
+    const res = document.getElementById('locationSearchResults');
+    if (res) res.classList.add('hidden');
+    const searchInp = document.getElementById('locationSearchInput');
+    if (searchInp) searchInp.value = name.split(',')[0];
+    
+    if (locationMap) {
+        locationMap.setView([parseFloat(lat), parseFloat(lng)], 16);
+    }
+}
+
 async function confirmLocation() {
     if (!selectedLat || !selectedLng) {
         alert("Select a location first.");
         return;
     }
-    const commEl = document.getElementById('locationComment');
-    const comment = commEl ? commEl.value.trim() : '';
+    const locComment = document.getElementById('locationComment');
+    const comment = locComment ? locComment.value.trim() : '';
     const mapUrl = `https://maps.google.com/maps?q=${selectedLat},${selectedLng}`;
     const msg = `📍 ${selectedLocName}${comment ? '\n' + comment : ''}\n${mapUrl}`;
     closeLocationPopup();
     await sendMessage(msg);
 }
 
-// Contact Sharing
+// Contacts sharing
 async function shareContact() {
     closeAttachPopup();
+    
     if ('contacts' in navigator && 'select' in navigator.contacts) {
         try {
             const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
@@ -1691,7 +1667,220 @@ async function shareContact() {
     }
 }
 
-// Audio Player Click Listener
+// =========================================================
+// FILE PICK HANDLERS
+// =========================================================
+async function handleGalleryPick(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    if (file.type.startsWith('image/')) {
+        await previewChatMedia(input);
+    } else if (file.type.startsWith('video/')) {
+        pendingMediaFile = file;
+        pendingMediaType = 'video';
+        
+        const ui = document.getElementById('mediaPreviewUI');
+        const vid = document.getElementById('mediaPreviewVideo');
+        const img = document.getElementById('mediaPreviewImg');
+        const capInp = document.getElementById('mediaCaptionInput');
+        
+        if (capInp) capInp.value = '';
+        const url = URL.createObjectURL(file);
+        
+        ensureCanvasExists();
+
+        if (vid) {
+            vid.src = url;
+            vid.classList.remove('hidden');
+            vid.style.display = 'block';
+        }
+        if (img) img.classList.add('hidden');
+        
+        const canvasEl = document.getElementById('imageCanvas');
+        if (canvasEl) canvasEl.classList.add('hidden');
+
+        const drawBtn = document.getElementById('toggleDrawBtn');
+        if (drawBtn) drawBtn.classList.add('hidden');
+
+        const cropBtn = document.getElementById('toggleCropBtn');
+        if (cropBtn) cropBtn.classList.add('hidden');
+
+        const drawTools = document.getElementById('drawingTools');
+        if (drawTools) drawTools.classList.add('hidden');
+
+        const capBar = document.getElementById('captionBar');
+        if (capBar) {
+            capBar.classList.remove('hidden');
+            capBar.style.display = 'block';
+        }
+
+        const topBar = document.getElementById('editorTopBar');
+        if (topBar) topBar.style.display = 'flex';
+        
+        if (ui) {
+            ui.classList.remove('hidden');
+            ui.style.display = 'flex';
+        }
+        input.value = '';
+    }
+}
+
+async function handleDocumentPick(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    pendingMediaFile = file;
+    pendingMediaType = 'document';
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    if (!ui) return;
+    
+    const capInp = document.getElementById('mediaCaptionInput');
+    if (capInp) capInp.value = '';
+    
+    const capBar = document.getElementById('captionBar');
+    if (capBar) {
+        capBar.classList.remove('hidden');
+        capBar.style.display = 'block';
+    }
+    
+    const topBar = document.getElementById('editorTopBar');
+    if (topBar) topBar.style.display = 'flex';
+    
+    const container = document.getElementById('canvasContainer');
+    if (container) {
+        container.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
+                <div style="width:96px;height:96px;border-radius:16px;background:#ea580c;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <i class="fas fa-file-alt" style="font-size:48px;color:white;"></i>
+                </div>
+                <div style="text-align:center;">
+                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
+                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
+                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">${file.type || 'Document'}</p>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
+            </div>
+        `;
+    }
+    
+    ui.classList.remove('hidden');
+    ui.style.display = 'flex';
+    input.value = '';
+}
+
+async function handleAudioPick(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    
+    pendingMediaFile = file;
+    pendingMediaType = 'audio';
+    
+    const ui = document.getElementById('mediaPreviewUI');
+    if (!ui) return;
+    
+    const capInp = document.getElementById('mediaCaptionInput');
+    if (capInp) capInp.value = '';
+    
+    const capBar = document.getElementById('captionBar');
+    if (capBar) {
+        capBar.classList.remove('hidden');
+        capBar.style.display = 'block';
+    }
+    
+    const topBar = document.getElementById('editorTopBar');
+    if (topBar) topBar.style.display = 'flex';
+    
+    const container = document.getElementById('canvasContainer');
+    if (container) {
+        container.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px;">
+                <div style="width:96px;height:96px;border-radius:16px;background:#dc2626;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                    <i class="fas fa-music" style="font-size:48px;color:white;"></i>
+                </div>
+                <div style="text-align:center;">
+                    <p style="color:white;font-weight:bold;font-size:16px;margin-bottom:4px;">${escapeHTML(file.name)}</p>
+                    <p style="color:#9ca3af;font-size:14px;">${formatFileSize(file.size)}</p>
+                    <p style="color:#6b7280;font-size:12px;margin-top:4px;">Audio File</p>
+                </div>
+                <p style="color:#9ca3af;font-size:12px;margin-top:8px;">Add a caption below and tap send</p>
+            </div>
+        `;
+    }
+    
+    ui.classList.remove('hidden');
+    ui.style.display = 'flex';
+    input.value = '';
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// =========================================================
+// LONG PRESS TO COPY CONTACT NUMBER
+// =========================================================
+let longPressTimer;
+let longPressTarget;
+
+document.addEventListener('touchstart', function(e) {
+    const contactBubble = e.target.closest('.bubble-sent, .bubble-received');
+    if (!contactBubble) return;
+    
+    const text = contactBubble.textContent || '';
+    const phoneMatch = text.match(/📞\s*([+\d\s-]+)/);
+    if (!phoneMatch) return;
+    
+    longPressTarget = phoneMatch[1].replace(/\s+/g, '');
+    
+    longPressTimer = setTimeout(() => {
+        if (longPressTarget) {
+            copyToClipboard(longPressTarget);
+            showCopyToast();
+        }
+    }, 800);
+});
+
+document.addEventListener('touchend', function() { clearTimeout(longPressTimer); longPressTarget = null; });
+document.addEventListener('touchmove', function() { clearTimeout(longPressTimer); longPressTarget = null; });
+
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).catch(err => console.error("Copy failed:", err));
+    } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+}
+
+function showCopyToast() {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bg-black/80 text-white text-xs px-3 py-2 rounded-full z-[100000] animate-pop';
+    toast.textContent = '📋 Phone number copied!';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.bottom = '100px';
+    document.body.appendChild(toast);
+    
+    setTimeout(() => { toast.remove(); }, 2000);
+}
+
+// Custom Audio Player Click Event
 document.addEventListener("click", function (e) {
     const btn = e.target.closest(".play-btn-custom");
     if (!btn) return;
@@ -1702,6 +1891,7 @@ document.addEventListener("click", function (e) {
     const audio = container.querySelector("audio");
     const icon = btn.querySelector("i");
     const timer = container.querySelector(".time-current");
+    if (!audio) return;
 
     document.querySelectorAll(".voice-player-container audio").forEach(a => {
         if (a !== audio) {
@@ -1709,10 +1899,10 @@ document.addEventListener("click", function (e) {
             a.currentTime = 0;
             const c = a.closest(".voice-player-container");
             if (c) {
-                const ic = c.querySelector(".play-btn-custom i");
-                if (ic) ic.className = "fas fa-play text-[10px] ml-0.5";
-                const tm = c.querySelector(".time-current");
-                if (tm) tm.textContent = "0:00";
+                const i = c.querySelector(".play-btn-custom i");
+                if (i) i.className = "fas fa-play text-[10px] ml-0.5";
+                const t = c.querySelector(".time-current");
+                if (t) t.textContent = "0:00";
             }
         }
     });
