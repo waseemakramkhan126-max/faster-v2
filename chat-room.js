@@ -274,29 +274,28 @@ async function uploadFileToR2(file, bucketName = 'fhd-chat-media') {
 
     return data.publicUrl;
 }
+
 // R2 MIGRATION - ADD UPLOAD HANDLERS
 
 // 1. File upload karke DB me save karega
 async function handleFileUpload(file, type) {
     if (isUploading ||!file) return;
     isUploading = true;
-    const sendBtn = document.getElementById('sendBtn');
+    const sendBtn = document.getElementById('sendMsgBtn'); // YAHAN sendBtn -> sendMsgBtn kiya hai
     const originalBtnHtml = sendBtn? sendBtn.innerHTML : '';
     if(sendBtn) {
-        sendBtn.innerHTML = 'Uploading...';
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         sendBtn.disabled = true;
     }
 
     try {
-        // 1. R2 pe upload
         const publicUrl = await uploadFileToR2(file, 'fhd-chat-media');
 
-        // 2. DB me message save
         const { error } = await _supabase.from('order_chats').insert([{
             order_id: orderId,
             sender_phone: userPhone,
-            message: file.name, // file name as message
-            type: type, // 'image', 'video', 'doc', 'voice'
+            message: file.name,
+            type: type,
             file_url: publicUrl,
             status: 'sent'
         }]);
@@ -310,24 +309,34 @@ async function handleFileUpload(file, type) {
     } finally {
         isUploading = false;
         if(sendBtn) {
-            sendBtn.innerHTML = originalBtnHtml;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane text-sm ml-0.5"></i>';
             sendBtn.disabled = false;
         }
     }
 }
 
-// 2. Attach menu ke inputs ko is function se connect karega
+// Attach buttons ke liye helpers
+function openGallery() { document.getElementById('hiddenGalleryInput')?.click(); }
+function openCamera() { document.getElementById('hiddenCameraInput')?.click(); }
+function openDocuments() { document.getElementById('hiddenDocumentInput')?.click(); }
+function openAudio() { document.getElementById('hiddenAudioInput')?.click(); }
+
+// 2. Attach menu ke inputs ko is function se connect karega - SIRF YE WALA RAKHO
 function setupUploadListeners() {
-    document.getElementById('imageInput')?.addEventListener('change', e => {
+    document.getElementById('hiddenGalleryInput')?.addEventListener('change', e => {
+        if(e.target.files[0]) {
+            const file = e.target.files[0];
+            const type = file.type.startsWith('video')? 'video' : 'image';
+            handleFileUpload(file, type);
+        }
+    });
+    document.getElementById('hiddenCameraInput')?.addEventListener('change', e => {
         if(e.target.files[0]) handleFileUpload(e.target.files[0], 'image');
     });
-    document.getElementById('videoInput')?.addEventListener('change', e => {
-        if(e.target.files[0]) handleFileUpload(e.target.files[0], 'video');
-    });
-    document.getElementById('docInput')?.addEventListener('change', e => {
+    document.getElementById('hiddenDocumentInput')?.addEventListener('change', e => {
         if(e.target.files[0]) handleFileUpload(e.target.files[0], 'doc');
     });
-    document.getElementById('voiceInput')?.addEventListener('change', e => {
+    document.getElementById('hiddenAudioInput')?.addEventListener('change', e => {
         if(e.target.files[0]) handleFileUpload(e.target.files[0], 'voice');
     });
 }
