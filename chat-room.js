@@ -926,3 +926,44 @@ document.addEventListener("click", function(e) {
         timer.textContent = "0:00";
     };
 });
+
+// Global R2 Upload Helper Function
+async function uploadFileToR2(file, bucketName = 'fhd-chat-media') {
+  try {
+    const fileExt = file.name ? file.name.split('.').pop() : 'bin';
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+
+    // Presigned URL request
+    const { data, error } = await supabase.functions.invoke('get-r2-upload-url', {
+      body: {
+        bucket: bucketName,
+        fileName: fileName,
+        fileType: file.type || 'application/octet-stream'
+      }
+    });
+
+    if (error || !data?.uploadUrl) {
+      throw new Error(error?.message || "Presigned URL fetch failed");
+    }
+
+    // Direct PUT Request to R2
+    const uploadResponse = await fetch(data.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      },
+      body: file
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error("Cloudflare R2 upload failed");
+    }
+
+    // Apna Public R2 Domain replace karein
+    const PUBLIC_R2_DOMAIN = "https://pub-xxx.r2.dev"; 
+    return `${PUBLIC_R2_DOMAIN}/${fileName}`;
+  } catch (err) {
+    console.error("R2 Upload Error:", err);
+    throw err;
+  }
+}
