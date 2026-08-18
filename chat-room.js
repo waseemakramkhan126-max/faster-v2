@@ -1,969 +1,333 @@
-console.log("🚀 Chat Room Script Loaded Successfully!");
-// =========================================================
-// CHAT LOGIC - CORE MODULE
-// =========================================================
+// R2 MIGRATION
+/**
+ * chat-room.js - Main chat room controller with Cloudflare R2 migration
+ */
 
-// 1. Supabase Initialization
 const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-// 2. User Info from LocalStorage
-const myPhone = localStorage.getItem('faster_phone');
-const myId = localStorage.getItem('faster_customer_id') || myPhone;
-const myName = localStorage.getItem('faster_name') || "Me";
-
-// 3. Get Conversation ID from URL
 const urlParams = new URLSearchParams(window.location.search);
-const conversationId = urlParams.get('conversation_id');
+const orderId = urlParams.get('orderId') || urlParams.get('order_id') || localStorage.getItem('faster_active_order_id');
+const userPhone = (localStorage.getItem('faster_phone') || "").trim();
 
-if (!conversationId) {
-    alert("Invalid chat room.");
-    history.back();
-}
+let isUploading = false;
+let currentMessages = [];
 
-// =========================================================
-// GLOBAL VARIABLES
-// =========================================================
-let otherUserId = null;
-let otherUserName = "User";
-let isTyping = false;
-let typingTimeout = null;
-let messageContainer = document.getElementById('messagesContainer');
-let page = 0;
-const LIMIT = 30;
-let isLoadingMore = false;
-let hasMoreMessages = true;
-let audioRecorder = null;
-let audioChunks = [];
-let voiceTimerInterval = null;
-let voiceSeconds = 0;
-
-// =========================================================
-// DOM REFS
-// =========================================================
-const headerName = document.getElementById('headerName');
-const headerStatus = document.getElementById('headerStatus');
-const headerAvatar = document.getElementById('headerAvatar');
-const msgInput = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendMsgBtn');
-const typingIndicator = document.getElementById('typingIndicator');
-const loadMoreLoader = document.getElementById('loadMoreLoader');
-
-// =========================================================
-// AUDIO NOTIFICATION
-// =========================================================
-const sound = document.getElementById('notifSound');
-function ring() {
-    if(!sound) return;
-    sound.currentTime = 0;
-    sound.play().catch(e => console.warn("Auto-play blocked:", e));
-}
-
-// =========================================================
-// 1. FETCH OTHER USER INFO
-// =========================================================
-async function fetchOtherUser() {
-    const { data: participants, error } = await _supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversationId)
-        .neq('user_id', myId);
-
-    if (error || !participants || participants.length === 0) {
-        console.warn("⚠️ other user not found, but chat will still work.");
-        headerName.textContent = "Unknown User";
-        headerAvatar.textContent = "?";
+document.addEventListener("DOMContentLoaded", () => {
+    if (!userPhone) {
+        window.location.replace('index.html');
         return;
     }
+    initChatRoom();
+    setupUploadListeners();
+});
 
-    otherUserId = participants[0].user_id;
-
-    const { data: userData, error: uErr } = await _supabase
-        .from('customers')
-        .select('name, phone')
-        .eq('customer_id', otherUserId)
-        .maybeSingle();
-
-    if (uErr || !userData) {
-        otherUserName = "Unknown";
-    } else {
-        otherUserName = userData.name || "User";
-        headerStatus.textContent = `+${userData.phone}`;
-    }
-
-    headerName.textContent = otherUserName;
-    headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+async function initChatRoom() {
+    setupOfflineListeners();
+    await loadMessages();
+    setupRealtimeSubscription();
 }
 
-// =========================================================
-// 2. DATE FORMATTER
-// =========================================================
-function getDateLabel(dateStr) {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function formatTime(dateStr) {
-    const d = new Date(dateStr);
-    let hours = d.getHours();
-    const minutes = d.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${hours}:${minutes} ${ampm}`;
-}
-
-// =========================================================
-// 3. RENDER MESSAGES (WITH DATE GROUPING)
-// =========================================================
-function renderMessages(messages, appendAtTop = false) {
-    if (!messages || messages.length === 0) return;
-
-    let lastDate = '';
-    const fragment = document.createDocumentFragment();
-
-    messages.forEach((msg, index) => {
-        const msgDate = getDateLabel(msg.created_at);
-        
-        if (msgDate !== lastDate) {
-            lastDate = msgDate;
-            const div = document.createElement('div');
-            div.className = 'date-divider';
-            div.innerHTML = `<span>${msgDate}</span>`;
-            fragment.appendChild(div);
-        }
-
-        const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
-        const bubble = document.createElement('div');
-        bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
-
-        let contentHTML = '';
-        
-        if (msg.type === 'text') {
-            const urlMatch = msg.content.match(/https:\/\/maps\.google\.com\/maps\?q=([-\d.]+),([-\d.]+)/);
-            
-            if (urlMatch) {
-                const fullUrl = urlMatch[0];
-                const lat = urlMatch[1];
-                const lng = urlMatch[2];
-                const textWithoutUrl = msg.content.replace(fullUrl, '').trim();
-
-                const primaryMapUrl = `https://static-maps.yandex.ru/1.x/?l=map&z=15&size=600,300&pt=${lng},${lat},pm2rdm`;
-                const fallbackMapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&markers=${lat},${lng},red-pushpin`;
-
-                contentHTML = `
-                    <div class="cursor-pointer" onclick="event.stopPropagation(); window.open('${fullUrl}', '_blank')">
-                        ${textWithoutUrl ? `<p class="whitespace-pre-wrap font-medium mb-1">${textWithoutUrl}</p>` : ''}
-                        <div class="mt-2 rounded-xl overflow-hidden shadow-md border border-gray-200 relative bg-gray-100" style="max-width:280px;">
-                            <img src="${primaryMapUrl}" class="w-full h-36 object-cover" alt="Location Map" 
-                                 onerror="this.onerror=null; this.src='${fallbackMapUrl}';">
-                        </div>
-                        <div class="mt-2 bg-blue-600/20 border border-blue-500/30 rounded-lg px-3 py-2 flex items-center gap-2">
-                            <i class="fas fa-map-marker-alt text-blue-400"></i>
-                            <span class="text-blue-300 text-xs font-medium">📍 Tap to open in Maps</span>
-                        </div>
-                    </div>
-                `;
-            } else {
-                contentHTML = `<p class="whitespace-pre-wrap">${msg.content}</p>`;
-            }
-        } else if (msg.type === 'image') {
-            contentHTML = `
-                <img src="${msg.file_url}" class="max-w-full max-h-64 rounded-lg object-contain cursor-pointer mt-1" onclick="openMediaViewer('${msg.file_url}', 'image')">
-                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
-            `;
-        } else if (msg.type === 'video') {
-            contentHTML = `
-                <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
-            `;
-        } else if (msg.type === 'document') {
-            contentHTML = `
-                <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
-                    <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-file-alt text-white"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold truncate">${msg.content || 'Document'}</p>
-                        <p class="text-[10px] opacity-70">Tap to download</p>
-                    </div>
-                </div>
-            `;
-        } else if (msg.type === 'voice') {
-            contentHTML = `
-                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
-                    <button class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform">
-                        <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
-                    </button>
-                    <div class="flex items-center flex-grow gap-[3px] opacity-70 px-1">
-                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-6 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-5 bg-white rounded-full"></div>
-                        <div class="w-[3px] h-3 bg-white rounded-full"></div>
-                    </div>
-                    <div class="text-[10px] text-white font-medium min-w-[35px] text-right">
-                        <span class="time-current">0:00</span>
-                    </div>
-                    <audio src="${msg.file_url}" playsinline preload="auto" style="display:none;"></audio>
-                    <div class="text-white pl-1">
-                        <i class="fas fa-microphone text-sm"></i>
-                    </div>
-                </div>
-            `;
-        }
-
-        bubble.innerHTML = contentHTML;
-
-        const meta = document.createElement('div');
-        meta.className = 'bubble-meta';
-        meta.innerHTML = `
-            <span>${formatTime(msg.created_at)}</span>
-            ${isMe ? `<i class="fas ${msg.read_at ? 'fa-check-double read-receipt' : 'fa-check read-receipt unread'}"></i>` : ''}
-        `;
-        bubble.appendChild(meta);
-
-        fragment.appendChild(bubble);
+function setupOfflineListeners() {
+    const banner = document.getElementById('offlineBanner');
+    window.addEventListener('offline', () => {
+        if (banner) banner.style.top = '0';
     });
-
-    if (appendAtTop) {
-        messageContainer.prepend(fragment);
-    } else {
-        messageContainer.appendChild(fragment);
-    }
+    window.addEventListener('online', () => {
+        if (banner) banner.style.top = '-50px';
+        loadMessages();
+    });
 }
 
-// =========================================================
-// 4. LOAD MESSAGES (WITH INFINITE SCROLL)
-// =========================================================
-async function loadMessages(loadMore = false) {
-    if (isLoadingMore || (!loadMore && !hasMoreMessages)) return;
-    isLoadingMore = true;
-    if (loadMore) {
-        loadMoreLoader.classList.remove('hidden');
-        page++;
-    } else {
-        page = 0;
-        messageContainer.innerHTML = '';
-        hasMoreMessages = true;
-    }
-
-    const from = page * LIMIT;
-    const to = from + LIMIT - 1;
-
-    const { data, error } = await _supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-    isLoadingMore = false;
-    loadMoreLoader.classList.add('hidden');
-
-    if (error) {
-        console.error("Error loading messages:", error);
-        return;
-    }
-
-    if (!data || data.length === 0) {
-        if (loadMore) hasMoreMessages = false;
-        return;
-    }
-
-    const messages = data.reverse();
-
-    if (loadMore) {
-        renderMessages(messages, true);
-    } else {
-        renderMessages(messages, false);
-        scrollToBottom();
-        markMessagesAsRead(messages);
-    }
-}
-
-// =========================================================
-// 5. MARK MESSAGES AS READ
-// =========================================================
-async function markMessagesAsRead(messages) {
-    const unreadIds = messages
-        .filter(msg => msg.sender_id !== myId && !msg.read_at)
-        .map(msg => msg.id);
-
-    if (unreadIds.length === 0) return;
-
-    await _supabase
-        .from('messages')
-        .update({ read_at: new Date().toISOString() })
-        .in('id', unreadIds);
-}
-
-// =========================================================
-// 6. SCROLL HELPER
-// =========================================================
-function scrollToBottom() {
-    setTimeout(() => {
-        messageContainer.scrollTop = messageContainer.scrollHeight;
-    }, 100);
-}
-
-// =========================================================
-// 7. REALTIME SUBSCRIPTION
-// =========================================================
-function subscribeToChat() {
-    const channel = _supabase.channel(`room-${conversationId}`);
-
-    channel.on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-    }, (payload) => {
-        const msg = payload.new;
-        if (msg.sender_id === myId || msg.sender_id === myPhone) return;
-
-        renderMessages([msg], false);
-        scrollToBottom();
-        ring();
-    }).subscribe();
-
-    const typingChannel = _supabase.channel(`typing-${conversationId}`);
-    typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.sender !== myId && payload.sender !== myPhone) {
-            showTypingIndicator(true);
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => showTypingIndicator(false), 3000);
-        }
-    }).subscribe();
-}
-
-// =========================================================
-// 8. SEND MESSAGE
-// =========================================================
-async function sendMessage(text, fileUrl = null, msgType = 'text') {
-    if (!text && !fileUrl) return;
-
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
-
-    const newMsg = {
-        conversation_id: conversationId,
-        sender_id: myId,
-        type: msgType,
-        content: text || '',
-        file_url: fileUrl || null
-    };
-
-    const { error } = await _supabase.from('messages').insert([newMsg]);
-
-    sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
-    sendBtn.disabled = false;
-
-    if (error) {
-        console.error("Send error:", error);
-        alert("Message send nahi hua. Internet check karein.");
-        return;
-    }
-
-    newMsg.created_at = new Date().toISOString();
-    renderMessages([newMsg], false);
-    scrollToBottom();
-    msgInput.value = '';
-    msgInput.style.height = 'auto';
-}
-
-// =========================================================
-// 9. TYPING INDICATOR
-// =========================================================
-function showTypingIndicator(show) {
-    if (show) {
-        typingIndicator.classList.remove('hidden');
-        typingIndicator.innerHTML = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
-    } else {
-        typingIndicator.classList.add('hidden');
-    }
-}
-
-// =========================================================
-// 10. MEDIA UPLOAD
-// =========================================================
-async function uploadChatFile(file) {
-    let extension = "bin";
-    if (file.name) {
-        extension = file.name.split(".").pop();
-    } else {
-        const type = file.type || "";
-        if (type.includes("image")) extension = "jpg";
-        else if (type.includes("video")) extension = "mp4";
-        else if (type.includes("audio")) extension = "webm";
-    }
-
-    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
-
-    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
-    if (error) throw error;
-
-    return _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
-}
-
-// Upload with progress + local preview
-async function sendMessageWithProgress(text, file, msgType) {
-    if (!text && !file) return;
-
-    let localUrl = null;
-    if (file) localUrl = URL.createObjectURL(file);
-
-    const tempMsg = {
-        conversation_id: conversationId,
-        sender_id: myId,
-        type: msgType,
-        content: text || '',
-        file_url: localUrl || null,
-        created_at: new Date().toISOString(),
-        isTemp: true,
-        uploadProgress: 0
-    };
-
-    const tempBubble = renderTempMessage(tempMsg);
-    scrollToBottom();
+async function loadMessages() {
+    if (!navigator.onLine || !orderId) return;
 
     try {
-        let fileUrl = null;
-        if (file) {
-            fileUrl = await uploadChatFileWithProgress(file, (progress) => {
-                tempMsg.uploadProgress = progress;
-                updateProgressBar(tempBubble, progress);
-            });
-        }
+        const { data, error } = await _supabase
+            .from('order_chats')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: true });
 
-        const newMsg = {
-            conversation_id: conversationId,
-            sender_id: myId,
-            type: msgType,
-            content: text || '',
-            file_url: fileUrl || null
-        };
-
-        const { error } = await _supabase.from('messages').insert([newMsg]);
         if (error) throw error;
 
-        tempBubble.remove();
-        newMsg.created_at = new Date().toISOString();
-        renderMessages([newMsg], false);
-        scrollToBottom();
+        currentMessages = data || [];
+        renderMessages(currentMessages);
+        markMessagesAsSeen();
     } catch (err) {
-        const spinner = tempBubble?.querySelector('.upload-spinner');
-        if (spinner) spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
+        console.error("Error loading messages:", err);
     }
-
-    msgInput.value = '';
-    msgInput.style.height = 'auto';
 }
 
-function renderTempMessage(msg) {
-    const bubble = document.createElement('div');
-    bubble.className = 'bubble bubble-sent animate-pop';
-    
-    let contentHTML = '';
-    if (msg.type === 'image') {
-        contentHTML = `
-            <div class="relative">
-                <img src="${msg.file_url}" class="max-w-full max-h-48 rounded-lg object-contain opacity-60 blur-sm">
-                <div class="upload-spinner absolute inset-0 flex items-center justify-center">
-                    <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-                        <i class="fas fa-spinner fa-spin text-white text-lg"></i>
+function renderMessages(messages) {
+    const container = document.getElementById('messagesContainer');
+    if (!container) return;
+
+    container.innerHTML = messages.map(msg => {
+        const isSent = msg.sender_phone === userPhone;
+        const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        
+        let contentHtml = '';
+        if (msg.type === 'image' && msg.file_url) {
+            contentHtml = `<img src="${msg.file_url}" class="rounded-lg max-h-60 w-full object-cover cursor-pointer mb-1 shadow-sm" onclick="openMediaViewer('${msg.file_url}', 'image')">`;
+        } else if (msg.type === 'video' && msg.file_url) {
+            contentHtml = `<video src="${msg.file_url}" controls class="rounded-lg max-h-60 w-full object-cover mb-1 shadow-sm"></video>`;
+        } else if (msg.type === 'voice' && msg.file_url) {
+            contentHtml = `<div class="py-1"><audio controls src="${msg.file_url}" class="h-8 w-48"></audio></div>`;
+        } else if (msg.type === 'doc' && msg.file_url) {
+            contentHtml = `<a href="${msg.file_url}" target="_blank" class="flex items-center gap-2 p-2 bg-black/5 rounded-lg text-xs font-bold text-blue-600 underline"><i class="fas fa-file-alt text-lg"></i> View Document</a>`;
+        } else if (msg.type === 'location' && msg.file_url) {
+            contentHtml = `
+                <div class="location-preview mb-1 cursor-pointer" onclick="window.open('${msg.file_url}', '_blank')">
+                    <div class="map-placeholder"><i class="fas fa-map-marked-alt text-2xl mr-2"></i> Open Location Map</div>
+                    ${msg.message ? `<p class="p-2 text-xs text-white">${msg.message}</p>` : ''}
+                </div>
+            `;
+        }
+
+        if (msg.message && msg.type !== 'location') {
+            contentHtml += `<p class="text-sm leading-relaxed">${escapeHtml(msg.message)}</p>`;
+        }
+
+        const readReceiptClass = msg.status === 'seen' ? 'read-receipt' : 'read-receipt unread';
+        const receiptIcon = isSent ? `<i class="fas fa-check-double ${readReceiptClass}"></i>` : '';
+
+        return `
+            <div class="flex flex-col ${isSent ? 'items-end' : 'items-start'} w-full mb-2">
+                <div class="bubble ${isSent ? 'bubble-sent' : 'bubble-received'}">
+                    ${contentHtml}
+                    <div class="bubble-meta">
+                        <span>${timeStr}</span>
+                        ${receiptIcon}
                     </div>
                 </div>
-                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
-            </div>
-            ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
-        `;
-    } else if (msg.type === 'voice') {
-        contentHTML = `
-            <div class="flex items-center gap-2">
-                <div class="upload-spinner w-6 h-6 rounded-full bg-black/30 flex items-center justify-center">
-                    <i class="fas fa-spinner fa-spin text-white text-xs"></i>
-                </div>
-                <span class="text-white text-xs">Uploading voice...</span>
             </div>
         `;
-    }
-    
-    bubble.innerHTML = contentHTML;
-    messageContainer.appendChild(bubble);
-    return bubble;
+    }).join('');
+
+    scrollToBottom();
 }
 
-function updateProgressBar(bubble, progress) {
-    const bar = bubble.querySelector('.upload-progress-bar');
-    if (bar) bar.style.width = progress + '%';
-    if (progress === 100) {
-        const spinner = bubble.querySelector('.upload-spinner');
-        if (spinner) spinner.innerHTML = '<i class="fas fa-check text-green-400 text-lg"></i>';
-    }
-}
+async function sendChatMessage() {
+    const input = document.getElementById('msgInput');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || !orderId) return;
 
-async function uploadChatFileWithProgress(file, onProgress) {
-    let extension = "bin";
-    if (file.name) {
-        extension = file.name.split(".").pop();
-    } else {
-        const type = file.type || "";
-        if (type.includes("image")) extension = "jpg";
-        else if (type.includes("video")) extension = "mp4";
-        else if (type.includes("audio")) extension = "webm";
-    }
+    input.value = '';
+    input.style.height = 'auto';
 
-    const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(2,6)}.${extension}`;
+    const tempId = 'temp_' + Date.now();
+    const tempMsg = {
+        id: tempId,
+        order_id: orderId,
+        sender_phone: userPhone,
+        message: text,
+        type: 'text',
+        status: 'sent',
+        created_at: new Date().toISOString()
+    };
 
-    onProgress(10);
-    const { error } = await _supabase.storage.from("order-files").upload(fileName, file);
-    if (error) throw error;
-    onProgress(90);
-    
-    const publicUrl = _supabase.storage.from("order-files").getPublicUrl(fileName).data.publicUrl;
-    onProgress(100);
-    return publicUrl;
-}
-
-// =========================================================
-// 11. VOICE RECORDING
-// =========================================================
-async function startVoiceRecording() {
-    if (!navigator.mediaDevices) return alert("Microphone access blocked.");
-    try {
-        const aStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        let options = {};
-        if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
-        else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) options = { mimeType: 'audio/webm;codecs=opus' };
-        else if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
-
-        audioRecorder = new MediaRecorder(aStream, options);
-        audioChunks = [];
-        audioRecorder.ondataavailable = e => {
-            if (e.data && e.data.size > 0) audioChunks.push(e.data);
-        };
-        
-        audioRecorder.onstop = async () => {
-            const finalMime = audioRecorder.mimeType || "audio/webm";
-            const audioBlob = new Blob(audioChunks, { type: finalMime });
-            aStream.getTracks().forEach(track => track.stop());
-            stopVoiceTimer();
-            const micIcon = document.getElementById("micIcon");
-            micIcon.className = "fas fa-microphone text-white";
-            const vBtn = document.getElementById("chatVoiceBtn");
-            vBtn.classList.remove("voice-active");
-            window.recordedVoiceBlob = audioBlob;
-        };
-        
-        audioRecorder.start();
-        startVoiceTimer();
-        return true;
-    } catch (e) {
-        alert("Please allow microphone permission.");
-        return false;
-    }
-}
-
-function stopVoiceRecording() {
-    if (audioRecorder && audioRecorder.state !== 'inactive') {
-        audioRecorder.stop();
-    }
-}
-
-// =========================================================
-// 12. EVENT LISTENERS
-// =========================================================
-msgInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
-    }
-});
-
-msgInput.addEventListener('input', () => {
-    if (!isTyping) {
-        isTyping = true;
-        const typingChannel = _supabase.channel(`typing-${conversationId}`);
-        typingChannel.send({ type: 'broadcast', event: 'typing', payload: { sender: myId } });
-        setTimeout(() => { isTyping = false; }, 2000);
-    }
-});
-
-msgInput.addEventListener('input', () => {
-    msgInput.style.height = 'auto';
-    msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
-});
-
-messageContainer.addEventListener('scroll', () => {
-    if (messageContainer.scrollTop === 0 && hasMoreMessages) {
-        loadMessages(true);
-    }
-});
-
-// =========================================================
-// 13. MEDIA VIEWER
-// =========================================================
-function openMediaViewer(src, type) {
-    const viewer = document.getElementById('mediaViewer');
-    const content = document.getElementById('mediaViewerContent');
-    viewer.classList.remove('hidden');
-    viewer.classList.add('flex');
-    if (type === 'image') {
-        content.innerHTML = `<img src="${src}" class="max-w-full max-h-[85vh] rounded object-contain">`;
-    } else {
-        content.innerHTML = `<video src="${src}" controls autoplay playsinline class="max-w-full max-h-[85vh] rounded"></video>`;
-    }
-}
-
-function closeMediaViewer() {
-    document.getElementById('mediaViewer').classList.add('hidden');
-    document.getElementById('mediaViewer').classList.remove('flex');
-}
-
-// =========================================================
-// 14. INITIALIZATION
-// =========================================================
-async function init() {
-    window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
-    window.addEventListener('online', () => {
-        document.getElementById('offlineBanner').style.top = '-50px';
-        loadMessages(false);
-    });
+    currentMessages.push(tempMsg);
+    renderMessages(currentMessages);
 
     try {
-        await fetchOtherUser();
-    } catch (e) {
-        console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
-    }
+        const { error } = await _supabase.from('order_chats').insert([{
+            order_id: orderId,
+            sender_phone: userPhone,
+            message: text,
+            type: 'text',
+            status: 'sent'
+        }]);
 
-    await loadMessages(false);
-    subscribeToChat();
-}
-init();
-
-function updateChatHeight() {
-    document.body.style.height = window.innerHeight + "px";
-}
-
-window.addEventListener("resize", updateChatHeight);
-window.addEventListener("orientationchange", updateChatHeight);
-updateChatHeight();
-
-// =========================================================
-// 15. FOOTER FUNCTIONS
-// =========================================================
-function sendChatMessage() {
-    const text = msgInput.value.trim();
-    if (text) sendMessage(text);
-}
-
-function handleChatVoice() {
-    const vBtn = document.getElementById('chatVoiceBtn');
-    const micIcon = document.getElementById('micIcon');
-    
-    if (audioRecorder && audioRecorder.state === 'recording') {
-        stopVoiceRecording();
-        stopVoiceTimer();
-        vBtn.classList.remove('voice-active');
-        micIcon.className = 'fas fa-microphone text-white';
-    } else {
-        startVoiceRecording();
-        vBtn.classList.add('voice-active');
-        micIcon.className = 'fas fa-stop text-red-500';
+        if (error) throw error;
+        await loadMessages();
+    } catch (err) {
+        console.error("Error sending message:", err);
     }
 }
 
-// =========================================================
-// 16. VOICE RECORDER UI
-// =========================================================
-function startVoiceTimer() {
-    if (!voiceRecorderUI) return;
-    voiceSeconds = 0;
-    voiceRecorderUI.style.display = 'flex';
-    voiceRecorderUI.style.transform = 'translateY(0)';
-    voiceTimerDisplay.textContent = '00:00';
-    isVoicePaused = false;
-    voicePauseIcon.className = 'fas fa-pause text-sm';
-    voicePauseText.textContent = 'Pause';
-    
-    voiceWaveform.innerHTML = '';
-    for (let i = 0; i < 40; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'w-[2px] bg-white rounded-full';
-        bar.style.height = '3px';
-        bar.style.animationDelay = (i * 0.05) + 's';
-        voiceWaveform.appendChild(bar);
-    }
-    voiceWaveform.classList.add('recording');
-
-    if (voiceTimerInterval) clearInterval(voiceTimerInterval);
-    voiceTimerInterval = setInterval(() => {
-        voiceSeconds++;
-        const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
-        const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-        voiceTimerDisplay.textContent = `${mins}:${secs}`;
-    }, 1000);
-}
-
-function stopVoiceTimer() {
-    clearInterval(voiceTimerInterval);
-    voiceTimerInterval = null;
-    voiceSeconds = 0;
-    voiceWaveform.classList.remove('recording');
-    voiceRecorderUI.style.display = '';
-    voiceRecorderUI.style.transform = '';
-    voiceRecorderUI.classList.add('hidden');
-}
-
-function cancelVoiceRecording() {
-    if (audioRecorder) {
-        audioRecorder.onstop = null; 
-        audioRecorder.stop();
-        audioRecorder = null;
-        audioChunks = [];
-    }
-    stopVoiceTimer();
-    const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
-    const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
-    window.recordedVoiceBlob = null;
-}
-
-function toggleVoicePause() {
-    if (!audioRecorder) return;
-
-    if (audioRecorder.state === 'recording') {
-        audioRecorder.pause();
-        isVoicePaused = true;
-        voicePauseIcon.className = 'fas fa-play text-sm';
-        voicePauseText.textContent = 'Resume';
-        if (voiceTimerInterval) {
-            clearInterval(voiceTimerInterval);
-            voiceTimerInterval = null;
-        }
-    } else if (audioRecorder.state === 'paused') {
-        audioRecorder.resume();
-        isVoicePaused = false;
-        voicePauseIcon.className = 'fas fa-pause text-sm';
-        voicePauseText.textContent = 'Pause';
-        if (voiceTimerInterval) clearInterval(voiceTimerInterval);
-        voiceTimerInterval = setInterval(() => {
-            voiceSeconds++;
-            const mins = Math.floor(voiceSeconds / 60).toString().padStart(2, '0');
-            const secs = (voiceSeconds % 60).toString().padStart(2, '0');
-            voiceTimerDisplay.textContent = `${mins}:${secs}`;
-        }, 1000);
-    }
-}
-
-async function sendRecordedVoice() {
-    if (audioRecorder && audioRecorder.state !== 'inactive') {
-        const blobPromise = new Promise(resolve => {
-            const originalOnStop = audioRecorder.onstop;
-            audioRecorder.onstop = async (e) => {
-                if (originalOnStop) await originalOnStop.call(audioRecorder, e);
-                resolve(window.recordedVoiceBlob);
-            };
-        });
-        audioRecorder.stop();
-        await blobPromise;
-    }
-
-    if (!window.recordedVoiceBlob) return;
-
+async function markMessagesAsSeen() {
+    if (!orderId || !userPhone) return;
     try {
-        const voiceFile = new File([window.recordedVoiceBlob], 'voice_' + Date.now() + '.webm', { type: 'audio/webm' });
-        await sendMessageWithProgress('', voiceFile, 'voice');
-    } catch (e) {
-        alert('Voice upload failed.');
+        await _supabase
+            .from('order_chats')
+            .update({ status: 'seen' })
+            .eq('order_id', orderId)
+            .neq('sender_phone', userPhone)
+            .neq('status', 'seen');
+    } catch (err) {
+        console.error("Error marking seen:", err);
     }
-
-    window.recordedVoiceBlob = null;
-    stopVoiceTimer();
-    const micIcon = document.getElementById('micIcon');
-    micIcon.className = 'fas fa-microphone text-white';
-    const vBtn = document.getElementById('chatVoiceBtn');
-    vBtn.classList.remove('voice-active');
 }
 
-const voiceRecorderUI = document.getElementById('voiceRecorderUI');
-const voiceTimerDisplay = document.getElementById('voiceTimerDisplay');
-const voiceWaveform = document.getElementById('voiceWaveform');
-const voicePauseBtn = document.getElementById('voicePauseBtn');
-const voicePauseIcon = document.getElementById('voicePauseIcon');
-const voicePauseText = document.getElementById('voicePauseText');
-let isVoicePaused = false;
+function setupRealtimeSubscription() {
+    if (!orderId) return;
 
-// =========================================================
-// 17. ATTACHMENT POPUP
-// =========================================================
+    _supabase.channel(`chat-room-${orderId}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats', filter: `order_id=eq.${orderId}` }, (payload) => {
+            loadMessages();
+            if (payload.eventType === 'INSERT' && payload.new.sender_phone !== userPhone) {
+                playNotificationSound();
+            }
+        })
+        .subscribe();
+}
+
+function playNotificationSound() {
+    const sound = document.getElementById('notifSound');
+    if (sound) {
+        sound.currentTime = 0;
+        sound.play().catch(e => console.log("Audio play prevented:", e));
+    }
+}
+
 function toggleAttachMenu() {
+    if (isUploading) return;
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
-    popup.classList.remove('hidden');
-    overlay.classList.remove('hidden');
-    void popup.offsetWidth;
-    popup.style.transform = 'translateY(0)';
+    const plusIcon = document.getElementById('plusIcon');
+
+    if (popup && overlay) {
+        const isHidden = popup.classList.contains('hidden');
+        if (isHidden) {
+            popup.classList.remove('hidden');
+            overlay.classList.remove('hidden');
+            setTimeout(() => popup.style.transform = 'translateY(0)', 10);
+            if (plusIcon) plusIcon.style.transform = 'rotate(45deg)';
+        } else {
+            closeAttachPopup();
+        }
+    }
 }
 
 function closeAttachPopup() {
     const popup = document.getElementById('attachPopup');
     const overlay = document.getElementById('attachPopupOverlay');
-    popup.style.transform = 'translateY(100%)';
-    setTimeout(() => {
-        popup.classList.add('hidden');
-        overlay.classList.add('hidden');
-    }, 300);
-}
+    const plusIcon = document.getElementById('plusIcon');
 
-function openGallery() {
-    closeAttachPopup();
-    setTimeout(() => document.getElementById('hiddenGalleryInput').click(), 350);
-}
-
-function openCamera() {
-    closeAttachPopup();
-    setTimeout(() => document.getElementById('hiddenCameraInput').click(), 350);
-}
-
-// =========================================================
-// 18. LONG PRESS COPY
-// =========================================================
-let longPressTimer;
-let longPressTarget;
-
-document.addEventListener('touchstart', function(e) {
-    const contactBubble = e.target.closest('.bubble-sent, .bubble-received');
-    if (!contactBubble) return;
-    const text = contactBubble.textContent || '';
-    const phoneMatch = text.match(/📞\s*([+\d\s-]+)/);
-    if (!phoneMatch) return;
-    longPressTarget = phoneMatch[1].replace(/\s+/g, '');
-    longPressTimer = setTimeout(() => {
-        if (longPressTarget) {
-            copyToClipboard(longPressTarget);
-            showCopyToast(contactBubble);
-        }
-    }, 800);
-});
-
-document.addEventListener('touchend', () => { clearTimeout(longPressTimer); longPressTarget = null; });
-document.addEventListener('touchmove', () => { clearTimeout(longPressTimer); longPressTarget = null; });
-
-function copyToClipboard(text) {
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).catch(() => {});
-    } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
+    if (popup && overlay) {
+        popup.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+            popup.classList.add('hidden');
+            overlay.classList.add('hidden');
+        }, 300);
+        if (plusIcon) plusIcon.style.transform = 'rotate(0deg)';
     }
 }
 
-function showCopyToast(element) {
-    const toast = document.createElement('div');
-    toast.className = 'fixed bg-black/80 text-white text-xs px-3 py-2 rounded-full z-[100000] animate-pop';
-    toast.textContent = '📋 Phone number copied!';
-    toast.style.left = '50%';
-    toast.style.transform = 'translateX(-50%)';
-    toast.style.bottom = '100px';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+function scrollToBottom() {
+    const container = document.getElementById('messagesContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
-// =========================================================
-// 19. VOICE PLAYER CLICK
-// =========================================================
-document.addEventListener("click", function(e) {
-    const btn = e.target.closest(".play-btn-custom");
-    if (!btn) return;
-    const container = btn.closest(".voice-player-container");
-    const audio = container.querySelector("audio");
-    const icon = btn.querySelector("i");
-    const timer = container.querySelector(".time-current");
-
-    document.querySelectorAll(".voice-player-container audio").forEach(a => {
-        if (a !== audio) {
-            a.pause();
-            a.currentTime = 0;
-            const c = a.closest(".voice-player-container");
-            c.querySelector(".play-btn-custom i").className = "fas fa-play text-[10px] ml-0.5";
-            c.querySelector(".time-current").textContent = "0:00";
-        }
-    });
-
-    if (audio.paused) {
-        audio.play();
-        icon.className = "fas fa-pause text-[10px]";
-    } else {
-        audio.pause();
-        icon.className = "fas fa-play text-[10px] ml-0.5";
-    }
-
-    audio.ontimeupdate = () => {
-        const m = Math.floor(audio.currentTime / 60);
-        const s = Math.floor(audio.currentTime % 60);
-        timer.textContent = `${m}:${String(s).padStart(2,"0")}`;
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
     };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
 
-    audio.onended = () => {
-        icon.className = "fas fa-play text-[10px] ml-0.5";
-        timer.textContent = "0:00";
-    };
-});
-
-// Global R2 Upload Helper Function
+/**
+ * Universal Cloudflare R2 Upload Helper with Presigned URLs
+ * Bucket Mappings:
+ * - Chat Images, Videos, Documents, Voice Notes -> 'fhd-chat-media'
+ * - Order Files, Invoices, Attachments -> 'fhd-order-attachments'
+ */
 async function uploadFileToR2(file, bucketName = 'fhd-chat-media') {
-  try {
-    const fileExt = file.name ? file.name.split('.').pop() : 'bin';
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    if (!file) throw new Error("No file provided for upload");
 
-    // Presigned URL request
-    const { data, error } = await supabase.functions.invoke('get-r2-upload-url', {
-      body: {
-        bucket: bucketName,
-        fileName: fileName,
-        fileType: file.type || 'application/octet-stream'
-      }
-    });
-
-    if (error || !data?.uploadUrl) {
-      throw new Error(error?.message || "Presigned URL fetch failed");
+    // Validate file size < 50MB
+    if (file.size > 50 * 1024 * 1024) {
+        throw new Error("File size exceeds 50MB limit");
     }
 
-    // Direct PUT Request to R2
-    const uploadResponse = await fetch(data.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream'
-      },
-      body: file
+    const fileType = file.type || 'application/octet-stream';
+    const fileName = `${Date.now()}_${file.name || 'file'}`;
+
+    // 1. Invoke Edge Function 'get-r2-upload-url'
+    const { data, error } = await _supabase.functions.invoke('get-r2-upload-url', {
+        body: { fileName, fileType, bucket: bucketName }
     });
 
-    if (!uploadResponse.ok) {
-      throw new Error("Cloudflare R2 upload failed");
+    if (error || !data || !data.uploadUrl) {
+        throw (error || new Error("Failed to get R2 presigned upload URL"));
     }
 
-    // Apna Public R2 Domain replace karein
-    const PUBLIC_R2_DOMAIN = "https://pub-xxx.r2.dev"; 
-    return `${PUBLIC_R2_DOMAIN}/${fileName}`;
-  } catch (err) {
-    console.error("R2 Upload Error:", err);
-    throw err;
-  }
+    // 2. Direct PUT upload to Cloudflare R2
+    const uploadRes = await fetch(data.uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': fileType }
+    });
+
+    if (!uploadRes.ok) {
+        throw new Error(`R2 Upload Failed with status ${uploadRes.status}`);
+    }
+
+    return data.publicUrl;
+}
+// R2 MIGRATION - ADD UPLOAD HANDLERS
+
+// 1. File upload karke DB me save karega
+async function handleFileUpload(file, type) {
+    if (isUploading ||!file) return;
+    isUploading = true;
+    const sendBtn = document.getElementById('sendBtn');
+    const originalBtnHtml = sendBtn? sendBtn.innerHTML : '';
+    if(sendBtn) {
+        sendBtn.innerHTML = 'Uploading...';
+        sendBtn.disabled = true;
+    }
+
+    try {
+        // 1. R2 pe upload
+        const publicUrl = await uploadFileToR2(file, 'fhd-chat-media');
+
+        // 2. DB me message save
+        const { error } = await _supabase.from('order_chats').insert([{
+            order_id: orderId,
+            sender_phone: userPhone,
+            message: file.name, // file name as message
+            type: type, // 'image', 'video', 'doc', 'voice'
+            file_url: publicUrl,
+            status: 'sent'
+        }]);
+
+        if (error) throw error;
+        await loadMessages();
+        closeAttachPopup();
+    } catch (err) {
+        console.error("Upload failed:", err);
+        alert("Upload Failed: " + err.message);
+    } finally {
+        isUploading = false;
+        if(sendBtn) {
+            sendBtn.innerHTML = originalBtnHtml;
+            sendBtn.disabled = false;
+        }
+    }
+}
+
+// 2. Attach menu ke inputs ko is function se connect karega
+function setupUploadListeners() {
+    document.getElementById('imageInput')?.addEventListener('change', e => {
+        if(e.target.files[0]) handleFileUpload(e.target.files[0], 'image');
+    });
+    document.getElementById('videoInput')?.addEventListener('change', e => {
+        if(e.target.files[0]) handleFileUpload(e.target.files[0], 'video');
+    });
+    document.getElementById('docInput')?.addEventListener('change', e => {
+        if(e.target.files[0]) handleFileUpload(e.target.files[0], 'doc');
+    });
+    document.getElementById('voiceInput')?.addEventListener('change', e => {
+        if(e.target.files[0]) handleFileUpload(e.target.files[0], 'voice');
+    });
 }
