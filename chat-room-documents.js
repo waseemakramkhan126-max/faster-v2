@@ -1,5 +1,5 @@
 // =========================================================
-// DOCUMENTS MODULE
+// DOCUMENTS MODULE - R2 VERSION
 // =========================================================
 
 // Open Documents Picker
@@ -15,22 +15,22 @@ async function handleDocumentPick(input) {
     if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     console.log("📄 Document picked:", file.name);
-    
+
     pendingMediaFile = file;
     pendingMediaType = 'document';
-    
+
     const ui = document.getElementById('mediaPreviewUI');
     if (!ui) { console.error("❌ mediaPreviewUI not found!"); return; }
-    
+
     const captionInput = document.getElementById('mediaCaptionInput');
     if (captionInput) captionInput.value = '';
-    
+
     // Safely hide elements
     const safeHide = (id) => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     };
-    
+
     safeHide('mediaPreviewImg');
     safeHide('mediaPreviewVideo');
     safeHide('imageCanvas');
@@ -38,15 +38,15 @@ async function handleDocumentPick(input) {
     safeHide('toggleCropBtn');
     safeHide('applyCropBtn');
     safeHide('drawingTools');
-    
+
     // Show caption bar
     const captionBar = document.getElementById('captionBar');
     if (captionBar) captionBar.classList.remove('hidden');
-    
+
     // Show editor top bar
     const editorTopBar = document.getElementById('editorTopBar');
     if (editorTopBar) editorTopBar.style.display = 'flex';
-    
+
     // Set document preview content
     const canvasContainer = document.getElementById('canvasContainer');
     if (canvasContainer) {
@@ -64,13 +64,62 @@ async function handleDocumentPick(input) {
             </div>
         `;
     }
-    
+
     // Force show UI
     ui.classList.remove('hidden');
     ui.style.display = 'flex';
     console.log("✅ Document preview opened:", file.name);
-    
+
     input.value = '';
+}
+
+// ============== NAYA FUNCTION: SEND TO R2 ==============
+async function sendDocumentToR2(caption = '') {
+    if (!pendingMediaFile) return;
+
+    const file = pendingMediaFile;
+    console.log("⬆️ Uploading to R2:", file.name);
+
+    try {
+        // STEP 1: Supabase Edge Function se Presigned URL mango
+        const { data, error } = await supabase.functions.invoke('get-r2-upload-url', {
+            body: {
+                fileName: file.name,
+                fileType: file.type,
+                bucket: 'fhd-chat-media' // document ke liye ye bucket
+            }
+        });
+
+        if (error) throw error;
+
+        // STEP 2: Us URL pe seedha R2 me upload karo
+        const uploadRes = await fetch(data.uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type }
+        });
+
+        if (!uploadRes.ok) throw new Error('R2 Upload Failed');
+
+        const publicUrl = data.publicUrl;
+        console.log("✅ Uploaded to R2:", publicUrl);
+
+        // STEP 3: Public URL ko Supabase DB me save karo
+        await supabase.from('messages').insert({
+            sender_id: currentUserId, // tumhara user id variable
+            type: 'document',
+            media_url: publicUrl,
+            caption: caption,
+            created_at: new Date()
+        });
+
+        console.log("✅ Document message saved to DB");
+        closeMediaPreviewUI(); // tumhara wala function
+
+    } catch (err) {
+        console.error("❌ R2 Upload Error:", err);
+        alert("File upload failed. Please try again.");
+    }
 }
 
 // Helper: Format file size
