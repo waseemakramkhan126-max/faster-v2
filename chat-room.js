@@ -40,7 +40,7 @@ function setupOfflineListeners() {
     });
 }
 
-async function loadMessages() {
+window.loadMessages = async function loadMessages() {
     if (!navigator.onLine || !orderId) return;
 
     try {
@@ -241,7 +241,7 @@ function escapeHtml(text) {
  * - Chat Images, Videos, Documents, Voice Notes -> 'fhd-chat-media'
  * - Order Files, Invoices, Attachments -> 'fhd-order-attachments'
  */
-async function uploadFileToR2(file, bucketName = 'fhd-chat-media') {
+wnidow.uploadFileToR2 = async function uploadFileToR2(file, bucketName = 'fhd-chat-media') {
     if (!file) throw new Error("No file provided for upload");
 
     // Validate file size < 50MB
