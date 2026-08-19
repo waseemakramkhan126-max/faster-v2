@@ -374,7 +374,7 @@
             appendToUI(tempMsg);
 
             try {
-                const publicUrl = await uploadToR2(fileOrBlob, 'fhd-chat-media', `csr_${type}`);
+                const publicUrl = await uploadToR2(fileOrBlob, 'chat-media', { idFolder: chatRoomId, mediaType: type });
                 document.getElementById(`msg-${tempId}`).parentElement.remove();
                 sendMsg(type, '', publicUrl);
             } catch(e) {
