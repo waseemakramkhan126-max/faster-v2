@@ -372,6 +372,7 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="r2-upload.js"></script>
     <script>
         const _supabase = supabase.createClient(
             "https://hkabhikizdlbavfkualt.supabase.co",
@@ -878,17 +879,7 @@
 
         let avatarUrl = undefined;
         if (newAvatarFile) {
-            const fileExt = newAvatarFile.name.split('.').pop();
-            const fileName = `${userEmail}_${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await _supabase.storage
-                .from('avatars')
-                .upload(fileName, newAvatarFile, { cacheControl: '3600', upsert: true });
-            if (uploadError) throw uploadError;
-
-            const { data: urlData } = _supabase.storage
-                .from('avatars')
-                .getPublicUrl(fileName);
-            avatarUrl = urlData.publicUrl;
+            avatarUrl = await uploadToR2(newAvatarFile, "fhd-chat-media", "avatar");
         }
 
         const updateData = {
