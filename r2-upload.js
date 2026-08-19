@@ -21,9 +21,199 @@ const R2_PUBLIC_URLS = {
  * @param {string} prefix - filename prefix, e.g. "chat", "order", "avatar"
  * @param {function} [onProgress] - optional callback(percent)
  */
-async function uploadToR2(file, bucket, prefix = "file", onProgress = null) {
+/**
+ * Image ko canvas ke zariye 720p (long edge) tak resize aur compress karta hai.
+ * Videos ko yeh function touch nahi karta (browser mein video re-encode karna
+ * bohot heavy hota hai - ffmpeg.wasm jaisi library chahiye jo low-end phones
+ * pe slow/crash ho sakti hai, isliye sirf images compress kar rahe hain).
+ */
+function compressImageTo720p(file, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith("image/")) {
+      resolve(file); // image nahi hai to as-is chhod do
+      return;
+    }
+    // GIF ko compress mat karo - canvas animation kha jayega, sirf pehla frame bachega
+    if (file.type === "image/gif") {
+      resolve(file);
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let { width, height } = img;
+      const longEdge = Math.max(width, height);
+
+      if (longEdge <= 720) {
+        // pehle se hi chhoti hai, compress karne ki zaroorat nahi
+        resolve(file);
+        return;
+      }
+
+      const scale = 720 / longEdge;
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file); // compression fail ho to original bhej do
+            return;
+          }
+          const compressedFile = new File([blob], file.name || "image.jpg", {
+            type: "image/jpeg",
+          });
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // load fail ho to original bhej do
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Video ko 720p tak compress karta hai bina kisi heavy library (ffmpeg.wasm) ke.
+ * Tareeqa: video ko chupke se play karke, har frame ko canvas pe chhote size
+ * mein draw karte hain, phir canvas + original audio ko MediaRecorder se
+ * dobara record kar lete hain. Isme video ki poori length jitna hi time lagta
+ * hai (real-time), lekin phone pe koi bhaari download/processing nahi hoti.
+ *
+ * Agar browser is process ko support nahi karta (purane Safari wagera), to
+ * safely original file wapis kar deta hai - size-check wahan handle kar lega.
+ */
+function compressVideoTo720p(file, maxBitrate = 2000000) {
+  return new Promise((resolve) => {
+    if (!file.type || !file.type.startsWith("video/")) {
+      resolve(file);
+      return;
+    }
+    if (typeof MediaRecorder === "undefined" || !HTMLVideoElement.prototype.captureStream) {
+      console.warn("Video compression is browser mein supported nahi - original file bhej rahe hain");
+      resolve(file);
+      return;
+    }
+
+    const videoEl = document.createElement("video");
+    videoEl.muted = false;
+    videoEl.playsInline = true;
+    const objectUrl = URL.createObjectURL(file);
+    videoEl.src = objectUrl;
+
+    videoEl.onloadedmetadata = () => {
+      const longEdge = Math.max(videoEl.videoWidth, videoEl.videoHeight);
+
+      if (longEdge <= 720) {
+        // pehle se hi chhoti resolution hai, compress karne ki zaroorat nahi
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+        return;
+      }
+
+      const scale = 720 / longEdge;
+      const width = Math.round(videoEl.videoWidth * scale / 2) * 2;   // even number zaroori hai encoder ke liye
+      const height = Math.round(videoEl.videoHeight * scale / 2) * 2;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      try {
+        const sourceStream = videoEl.captureStream();
+        const canvasStream = canvas.captureStream(30); // 30 fps
+        const combinedStream = new MediaStream([
+          ...canvasStream.getVideoTracks(),
+          ...sourceStream.getAudioTracks(),
+        ]);
+
+        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm";
+
+        const recorder = new MediaRecorder(combinedStream, {
+          mimeType,
+          videoBitsPerSecond: maxBitrate,
+        });
+
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = () => {
+          URL.revokeObjectURL(objectUrl);
+          const compressedBlob = new Blob(chunks, { type: mimeType });
+          const compressedFile = new File(
+            [compressedBlob],
+            (file.name ? file.name.split(".")[0] : "video") + ".webm",
+            { type: mimeType }
+          );
+          resolve(compressedFile);
+        };
+        recorder.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(file); // kuch ghalat ho to original bhej do, reject mat karo
+        };
+
+        let rafId;
+        const drawFrame = () => {
+          if (videoEl.paused || videoEl.ended) return;
+          ctx.drawImage(videoEl, 0, 0, width, height);
+          rafId = requestAnimationFrame(drawFrame);
+        };
+
+        videoEl.onended = () => {
+          cancelAnimationFrame(rafId);
+          if (recorder.state !== "inactive") recorder.stop();
+        };
+
+        recorder.start();
+        videoEl.play().then(drawFrame).catch(() => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(file);
+        });
+      } catch (err) {
+        console.warn("Video compression fail ho gayi, original bhej rahe hain:", err);
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+      }
+    };
+
+    videoEl.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+  });
+}
+
+async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxSizeMB = 15) {
   if (!R2_PUBLIC_URLS[bucket]) {
     throw new Error(`Bucket "${bucket}" ke liye public URL R2_PUBLIC_URLS mein set nahi hai`);
+  }
+
+  // Agar image hai to 720p tak compress kar do
+  file = await compressImageTo720p(file);
+  // Agar video hai to 720p tak compress kar do (real 4K/high-res videos yahan chhoti ho jayengi)
+  file = await compressVideoTo720p(file);
+
+  // 0) Size guard - compression ke baad bhi agar itni bari ho ke practical na rahe, tabhi reject karo
+  const maxBytes = maxSizeMB * 1024 * 1024;
+  if (file.size > maxBytes) {
+    throw new Error(`File compress karne ke baad bhi bohot bari hai (${(file.size / 1024 / 1024).toFixed(1)}MB). Max limit: ${maxSizeMB}MB`);
   }
 
   // 1) File ka naam decide karo
@@ -33,6 +223,7 @@ async function uploadToR2(file, bucket, prefix = "file", onProgress = null) {
   } else if (file.type) {
     const type = file.type;
     if (type.includes("image")) extension = "jpg";
+    else if (type.includes("webm")) extension = "webm";
     else if (type.includes("video")) extension = "mp4";
     else if (type.includes("audio")) extension = "webm";
   }
