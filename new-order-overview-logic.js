@@ -309,7 +309,7 @@ async function confirmOrderFromOverview() {
             const promises = items.map(async (item) => {
                 try {
                     const file = item.data.file || item.data;
-                    return await uploadToR2(file, "fhd-order-attachments", prefix);
+                    return await uploadToR2(file, "order-media", { mediaType: prefix });
                 } catch (err) {
                     console.error("Single file skipped due to network:", err);
                     return null; 
