@@ -308,18 +308,8 @@ async function confirmOrderFromOverview() {
             if (!items || items.length === 0) return "";
             const promises = items.map(async (item) => {
                 try {
-                    const file = item.data.file || item.data; 
-                    let ext = defaultExt;
-                    if (file.name) {
-                        ext = file.name.split('.').pop();
-                    } else if (file.type) {
-                        const mimeExt = file.type.split('/')[1]?.split(';')[0];
-                        if (mimeExt) ext = mimeExt;
-                    }
-                    const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2,4)}.${ext}`;
-                    const { error } = await _supabase.storage.from('order-files').upload(fileName, file);
-                    if(error) throw error;
-                    return _supabase.storage.from('order-files').getPublicUrl(fileName).data.publicUrl;
+                    const file = item.data.file || item.data;
+                    return await uploadToR2(file, "fhd-order-attachments", prefix);
                 } catch (err) {
                     console.error("Single file skipped due to network:", err);
                     return null; 
