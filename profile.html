@@ -879,7 +879,7 @@
 
         let avatarUrl = undefined;
         if (newAvatarFile) {
-            avatarUrl = await uploadToR2(newAvatarFile, "fhd-chat-media", "avatar");
+            avatarUrl = await uploadToR2(newAvatarFile, "avatar", { mediaType: "image" });
         }
 
         const updateData = {
