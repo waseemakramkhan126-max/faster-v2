@@ -346,7 +346,11 @@
             
             try {
                 camStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: currentFacingMode }, 
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280, max: 1280 },
+                        height: { ideal: 720, max: 720 }
+                    }, 
                     audio: true 
                 });
                 document.getElementById('v').srcObject = camStream;
@@ -381,15 +385,23 @@
             if(cameraMode === 'photo') {
                 const v = document.getElementById('v');
                 const c = document.getElementById('c');
-                
-                c.width = v.videoWidth; 
-                c.height = v.videoHeight;
-                c.getContext('2d').drawImage(v, 0, 0);
+
+                // 720p cap - long edge 720 se zyada nahi jayega
+                let vw = v.videoWidth, vh = v.videoHeight;
+                const longEdge = Math.max(vw, vh);
+                if (longEdge > 720) {
+                    const scale = 720 / longEdge;
+                    vw = Math.round(vw * scale);
+                    vh = Math.round(vh * scale);
+                }
+                c.width = vw;
+                c.height = vh;
+                c.getContext('2d').drawImage(v, 0, 0, vw, vh);
                 
                 c.toBlob(b => {
                     stopCustomCamera();
                     processUpload(b, 'image', 'jpg');
-                }, 'image/jpeg');
+                }, 'image/jpeg', 0.85);
             } else { 
                 if(isCamRecording) stopVideo();
                 else startVideo();
@@ -400,7 +412,8 @@
             isCamRecording = true; 
             videoChunks = [];
             
-            camMediaRecorder = new MediaRecorder(camStream);
+            const recorderOptions = { videoBitsPerSecond: 2000000 }; // ~2 Mbps, 720p ke liye kaafi hai, file size chhota rakhta hai
+            camMediaRecorder = new MediaRecorder(camStream, recorderOptions);
             camMediaRecorder.ondataavailable = e => videoChunks.push(e.data);
             
             camMediaRecorder.onstop = () => {
