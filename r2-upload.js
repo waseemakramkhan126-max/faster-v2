@@ -111,7 +111,7 @@ function compressVideoTo720p(file, maxBitrate = 2000000) {
     }
 
     const videoEl = document.createElement("video");
-    videoEl.muted = false;
+    videoEl.muted = true;   // sirf playback silent karta hai - audio track captureStream() mein phir bhi aati hai
     videoEl.playsInline = true;
     const objectUrl = URL.createObjectURL(file);
     videoEl.src = objectUrl;
