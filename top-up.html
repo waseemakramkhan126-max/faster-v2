@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="r2-upload.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
         body { 
@@ -233,16 +234,8 @@
             btn.innerHTML = `<i class="fas fa-circle-notch fa-spin"></i> Processing...`;
 
             try {
-                // 1. Upload Image to Storage 
-                const fileExt = selectedFile.name.split('.').pop();
-                const fileName = `topups/proof_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-                
-                const { error: uploadError } = await _supabase.storage.from('order-files').upload(fileName, selectedFile);
-                if (uploadError) throw new Error("Image Upload Failed!");
-
-                // Get Public URL
-                const { data: urlData } = _supabase.storage.from('order-files').getPublicUrl(fileName);
-                const proofUrl = urlData.publicUrl;
+                // 1. Upload Image to R2
+                const proofUrl = await uploadToR2(selectedFile, 'fhd-order-attachments', 'topup_proof');
 
                 // 2. Bank details snapshot capture
                 const bankInfo = `Bank: ${document.getElementById('bankName').innerText} | Acc: ${document.getElementById('bankAccNo').innerText}`;
