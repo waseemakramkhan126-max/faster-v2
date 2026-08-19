@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="r2-upload.js"></script>
     <style>
         /* Strict Mobile WebView & iOS Optimization */
         html, body { 
@@ -366,7 +367,6 @@
 
         async function processUpload(fileOrBlob, type, ext) {
             if(!navigator.onLine) { alert("No internet connection!"); return; }
-            const name = `csr/${type}_${Date.now()}.${ext}`;
 
             const tempId = Date.now();
             // sender_id update kia
@@ -374,16 +374,9 @@
             appendToUI(tempMsg);
 
             try {
-                // order-files ki jagah chat_files
-                const { data, error } = await _supabase.storage.from('chat_files').upload(name, fileOrBlob);
-                if(error) throw error;
-
-                if(data) {
-                    // order-files ki jagah chat_files
-                    const { data: urlData } = _supabase.storage.from('chat_files').getPublicUrl(name);
-                    document.getElementById(`msg-${tempId}`).parentElement.remove();
-                    sendMsg(type, '', urlData.publicUrl);
-                }
+                const publicUrl = await uploadToR2(fileOrBlob, 'fhd-chat-media', `csr_${type}`);
+                document.getElementById(`msg-${tempId}`).parentElement.remove();
+                sendMsg(type, '', publicUrl);
             } catch(e) {
                 console.error("Upload Error:", e);
                 alert("Upload failed: " + e.message);
