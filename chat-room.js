@@ -396,7 +396,7 @@ function showTypingIndicator(show) {
 // 10. MEDIA UPLOAD
 // =========================================================
 async function uploadChatFile(file) {
-    return await uploadToR2(file, "fhd-chat-media", "chat");
+    return await uploadToR2(file, "chat-media", { idFolder: conversationId });
 }
 
 // Upload with progress + local preview
@@ -497,7 +497,7 @@ function updateProgressBar(bubble, progress) {
 }
 
 async function uploadChatFileWithProgress(file, onProgress) {
-    return await uploadToR2(file, "fhd-chat-media", "chat", onProgress);
+    return await uploadToR2(file, "chat-media", { idFolder: conversationId, onProgress });
 }
 
 // =========================================================
