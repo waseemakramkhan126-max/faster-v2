@@ -329,7 +329,7 @@
             appendToUI(tempMsg);
 
             try {
-                const publicUrl = await uploadToR2(fileOrBlob, 'fhd-chat-media', `orders_${type}`);
+                const publicUrl = await uploadToR2(fileOrBlob, 'chat-media', { idFolder: orderId, mediaType: type });
                 document.getElementById(`msg-${tempId}`).parentElement.remove();
                 sendMsg(type, '', publicUrl);
             } catch(e) {
