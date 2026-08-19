@@ -1,4 +1,3 @@
-<!-- R2 MIGRATION -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,18 +42,21 @@
     <input type="hidden" id="editAddress">
 
     <div id="topAppBar" class="bg-[#0077b9] py-2 px-3 shadow-sm shrink-0 border-b border-gray-200 z-40 flex items-center justify-between">
-       <span class="text-xs font-extrabold text-white tracking-widest">Enter Order Details</span>
+   <!-- Right padding (pr-20) add kiya taake text button se na takray -->
+   <span class="text-xs font-extrabold text-white tracking-widest">Enter Order Details</span>
+   
+   <!-- Button container right side par shift ho gaya -->
+   <div class="flex items-center gap-2 bg-white/10 px-2.5 py-1 rounded-full backdrop-blur-sm">
+       <!-- Text ko "Get AI Reply" aur status ON/OFF ke sath update kiya -->
+       <span class="text-[9px] font-bold text-white tracking-wider leading-none">Get AI Reply</span>
+       <span id="aiStatusLabel" class="text-[10px] font-bold text-white bg-black/20 px-1.5 py-0.5 rounded-full leading-none">ON</span>
        
-       <div class="flex items-center gap-2 bg-white/10 px-2.5 py-1 rounded-full backdrop-blur-sm">
-           <span class="text-[9px] font-bold text-white tracking-wider leading-none">Get AI Reply</span>
-           <span id="aiStatusLabel" class="text-[10px] font-bold text-white bg-black/20 px-1.5 py-0.5 rounded-full leading-none">ON</span>
-           
-           <label class="relative inline-flex items-center cursor-pointer ml-1">
-               <input type="checkbox" id="aiToggle" class="sr-only peer" onchange="toggleAI()">
-               <div class="w-8 h-5 bg-gray-300/80 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500 shadow-inner"></div>
-           </label>
-       </div>
-    </div>
+       <label class="relative inline-flex items-center cursor-pointer ml-1">
+           <input type="checkbox" id="aiToggle" class="sr-only peer" onchange="toggleAI()">
+           <div class="w-8 h-5 bg-gray-300/80 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500 shadow-inner"></div>
+       </label>
+   </div>
+</div>
 
     <div id="chatArea" class="chat-bg relative flex-1 overflow-y-auto p-4 flex flex-col gap-3">
         <div id="emptyPlaceholder" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
@@ -69,7 +71,7 @@
     </div>
 
     <footer class="bg-transparent p-2.5 pb-safe flex items-end gap-2 shrink-0 z-50">
-        <button id="plusBtn" onclick="toggleAttachMenu()" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors disabled:opacity-50">
+        <button onclick="toggleAttachMenu()" id="plusBtn" class="w-11 h-11 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm shrink-0 active:bg-gray-200 transition-colors">
             <i class="fas fa-plus transition-transform duration-300 text-lg" id="plusIcon"></i>
         </button>
         
@@ -82,10 +84,10 @@
             <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
         </div>
 
-        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform disabled:opacity-50">
+        <button id="sendBtn" onclick="addToDraft('text')" class="hidden w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
             <i class="fas fa-paper-plane text-sm ml-0.5"></i>
         </button>
-        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform disabled:opacity-50">
+        <button id="voiceBtn" onclick="handleVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
             <i class="fas fa-microphone" id="micIcon"></i>
         </button>
     </footer>
@@ -144,13 +146,20 @@
             
             <div class="bg-white py-1 px-3 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>
-                        <i class="fas fa-user-circle mr-1"></i>
-                        Customer Info
-                    </span>
-                    <button onclick="window.location.href='profile.html'" class="bg-blue-600 text-white px-3 py-1 rounded-full text-[10px] font-bold">
-                        Edit
-                    </button>
+
+    <span>
+        <i class="fas fa-user-circle mr-1"></i>
+        Customer Info
+    </span>
+
+    <button
+        onclick="window.location.href='profile.html'"
+        class="bg-blue-600 text-white px-3 py-1 rounded-full text-[10px] font-bold">
+
+        Edit
+
+    </button>
+
                 </h3>
                 <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-0.5 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#0077b9] bg-transparent">
                 <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-0.5 outline-none text-[13px] text-gray-800 resize-none focus:border-[#0077b9] bg-transparent"></textarea>
@@ -189,47 +198,11 @@
         </div>
     </div>
 
-    <!-- R2 MIGRATION SCRIPT HELPER -->
-    <script>
-        const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
-        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
-        const _supabase = supabase.createClient(SB_URL, SB_KEY);
-
-        window.isUploadingR2 = false;
-
-        async function uploadFileToR2(file, bucketName = 'fhd-order-attachments') {
-            if (!file) throw new Error("No file provided for upload");
-            if (file.size > 50 * 1024 * 1024) {
-                throw new Error("File size exceeds 50MB limit");
-            }
-
-            const fileType = file.type || 'application/octet-stream';
-            const fileName = `${Date.now()}_${file.name || 'file'}`;
-
-            const { data, error } = await _supabase.functions.invoke('get-r2-upload-url', {
-                body: { fileName, fileType, bucket: bucketName }
-            });
-
-            if (error || !data || !data.uploadUrl) {
-                throw (error || new Error("Failed to get R2 presigned upload URL"));
-            }
-
-            const uploadRes = await fetch(data.uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': fileType }
-            });
-
-            if (!uploadRes.ok) {
-                throw new Error(`R2 Upload Failed with status ${uploadRes.status}`);
-            }
-
-            return data.publicUrl;
-        }
-    </script>
-
     <script src="new-order-logic.js"></script>
     <script src="new-order-ai-logic.js"></script>
+    <script src="r2-upload.js"></script>
     <script src="new-order-overview-logic.js"></script>
+    
+
 </body>
 </html>
