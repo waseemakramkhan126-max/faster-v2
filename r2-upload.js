@@ -8,16 +8,41 @@ const R2_SIGN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/get-r
 // Har bucket ka PUBLIC read URL yahan daalna hai (Cloudflare dashboard > R2 > bucket > Settings > Public access)
 // Agar custom domain attach kiya hai to wo daalo, warna r2.dev wala default public URL daalo.
 const R2_PUBLIC_URLS = {
-  "fhd-chat-media": "https://pub-0644051494ec47cbb47f26ad38a126a3.r2.dev",        // <-- yahan apna actual public URL daalo
-  "fhd-order-attachments": "https://pub-daf1d956e5824b989882b046084e4602.r2.dev", // <-- yahan apna actual public URL daalo
-  "fhd-promo": "https://pub-6afb8cbe1c8247b889f1463fa6d08e5e.r2.dev",             // <-- yahan apna actual public URL daalo
-  "fhd-reels": "https://pub-8f65c266b6834e6da24316a3e30a68a0.r2.dev",             // <-- yahan apna actual public URL daalo
+  "chat-media": "https://pub-b3bd78e415ca4687899a00b583758b27.r2.dev",       // <-- chat images/video/voice/docs (per-chat folders)
+  "order-media": "https://pub-5b5b2aaa696b45ef8fb6ff789512827f.r2.dev",      // <-- order images/video/voice/docs
+  "topup-proofs": "https://pub-5fdc8396cde74f939a13206c2c9808e6.r2.dev",     // <-- wallet top-up payment screenshots
+  "withdraw-proofs": "https://pub-b63a99f4a7fc4631b37b75cc653f46ba.r2.dev",  // <-- withdrawal proof (future feature)
+  "avatar": "https://pub-da8010faed2246b5af1fecf5e03a407f.r2.dev",           // <-- profile pictures
+  "promo-banners": "https://pub-186da9a78c444e858a4ec1b9884f4a7c.r2.dev",    // <-- home page banners (future/admin)
+  "reels": "https://pub-336c31da7c304b2894079d12fa019ccf.r2.dev",            // <-- reels videos (future feature)
+  "rider-docs": "https://pub-891828568b0b42dab39d2abff5fff1f5.r2.dev",       // <-- rider CNIC/license/bike docs (future)
+  "branding": "https://pub-46c1f50284b64647914d7901e1dd5fea.r2.dev",         // <-- app logos/branding assets (future)
 };
+
+/**
+ * File ke MIME type ya explicit hint se media-type folder ka naam nikalta hai.
+ * Sab jagah same 4 naam use hote hain taake folder structure consistent rahe: image / video / voice / docs
+ */
+function normalizeMediaType(hint, file) {
+  const h = (hint || "").toLowerCase();
+  if (["image", "photo", "img"].includes(h)) return "image";
+  if (["video", "vid"].includes(h)) return "video";
+  if (["voice", "audio"].includes(h)) return "voice";
+  if (["doc", "docs", "document", "file"].includes(h)) return "docs";
+
+  // hint na mile to file.type se guess karo
+  if (file && file.type) {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.type.startsWith("audio/")) return "voice";
+  }
+  return "docs";
+}
 
 /**
  * File ko R2 pe upload karta hai aur uska public URL return karta hai.
  * @param {File} file - jo file upload karni hai
- * @param {string} bucket - bucket ka naam, e.g. "fhd-chat-media"
+ * @param {string} bucket - bucket ka naam, e.g. "chat-media", "order-media", "avatar"
  * @param {string} prefix - filename prefix, e.g. "chat", "order", "avatar"
  * @param {function} [onProgress] - optional callback(percent)
  */
@@ -200,7 +225,27 @@ function compressVideoTo720p(file, maxBitrate = 2000000) {
   });
 }
 
-async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxSizeMB = 15) {
+/**
+ * File ko R2 pe upload karta hai aur uska public URL return karta hai.
+ *
+ * @param {File} file - jo file upload karni hai
+ * @param {string} bucket - bucket ka naam: "chat-media", "order-media", "topup-proofs",
+ *                          "withdraw-proofs", "avatar", "promo-banners", "reels", "rider-docs", "branding"
+ * @param {object} [options]
+ * @param {string} [options.idFolder] - chat-media ke liye zaroori: conversation/order/room ka number/ID
+ *                                       (folder isi number se banega)
+ * @param {string} [options.mediaType] - "image" | "video" | "voice" | "docs" (na diya to file.type se guess hoga)
+ * @param {function} [options.onProgress] - callback(percent)
+ * @param {number} [options.maxSizeMB] - default 15
+ *
+ * Folder structure:
+ *   chat-media    -> {idFolder}/{mediaType}/{mediaType}_{idFolder}_{timestamp}_{rand}.{ext}
+ *   order-media   -> {mediaType}/{mediaType}_{timestamp}_{rand}.{ext}
+ *   baqi buckets  -> flat: {mediaType}_{timestamp}_{rand}.{ext}
+ */
+async function uploadToR2(file, bucket, options = {}) {
+  const { idFolder = null, mediaType = null, onProgress = null, maxSizeMB = 15 } = options;
+
   if (!R2_PUBLIC_URLS[bucket]) {
     throw new Error(`Bucket "${bucket}" ke liye public URL R2_PUBLIC_URLS mein set nahi hai`);
   }
@@ -216,7 +261,7 @@ async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxS
     throw new Error(`File compress karne ke baad bhi bohot bari hai (${(file.size / 1024 / 1024).toFixed(1)}MB). Max limit: ${maxSizeMB}MB`);
   }
 
-  // 1) File ka naam decide karo
+  // 1) Extension decide karo
   let extension = "bin";
   if (file.name) {
     extension = file.name.split(".").pop();
@@ -227,17 +272,31 @@ async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxS
     else if (type.includes("video")) extension = "mp4";
     else if (type.includes("audio")) extension = "webm";
   }
-  const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${extension}`;
+
+  // 2) Media-type folder nikalo (image/video/voice/docs)
+  const type = normalizeMediaType(mediaType, file);
+  const uniquePart = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+  // 3) Bucket ke hisaab se key (path) banao
+  let key;
+  if (bucket === "chat-media") {
+    if (!idFolder) throw new Error('chat-media bucket ke liye "idFolder" (conversation/order/room number) zaroori hai');
+    key = `${idFolder}/${type}/${type}_${idFolder}_${uniquePart}.${extension}`;
+  } else if (bucket === "order-media") {
+    key = `${type}/${type}_${uniquePart}.${extension}`;
+  } else {
+    key = `${type}_${uniquePart}.${extension}`;
+  }
 
   if (onProgress) onProgress(10);
 
-  // 2) Edge Function se presigned URL mango
+  // 4) Edge Function se presigned URL mango
   const signRes = await fetch(R2_SIGN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       bucket: bucket,
-      fileName: fileName,
+      fileName: key,
       fileType: file.type || "application/octet-stream",
     }),
   });
@@ -252,7 +311,7 @@ async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxS
 
   if (onProgress) onProgress(40);
 
-  // 3) File ko seedha R2 pe PUT karo (presigned URL ke through)
+  // 5) File ko seedha R2 pe PUT karo (presigned URL ke through)
   const putRes = await fetch(uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -265,8 +324,8 @@ async function uploadToR2(file, bucket, prefix = "file", onProgress = null, maxS
 
   if (onProgress) onProgress(90);
 
-  // 4) Public URL banao (koi extra call nahi chahiye)
-  const publicUrl = `${R2_PUBLIC_URLS[bucket]}/${fileName}`;
+  // 6) Public URL banao (koi extra call nahi chahiye)
+  const publicUrl = `${R2_PUBLIC_URLS[bucket]}/${key}`;
 
   if (onProgress) onProgress(100);
   return publicUrl;
