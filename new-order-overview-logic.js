@@ -303,7 +303,8 @@ async function confirmOrderFromOverview() {
         
         await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
 
-        // Safe Media Cloud Upload Handling
+        // Safe Media Cloud Upload Handling - ab errors chup nahi rahenge, list mein collect hote hain
+        const uploadErrors = [];
         const uploadAll = async (items, prefix, defaultExt) => {
             if (!items || items.length === 0) return "";
             const promises = items.map(async (item) => {
@@ -311,7 +312,8 @@ async function confirmOrderFromOverview() {
                     const file = item.data.file || item.data;
                     return await uploadToR2(file, "order-media", { mediaType: prefix });
                 } catch (err) {
-                    console.error("Single file skipped due to network:", err);
+                    console.error(`Upload fail (${prefix}):`, err);
+                    uploadErrors.push(`${prefix}: ${err.message || err}`);
                     return null; 
                 }
             });
@@ -320,9 +322,24 @@ async function confirmOrderFromOverview() {
         };
         
         const [imgURLs, vidURLs, vceURLs, docURLs] = await Promise.all([
-            uploadAll(draftData.images, 'img', 'jpg'), uploadAll(draftData.videos, 'vid', 'mp4'),
-            uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'doc', 'pdf')
+            uploadAll(draftData.images, 'image', 'jpg'), uploadAll(draftData.videos, 'video', 'mp4'),
+            uploadAll(draftData.voices, 'voice', 'webm'), uploadAll(draftData.docs, 'docs', 'pdf')
         ]);
+
+        // Agar koi bhi file upload fail hui to order place hone se PEHLE customer ko dikhao
+        if (uploadErrors.length > 0) {
+            const proceed = await Dialog.show(
+                "⚠️ Media Upload Failed",
+                `Kuch files upload nahi ho saki:\n${uploadErrors.join("\n")}\n\nKya order text ke saath aage badhayein?`,
+                "confirm"
+            );
+            if (!proceed) {
+                btn.disabled = false;
+                btn.innerHTML = `Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>`;
+                btn.classList.replace('bg-gray-400', 'bg-orange-600');
+                return;
+            }
+        }
 
         let finalStatus = 'pending';
         let scheduledAtValue = null;
