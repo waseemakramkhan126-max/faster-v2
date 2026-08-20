@@ -2,27 +2,20 @@
 // R2 UPLOAD HELPER - shared across chat-room.js, new-order-overview-logic.js, profile.html
 // =========================================================
 
-// Supabase Edge Function jo presigned upload URL deta hai
 const R2_SIGN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/r2-upload-url";
 
-// Har bucket ka PUBLIC read URL yahan daalna hai (Cloudflare dashboard > R2 > bucket > Settings > Public access)
-// Agar custom domain attach kiya hai to wo daalo, warna r2.dev wala default public URL daalo.
 const R2_PUBLIC_URLS = {
-  "chat-media": "https://pub-AAAAAAAAAAAA.r2.dev",       // <-- chat images/video/voice/docs (per-chat folders)
-  "order-media": "https://pub-BBBBBBBBBBBB.r2.dev",      // <-- order images/video/voice/docs
-  "topup-proofs": "https://pub-CCCCCCCCCCCC.r2.dev",     // <-- wallet top-up payment screenshots
-  "withdraw-proofs": "https://pub-DDDDDDDDDDDD.r2.dev",  // <-- withdrawal proof (future feature)
-  "avatar": "https://pub-EEEEEEEEEEEE.r2.dev",           // <-- profile pictures
-  "promo-banners": "https://pub-FFFFFFFFFFFF.r2.dev",    // <-- home page banners (future/admin)
-  "reels": "https://pub-GGGGGGGGGGGG.r2.dev",            // <-- reels videos (future feature)
-  "rider-docs": "https://pub-HHHHHHHHHHHH.r2.dev",       // <-- rider CNIC/license/bike docs (future)
-  "branding": "https://pub-IIIIIIIIIIII.r2.dev",         // <-- app logos/branding assets (future)
+  "chat-media": "https://pub-AAAAAAAAAAAA.r2.dev",
+  "order-media": "https://pub-5b5b2aaa696b45ef8fb6ff789512827f.r2.dev",
+  "topup-proofs": "https://pub-CCCCCCCCCCCC.r2.dev",
+  "withdraw-proofs": "https://pub-DDDDDDDDDDDD.r2.dev",
+  "avatar": "https://pub-EEEEEEEEEEEE.r2.dev",
+  "promo-banners": "https://pub-FFFFFFFFFFFF.r2.dev",
+  "reels": "https://pub-GGGGGGGGGGGG.r2.dev",
+  "rider-docs": "https://pub-HHHHHHHHHHHH.r2.dev",
+  "branding": "https://pub-IIIIIIIIIIII.r2.dev",
 };
 
-/**
- * File ke MIME type ya explicit hint se media-type folder ka naam nikalta hai.
- * Sab jagah same 4 naam use hote hain taake folder structure consistent rahe: image / video / voice / docs
- */
 function normalizeMediaType(hint, file) {
   const h = (hint || "").toLowerCase();
   if (["image", "photo", "img"].includes(h)) return "image";
