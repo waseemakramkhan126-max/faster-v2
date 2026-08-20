@@ -5,15 +5,15 @@
 const R2_SIGN_URL = "https://hkabhikizdlbavfkualt.supabase.co/functions/v1/r2-upload-url";
 
 const R2_PUBLIC_URLS = {
-  "chat-media": "https://pub-AAAAAAAAAAAA.r2.dev",
+  "chat-media": "https://pub-b3bd78e415ca4687899a00b583758b27.r2.dev",
   "order-media": "https://pub-5b5b2aaa696b45ef8fb6ff789512827f.r2.dev",
-  "topup-proofs": "https://pub-CCCCCCCCCCCC.r2.dev",
-  "withdraw-proofs": "https://pub-DDDDDDDDDDDD.r2.dev",
-  "avatar": "https://pub-EEEEEEEEEEEE.r2.dev",
-  "promo-banners": "https://pub-FFFFFFFFFFFF.r2.dev",
-  "reels": "https://pub-GGGGGGGGGGGG.r2.dev",
-  "rider-docs": "https://pub-HHHHHHHHHHHH.r2.dev",
-  "branding": "https://pub-IIIIIIIIIIII.r2.dev",
+  "topup-proofs": "https://pub-5fdc8396cde74f939a13206c2c9808e6.r2.dev",
+  "withdraw-proofs": "https://pub-b63a99f4a7fc4631b37b75cc653f46ba.r2.dev",
+  "avatar": "https://pub-da8010faed2246b5af1fecf5e03a407f.r2.dev",
+  "promo-banners": "https://pub-186da9a78c444e858a4ec1b9884f4a7c.r2.dev",
+  "reels": "https://pub-336c31da7c304b2894079d12fa019ccf.r2.dev",
+  "rider-docs": "https://pub-891828568b0b42dab39d2abff5fff1f5.r2.dev",
+  "branding": "https://pub-46c1f50284b64647914d7901e1dd5fea.r2.dev",
 };
 
 function normalizeMediaType(hint, file) {
