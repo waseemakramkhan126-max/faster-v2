@@ -124,7 +124,10 @@ function compressImageTo720p(file, quality = 0.8) {
  * safely original file wapis kar deta hai - size-check wahan handle kar lega.
  */
 function compressVideoTo720p(file, maxBitrate = 2000000) {
-  return new Promise((resolve) => {
+  const HARD_TIMEOUT_MS = 45000;     // 45 second - poora process itne se zyada na le
+  const METADATA_TIMEOUT_MS = 10000; // 10 second - video load hi na ho to itna wait karo
+
+  const attempt = new Promise((resolve) => {
     if (!file.type || !file.type.startsWith("video/")) {
       resolve(file);
       return;
@@ -141,7 +144,14 @@ function compressVideoTo720p(file, maxBitrate = 2000000) {
     const objectUrl = URL.createObjectURL(file);
     videoEl.src = objectUrl;
 
+    const metadataTimer = setTimeout(() => {
+      console.warn("Video metadata load nahi hui (timeout) - original file bhej rahe hain");
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    }, METADATA_TIMEOUT_MS);
+
     videoEl.onloadedmetadata = () => {
+      clearTimeout(metadataTimer);
       const longEdge = Math.max(videoEl.videoWidth, videoEl.videoHeight);
 
       if (longEdge <= 720) {
@@ -219,10 +229,22 @@ function compressVideoTo720p(file, maxBitrate = 2000000) {
     };
 
     videoEl.onerror = () => {
+      clearTimeout(metadataTimer);
       URL.revokeObjectURL(objectUrl);
       resolve(file);
     };
   });
+
+  // Hard safety net - chahe kuch bhi ho jaye, itne time ke baad original file ke sath aage badh jao.
+  // Isse button kabhi hamesha ke liye "processing" pe atka nahi rahega.
+  const hardTimeout = new Promise((resolve) => {
+    setTimeout(() => {
+      console.warn("Video compression hard-timeout - original file bhej rahe hain");
+      resolve(file);
+    }, HARD_TIMEOUT_MS);
+  });
+
+  return Promise.race([attempt, hardTimeout]);
 }
 
 /**
@@ -243,6 +265,25 @@ function compressVideoTo720p(file, maxBitrate = 2000000) {
  *   order-media   -> {mediaType}/{mediaType}_{timestamp}_{rand}.{ext}
  *   baqi buckets  -> flat: {mediaType}_{timestamp}_{rand}.{ext}
  */
+/**
+ * Normal fetch() jaisa hi hai, bas agar server itne time mein response na de to
+ * clear error ke sath fail ho jata hai - hamesha ke liye latka nahi rehta.
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(`Request timeout (${timeoutMs / 1000}s) - internet slow hai ya server respond nahi kar raha`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function uploadToR2(file, bucket, options = {}) {
   const { idFolder = null, mediaType = null, onProgress = null, maxSizeMB = 15 } = options;
 
@@ -290,8 +331,8 @@ async function uploadToR2(file, bucket, options = {}) {
 
   if (onProgress) onProgress(10);
 
-  // 4) Edge Function se presigned URL mango
-  const signRes = await fetch(R2_SIGN_URL, {
+  // 4) Edge Function se presigned URL mango (30 second timeout ke sath)
+  const signRes = await fetchWithTimeout(R2_SIGN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -299,7 +340,7 @@ async function uploadToR2(file, bucket, options = {}) {
       fileName: key,
       fileType: file.type || "application/octet-stream",
     }),
-  });
+  }, 30000);
 
   if (!signRes.ok) {
     const errBody = await signRes.text();
@@ -311,12 +352,12 @@ async function uploadToR2(file, bucket, options = {}) {
 
   if (onProgress) onProgress(40);
 
-  // 5) File ko seedha R2 pe PUT karo (presigned URL ke through)
-  const putRes = await fetch(uploadUrl, {
+  // 5) File ko seedha R2 pe PUT karo (presigned URL ke through, 60 second timeout)
+  const putRes = await fetchWithTimeout(uploadUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type || "application/octet-stream" },
     body: file,
-  });
+  }, 60000);
 
   if (!putRes.ok) {
     throw new Error(`R2 upload fail: ${putRes.status} ${putRes.statusText}`);
