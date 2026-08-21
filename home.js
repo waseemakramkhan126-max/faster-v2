@@ -103,13 +103,16 @@ async function checkNotifications() {
         const totalUpdates = (orderRes.count || 0) + (notifRes.count || 0) + (promoRes.count || 0) + (topupRes.count || 0) + (withdrawRes.count || 0);
         const bell = document.getElementById('notifBell');
         const badge = document.getElementById('notifBadge');
+        const countEl = document.getElementById('notifCount');
 
         if (totalUpdates > 0) {
             badge.classList.add('active');
             bell.classList.add('bell-active');
+            if (countEl) countEl.innerText = totalUpdates > 9 ? '9+' : totalUpdates;
         } else {
             badge.classList.remove('active');
             bell.classList.remove('bell-active');
+            if (countEl) countEl.innerText = '0';
         }
     } catch (e) { console.error("Notification sync failed", e); }
 }
@@ -565,6 +568,113 @@ function formatTime(timestamp) {
     if (diff < 172800000) return 'Yesterday';
     return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
+
+// ============================================================
+// NEW DESIGN ADDITIONS (dots, trending cards, offers strip)
+// These are additive - none of the original functions above were removed.
+// ============================================================
+
+// ---- Promo carousel dots (reuses promosData already fetched by fetchPromotions) ----
+function renderPromoDots() {
+    const dotsWrap = document.getElementById('promoDots');
+    if (!dotsWrap) return;
+    dotsWrap.innerHTML = '';
+    if (!promosData || promosData.length <= 1) return;
+
+    promosData.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i === 0 ? ' active' : '');
+        dotsWrap.appendChild(d);
+    });
+
+    const slider = document.getElementById('promoSlider');
+    if (!slider || slider.dataset.dotsBound) return;
+    slider.dataset.dotsBound = 'true';
+    slider.addEventListener('scroll', () => {
+        if (slider.classList.contains('tiktok-fullscreen')) return;
+        const slideWidth = slider.clientWidth || 1;
+        const idx = Math.round(slider.scrollLeft / slideWidth);
+        document.querySelectorAll('#promoDots .dot').forEach((d, i) => {
+            d.classList.toggle('active', i === idx);
+        });
+    });
+}
+
+// ---- Trending Foodie Shorts & Reels (reuses vendor data fetched by initVendorStrip) ----
+function renderTrendingSection(vendors) {
+    const strip = document.getElementById('trendingReelsStrip');
+    if (!strip) return;
+
+    if (!vendors || vendors.length === 0) {
+        strip.innerHTML = '<p class="text-center text-gray-400 text-xs py-6 w-full">No trending items yet</p>';
+        return;
+    }
+
+    strip.innerHTML = '';
+    vendors.slice(0, 10).forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'trend-card';
+        const img = v.logo_url || '';
+        card.innerHTML = `
+            ${img
+                ? `<img src="${img}" onerror="this.src='https://via.placeholder.com/130x150/1e293b/ffffff?text=${encodeURIComponent(v.name || 'Store')}'">`
+                : `<img src="https://via.placeholder.com/130x150/1e293b/ffffff?text=${encodeURIComponent(v.name || 'Store')}">`
+            }
+            <i class="fas fa-play-circle trend-play-icon"></i>
+            <div class="trend-info">
+                <div class="trend-name">${v.name || 'Store'}</div>
+                <div class="trend-meta"><i class="fas fa-star"></i> ${v.rating || '4.5'} &nbsp; ${v.delivery_time || '30-40 min'}</div>
+            </div>
+        `;
+        card.addEventListener('click', () => {
+            window.location.href = 'vendor-products.html?id=' + v.id;
+        });
+        strip.appendChild(card);
+    });
+}
+
+// ---- Promotions & Offers small-card strip (reuses same promosData, second presentation) ----
+function renderPromoOffers() {
+    const strip = document.getElementById('promoOffersStrip');
+    if (!strip) return;
+
+    if (!promosData || promosData.length === 0) {
+        strip.innerHTML = '<p class="text-center text-gray-400 text-xs py-4 w-full">No offers available</p>';
+        return;
+    }
+
+    const bgColors = ['#FCE4EF', '#FFF1E6', '#E6F4FF', '#EAFBEF'];
+    const iconColors = ['#E31C79', '#F97316', '#3B82F6', '#10B981'];
+
+    strip.innerHTML = '';
+    promosData.forEach((promo, i) => {
+        const card = document.createElement('div');
+        card.className = 'offer-card';
+        card.style.background = bgColors[i % bgColors.length];
+        card.innerHTML = `
+            <h4 style="color:${iconColors[i % iconColors.length]}">${promo.title || 'Special Offer'}</h4>
+            <p class="text-slate-600">${promo.promo_text || promo.category || ''}</p>
+            <i class="fas fa-tag offer-icon" style="color:${iconColors[i % iconColors.length]}"></i>
+        `;
+        card.addEventListener('click', () => toggleTikTokFullscreen(i));
+        strip.appendChild(card);
+    });
+}
+
+// Hook into the existing fetchPromotions/initVendorStrip results without editing their internals:
+// small polling-free approach - run shortly after the original fetch calls complete.
+const _origFetchPromotions = fetchPromotions;
+fetchPromotions = async function() {
+    await _origFetchPromotions();
+    renderPromoDots();
+    renderPromoOffers();
+};
+
+const _origInitVendorStrip = initVendorStrip;
+initVendorStrip = async function() {
+    await _origInitVendorStrip();
+    renderTrendingSection(vendorData);
+};
 
 // ============================================================
 // WINDOW ONLOAD
