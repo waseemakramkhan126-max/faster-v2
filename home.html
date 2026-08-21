@@ -93,51 +93,30 @@
             </div>
         </div>
 
-        <!-- Search bar (opens order flow - no dedicated search backend yet) -->
-        <div class="search-bar" onclick="location.href='new-order.html'">
-            <i class="fas fa-search search-icon-left"></i>
-            <span class="search-placeholder">Search food, grocery, pharmacy, stores...</span>
-            <button class="search-go-btn" onclick="event.stopPropagation(); location.href='new-order.html'">
-                <i class="fas fa-search"></i>
-            </button>
-        </div>
     </header>
 
-    <!-- ================= CATEGORY ICONS ================= -->
-    <div class="category-row">
-        <div class="category-item" onclick="location.href='new-order.html?cat=food'">
-            <div class="category-icon"><i class="fas fa-hamburger"></i></div>
-            <span>Food</span>
-        </div>
-        <div class="category-item" onclick="location.href='new-order.html?cat=grocery'">
-            <div class="category-icon"><i class="fas fa-carrot"></i></div>
-            <span>Grocery</span>
-        </div>
-        <div class="category-item" onclick="location.href='new-order.html?cat=pharmacy'">
-            <div class="category-icon"><i class="fas fa-prescription-bottle-medical"></i></div>
-            <span>Pharmacy</span>
-        </div>
-        <div class="category-item" onclick="location.href='new-order.html?cat=desi'">
-            <div class="category-icon"><i class="fas fa-bowl-food"></i></div>
-            <span>Desi Food</span>
-        </div>
-        <div class="category-item" onclick="toggleMenu()">
-            <div class="category-icon"><i class="fas fa-ellipsis"></i></div>
-            <span>More</span>
+    <!-- ================= VENDORS ROW (logo + name, auto-slide + manual swipe, click -> that vendor's products) ================= -->
+    <div class="vendor-section-wrap">
+        <div class="vendor-strip-wrapper" id="vendorStripWrapper">
+            <div class="vendor-strip" id="vendorStrip"></div>
         </div>
     </div>
 
-    <!-- ================= PROMOTIONS (existing feature, restyled) ================= -->
-    <div class="mt-2 px-5">
-        <div id="promoContainer" class="relative">
-            <div id="promoSlider" class="flex overflow-x-auto no-scrollbar scroll-smooth"></div>
-            <div id="promoDots" class="promo-dots"></div>
-        </div>
+    <!-- promoContainer/promoSlider/promoDots kept in DOM (hidden) only so existing fetchPromotions()/renderPromoDots() JS keeps working without errors -->
+    <div id="promoContainer" class="relative" style="display:none;">
+        <div id="promoSlider" class="flex overflow-x-auto no-scrollbar scroll-smooth"></div>
+        <div id="promoDots" class="promo-dots"></div>
     </div>
 
-    <!-- ================= VENDORS STRIP (existing feature, kept, feeds "Trending" section below) ================= -->
-    <div class="vendor-strip-wrapper hidden" id="vendorStripWrapper">
-        <div class="vendor-strip" id="vendorStrip"></div>
+    <!-- ================= PROMOTIONS & OFFERS (auto-slide + manual swipe) ================= -->
+    <div class="mt-4 px-5">
+        <div class="section-head">
+            <h2>Promotions &amp; Offers</h2>
+            <a href="#" class="see-all">See all</a>
+        </div>
+        <div id="promoOffersStrip" class="promo-offers-strip no-scrollbar">
+            <p class="text-center text-gray-400 text-xs py-4 w-full">Loading offers...</p>
+        </div>
     </div>
 
     <!-- ================= TRENDING FOODIE SHORTS & REELS ================= -->
@@ -184,28 +163,6 @@
                 <p>Indrive-style Rides</p>
             </div>
             <div class="fastride-icon-right"><i class="fas fa-car-side"></i></div>
-        </div>
-    </div>
-
-    <!-- ================= PROMOTIONS & OFFERS (reuses same promotions data, second layout) ================= -->
-    <div class="mt-6 px-5">
-        <div class="section-head">
-            <h2>Promotions &amp; Offers</h2>
-            <a href="#" class="see-all">See all</a>
-        </div>
-        <div id="promoOffersStrip" class="promo-offers-strip no-scrollbar">
-            <p class="text-center text-gray-400 text-xs py-4 w-full">Loading offers...</p>
-        </div>
-    </div>
-
-    <!-- ================= RECENT CHATS (existing feature, kept) ================= -->
-    <div class="mt-8 px-5">
-        <div class="section-head">
-            <h2>Recent Chats</h2>
-            <a href="active-orders.html" class="see-all">See all</a>
-        </div>
-        <div id="recentChatsContainer" class="bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm">
-            <p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>
         </div>
     </div>
 
