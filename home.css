@@ -184,18 +184,17 @@ html, body {
 /* ===== VENDOR STRIP ===== */
 .vendor-strip-wrapper {
     position: relative;
-    padding: 12px 0 8px 0;
+    padding: 16px 0 10px 0;
     background: #ffffff;
-    border-bottom: 1px solid #f1f5f9;
     overflow: hidden;
-    min-height: 80px;
+    min-height: 90px;
 }
 .vendor-strip-wrapper.hidden {
     display: none;
 }
 .vendor-strip {
     display: flex;
-    gap: 24px;
+    gap: 20px;
     padding: 0 20px;
     overflow-x: auto;
     overflow-y: hidden;
@@ -877,8 +876,7 @@ html, body {
 }
 .nav-item-center span { color: #94a3b8; }
 
-/* Vendor strip data now feeds the "Trending" section instead - keep the old strip UI hidden always */
-.vendor-strip-wrapper { display: none !important; }
+/* Vendor strip is now the primary "categories" row (visible), restyled below */
 
 /* App logo (custom branding, restored - small, next to notification bell) */
 .header-logo-wrap { flex-shrink: 0; width: 32px; height: 32px; }
