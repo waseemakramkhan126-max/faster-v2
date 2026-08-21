@@ -62,89 +62,155 @@
         </button>
     </div>
 
-    <!-- Header -->
-    <header class="px-6 py-3 flex justify-between items-center bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
-        <div class="flex items-center gap-4">
-            <i class="fas fa-bars text-2xl text-gray-800 cursor-pointer active:scale-90 transition" onclick="toggleMenu()"></i>
-            <i class="fas fa-comment-dots text-2xl text-gray-500 cursor-pointer active:scale-90 transition ml-2" onclick="location.href='contacts.html'"></i>
-            <div class="relative cursor-pointer p-1 flex items-center justify-center" onclick="openNotifications()">
-                <i id="notifBell" class="fas fa-bell text-2xl text-gray-500 transition-colors"></i>
-                <div id="notifBadge" class="notif-badge"></div>
+    <!-- ================= NEW HEADER (matches target design) ================= -->
+    <header class="top-header">
+        <div class="header-row">
+            <i class="fas fa-bars header-icon" onclick="toggleMenu()"></i>
+
+            <div class="deliver-block" onclick="location.href='profile.html'">
+                <i class="fas fa-map-marker-alt deliver-pin"></i>
+                <div class="deliver-text">
+                    <span class="deliver-label">Deliver to</span>
+                    <span class="deliver-value">
+                        <span id="userName">Customer</span>
+                        <i class="fas fa-chevron-down deliver-chev"></i>
+                    </span>
+                </div>
+            </div>
+            <!-- Greeting text kept alive for other features/future use, just not shown in this compact header -->
+            <span id="appbarGreeting" class="sr-only"></span>
+
+            <div class="header-logo-wrap">
+                <img id="appLogo" src="" alt="Logo" class="header-logo hidden">
+                <div id="logoFallback" class="header-logo header-logo-fallback">
+                    <i class="fas fa-bolt"></i>
+                </div>
+            </div>
+
+            <div class="notif-wrap" onclick="openNotifications()">
+                <i id="notifBell" class="fas fa-bell"></i>
+                <div id="notifBadge" class="notif-badge"><span id="notifCount">0</span></div>
             </div>
         </div>
-        <div class="flex flex-col items-center">
-            <p id="appbarGreeting" class="text-[10px] font-black text-gray-400 uppercase tracking-widest">GOOD EVENING</p>
-            <p id="userName" class="text-[16px] font-black text-slate-800 tracking-tight">Customer</p>
-        </div>
-        <div class="w-12 h-12 rounded-full border-[3px] border-orange-500 p-0.5 bg-white flex items-center justify-center">
-            <img id="appLogo" src="" alt="Logo" class="w-full h-full brand-logo-gol hidden">
-            <div id="logoFallback" class="w-full h-full bg-orange-500 rounded-full flex items-center justify-center">
-                <span class="text-white text-xs font-bold italic">Faster</span>
-            </div>
+
+        <!-- Search bar (opens order flow - no dedicated search backend yet) -->
+        <div class="search-bar" onclick="location.href='new-order.html'">
+            <i class="fas fa-search search-icon-left"></i>
+            <span class="search-placeholder">Search food, grocery, pharmacy, stores...</span>
+            <button class="search-go-btn" onclick="event.stopPropagation(); location.href='new-order.html'">
+                <i class="fas fa-search"></i>
+            </button>
         </div>
     </header>
 
-    <!-- Vendors Strip (Supabase - No Duplicates) -->
-    <div class="vendor-strip-wrapper" id="vendorStripWrapper">
+    <!-- ================= CATEGORY ICONS ================= -->
+    <div class="category-row">
+        <div class="category-item" onclick="location.href='new-order.html?cat=food'">
+            <div class="category-icon"><i class="fas fa-hamburger"></i></div>
+            <span>Food</span>
+        </div>
+        <div class="category-item" onclick="location.href='new-order.html?cat=grocery'">
+            <div class="category-icon"><i class="fas fa-carrot"></i></div>
+            <span>Grocery</span>
+        </div>
+        <div class="category-item" onclick="location.href='new-order.html?cat=pharmacy'">
+            <div class="category-icon"><i class="fas fa-prescription-bottle-medical"></i></div>
+            <span>Pharmacy</span>
+        </div>
+        <div class="category-item" onclick="location.href='new-order.html?cat=desi'">
+            <div class="category-icon"><i class="fas fa-bowl-food"></i></div>
+            <span>Desi Food</span>
+        </div>
+        <div class="category-item" onclick="toggleMenu()">
+            <div class="category-icon"><i class="fas fa-ellipsis"></i></div>
+            <span>More</span>
+        </div>
+    </div>
+
+    <!-- ================= PROMOTIONS (existing feature, restyled) ================= -->
+    <div class="mt-2 px-5">
+        <div id="promoContainer" class="relative">
+            <div id="promoSlider" class="flex overflow-x-auto no-scrollbar scroll-smooth"></div>
+            <div id="promoDots" class="promo-dots"></div>
+        </div>
+    </div>
+
+    <!-- ================= VENDORS STRIP (existing feature, kept, feeds "Trending" section below) ================= -->
+    <div class="vendor-strip-wrapper hidden" id="vendorStripWrapper">
         <div class="vendor-strip" id="vendorStrip"></div>
     </div>
 
-    <!-- Promotions & Offers -->
-    <div class="mt-4 px-6">
-        <div class="flex items-center gap-2 mb-3">
-            <i class="fas fa-tags text-orange-500 text-lg transform -rotate-90"></i>
-            <h2 class="text-base font-extrabold text-slate-800 tracking-tight">Promotions & Offers</h2>
+    <!-- ================= TRENDING FOODIE SHORTS & REELS ================= -->
+    <div class="mt-6 px-5">
+        <div class="section-head">
+            <h2>Trending Foodie Shorts &amp; Reels</h2>
+            <a href="vendor-products.html" class="see-all">See all</a>
         </div>
-        <div id="promoContainer" class="relative">
-            <div id="promoSlider" class="flex overflow-x-auto gap-4 no-scrollbar scroll-smooth pb-2"></div>
-        </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="mt-6 px-6 flex items-stretch gap-3">
-        <div onclick="location.href='new-order.html'" class="flex-1 bg-slate-800 rounded-[2rem] p-4 flex items-center justify-center gap-3 shadow-lg cursor-pointer active:scale-95 transition-transform border border-slate-700">
-            <div class="bg-orange-500 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-orange-500/30">
-                <i class="fas fa-plus"></i>
-            </div>
-            <span class="font-black text-white text-sm uppercase tracking-wider leading-tight text-left">Start New<br>Order</span>
-        </div>
-        <div id="activeOrdersCard" onclick="openActiveOrders()" class="w-[85px] bg-white border border-gray-200 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
-            <div class="text-orange-500 relative mb-0.5">
-                <i class="fas fa-clock text-2xl"></i>
-                <div class="absolute -top-1 -right-2 bg-orange-500 text-white text-[10px] w-[18px] h-[18px] flex items-center justify-center rounded-full font-bold shadow-sm">
-                    <span id="activeCountBadge">0</span>
-                </div>
-            </div>
-            <span class="font-black text-gray-500 text-[9px] uppercase tracking-widest">Active</span>
-        </div>
-        <div onclick="location.href='completed.html'" class="w-[85px] bg-white border border-gray-200 rounded-[2rem] p-2 flex flex-col items-center justify-center shadow-md cursor-pointer active:scale-95 transition-all">
-            <div class="text-emerald-500">
-                <div class="bg-emerald-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-sm">
-                    <i class="fas fa-check text-sm"></i>
-                </div>
-            </div>
-            <span class="font-black text-slate-800 text-lg leading-none"><span id="doneCountBadge">0</span></span>
-            <span class="font-bold text-gray-400 text-[9px] uppercase tracking-widest mt-0.5">Done</span>
+        <div id="trendingReelsStrip" class="trending-strip no-scrollbar">
+            <p class="text-center text-gray-400 text-xs py-6 w-full">Loading...</p>
         </div>
     </div>
 
-    <!-- Recent Chats (Real Supabase Data) -->
-    <div class="mt-8 px-6">
-        <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-comment-dots text-orange-500 text-lg"></i>
-                <h2 class="text-base font-extrabold text-slate-800">Recent Chats</h2>
+    <!-- ================= AI ORDER + ACTIVE/COMPLETED (existing features, restyled) ================= -->
+    <div class="mt-6 px-5 flex items-stretch gap-3">
+        <div onclick="location.href='new-order.html'" class="ai-order-card">
+            <div class="ai-bot-icon"><i class="fas fa-robot"></i></div>
+            <span>Custom Order with AI assistant</span>
+        </div>
+        <div id="activeOrdersCard" onclick="openActiveOrders()" class="stat-card">
+            <div class="stat-icon stat-icon-green"><i class="fas fa-briefcase"></i></div>
+            <span class="stat-num" id="activeCountBadge">0</span>
+            <span class="stat-label">Active Orders</span>
+            <span class="stat-view">View</span>
+        </div>
+        <div onclick="location.href='completed.html'" class="stat-card">
+            <div class="stat-icon stat-icon-blue"><i class="fas fa-check"></i></div>
+            <span class="stat-num" id="doneCountBadge">0</span>
+            <span class="stat-label">Completed Orders</span>
+            <span class="stat-view">View</span>
+        </div>
+    </div>
+
+    <!-- ================= MY ACTIVITY / FASTRIDE (new placeholder card - no ride backend yet) ================= -->
+    <div class="mt-6 px-5">
+        <div class="section-head">
+            <h2>My Activity</h2>
+            <a href="active-orders.html" class="see-all">See all</a>
+        </div>
+        <div class="fastride-card" onclick="alert('FastRide is coming soon!')">
+            <div class="fastride-icon-left"><i class="fas fa-taxi"></i></div>
+            <div class="fastride-text">
+                <h3>FastRide</h3>
+                <p>Indrive-style Rides</p>
             </div>
-            <a href="active-orders.html" class="text-orange-500 font-bold text-xs uppercase tracking-wide cursor-pointer hover:underline">See All</a>
+            <div class="fastride-icon-right"><i class="fas fa-car-side"></i></div>
+        </div>
+    </div>
+
+    <!-- ================= PROMOTIONS & OFFERS (reuses same promotions data, second layout) ================= -->
+    <div class="mt-6 px-5">
+        <div class="section-head">
+            <h2>Promotions &amp; Offers</h2>
+            <a href="#" class="see-all">See all</a>
+        </div>
+        <div id="promoOffersStrip" class="promo-offers-strip no-scrollbar">
+            <p class="text-center text-gray-400 text-xs py-4 w-full">Loading offers...</p>
+        </div>
+    </div>
+
+    <!-- ================= RECENT CHATS (existing feature, kept) ================= -->
+    <div class="mt-8 px-5">
+        <div class="section-head">
+            <h2>Recent Chats</h2>
+            <a href="active-orders.html" class="see-all">See all</a>
         </div>
         <div id="recentChatsContainer" class="bg-white border border-gray-100 rounded-[1.5rem] p-4 shadow-sm">
-            <!-- Chats will be loaded here -->
             <p class="text-center text-gray-400 text-sm py-6">Loading chats...</p>
         </div>
     </div>
 
-    <!-- Wallet Display (hidden by default) -->
-    <div id="walletMiniDisplay" class="hidden px-6 pt-2 flex items-center justify-center gap-2 flex-wrap">
+    <!-- ================= WALLET DISPLAY (existing feature, kept) ================= -->
+    <div id="walletMiniDisplay" class="hidden px-5 pt-2 flex items-center justify-center gap-2 flex-wrap">
         <span id="walletLoading" class="text-[10px] text-gray-400 font-bold uppercase hidden"><i class="fas fa-sync-alt animate-spin mr-1"></i> Syncing...</span>
         <p id="homePendBox" onclick="location.href='wallet.html'" class="hidden cursor-pointer active:scale-95 text-[10px] font-black text-red-600 bg-red-100 px-3 py-1 rounded-full uppercase border border-red-200 shadow-sm transition-all">
             <i class="fas fa-exclamation-circle mr-1"></i> Pending: <span id="homePend">0</span>
@@ -153,11 +219,34 @@
             <i class="fas fa-check-circle mr-1"></i> Wallet: <span id="homeRem">0</span>
         </p>
     </div>
-  <!-- Floating Chat Button -->
-<div onclick="location.href='contacts.html'" 
-     class="fixed bottom-6 right-6 z-50 bg-[#0077b9] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl shadow-blue-500/30 hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer animate-bounce">
-    <i class="fas fa-comment-dots text-2xl"></i>
-</div>
+
+    <!-- Spacer so content isn't hidden behind bottom nav -->
+    <div class="h-24"></div>
+
+    <!-- ================= BOTTOM NAV (new - replaces floating chat bubble) ================= -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="location.href='home.html'">
+            <i class="fas fa-house"></i>
+            <span>Home</span>
+        </div>
+        <div class="nav-item" onclick="openActiveOrders()">
+            <i class="fas fa-clipboard-list"></i>
+            <span>Orders</span>
+        </div>
+        <div class="nav-item nav-item-center" onclick="document.getElementById('trendingReelsStrip').scrollIntoView({behavior:'smooth'})">
+            <div class="nav-center-icon"><i class="fas fa-clapperboard"></i></div>
+            <span>Reels/Feed</span>
+        </div>
+        <div class="nav-item" onclick="location.href='contacts.html'">
+            <i class="fas fa-comment-dots"></i>
+            <span>Chats</span>
+        </div>
+        <div class="nav-item" onclick="location.href='profile.html'">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </div>
+    </nav>
+
     <script src="home.js"></script>
 </body>
 </html>
