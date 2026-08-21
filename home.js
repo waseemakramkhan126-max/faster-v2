@@ -661,6 +661,67 @@ function renderPromoOffers() {
     });
 }
 
+// ---- Generic auto-slide + manual-drag for the Promotions & Offers strip ----
+let offersAutoScrollInterval = null;
+let offersIsPaused = false;
+let offersIsDragging = false;
+let offersStartX = 0;
+let offersScrollLeft = 0;
+let offersInteractionTimeout = null;
+
+function initOffersAutoSlide() {
+    const strip = document.getElementById('promoOffersStrip');
+    if (!strip || strip.dataset.autoSlideBound) return;
+    strip.dataset.autoSlideBound = 'true';
+
+    strip.addEventListener('mousedown', (e) => {
+        offersIsDragging = true;
+        offersStartX = e.pageX - strip.offsetLeft;
+        offersScrollLeft = strip.scrollLeft;
+        strip.style.cursor = 'grabbing';
+        offersIsPaused = true;
+    });
+    strip.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        offersIsDragging = true;
+        offersStartX = touch.pageX - strip.offsetLeft;
+        offersScrollLeft = strip.scrollLeft;
+        offersIsPaused = true;
+    }, { passive: true });
+    strip.addEventListener('mousemove', (e) => {
+        if (!offersIsDragging) return;
+        e.preventDefault();
+        const x = e.pageX - strip.offsetLeft;
+        strip.scrollLeft = offersScrollLeft - (x - offersStartX);
+    });
+    strip.addEventListener('touchmove', (e) => {
+        if (!offersIsDragging) return;
+        const x = e.touches[0].pageX - strip.offsetLeft;
+        strip.scrollLeft = offersScrollLeft - (x - offersStartX);
+    }, { passive: true });
+    const endDrag = () => {
+        if (!offersIsDragging) return;
+        offersIsDragging = false;
+        strip.style.cursor = 'grab';
+        clearTimeout(offersInteractionTimeout);
+        offersInteractionTimeout = setTimeout(() => { offersIsPaused = false; }, 3000);
+    };
+    strip.addEventListener('mouseup', endDrag);
+    strip.addEventListener('mouseleave', endDrag);
+    strip.addEventListener('touchend', endDrag);
+    strip.addEventListener('mouseenter', () => { offersIsPaused = true; });
+    strip.addEventListener('mouseleave', () => { offersIsPaused = false; });
+
+    if (offersAutoScrollInterval) clearInterval(offersAutoScrollInterval);
+    offersAutoScrollInterval = setInterval(() => {
+        if (offersIsPaused || offersIsDragging) return;
+        const itemWidth = strip.querySelector('.offer-card')?.offsetWidth + 10 || 150;
+        let nextScroll = strip.scrollLeft + itemWidth;
+        if (nextScroll >= strip.scrollWidth - strip.clientWidth) nextScroll = 0;
+        strip.scrollTo({ left: nextScroll, behavior: 'smooth' });
+    }, 2500);
+}
+
 // Hook into the existing fetchPromotions/initVendorStrip results without editing their internals:
 // small polling-free approach - run shortly after the original fetch calls complete.
 const _origFetchPromotions = fetchPromotions;
@@ -668,6 +729,7 @@ fetchPromotions = async function() {
     await _origFetchPromotions();
     renderPromoDots();
     renderPromoOffers();
+    initOffersAutoSlide();
 };
 
 const _origInitVendorStrip = initVendorStrip;
@@ -684,5 +746,5 @@ window.onload = () => {
     initializeApp();
     initVendorStrip();
     fetchPromotions();
-    fetchRecentChats();
+    // fetchRecentChats() no longer called - Recent Chats section removed from home page
 };
