@@ -10,47 +10,176 @@ html, body {
     background-color: #ffffff;
 }
 
-/* ===== ORIGINAL ANIMATIONS ===== */
-@keyframes order-continuous-pulse {
-    0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
-    50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
-    100% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
+/* ===== BRAND PALETTE (from target design) ===== */
+:root {
+    --brand-pink: #E31C79;
+    --brand-pink-dark: #C4156A;
+    --brand-pink-light: #FCE4EF;
 }
-.active-order-continuous-glow { 
-    animation: order-continuous-pulse 2s ease-in-out infinite !important; 
-    border-width: 2px !important; border-color: #22c55e !important; 
-    background-color: #f0fdf4 !important; z-index: 40; 
-}
-
-@keyframes bell-pulse {
-    0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
-    50% { transform: scale(1.2) rotate(15deg); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); color: #ef4444; }
-    100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); color: #9ca3af; }
-}
-.bell-active { animation: bell-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; color: #ef4444 !important; }
-
-.notif-badge { 
-    position: absolute; top: -2px; right: -2px; 
-    background: #ef4444; border: 2px solid white; 
-    width: 12px; height: 12px; border-radius: 50%; 
-    display: none; 
-}
-@keyframes badge-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
-.notif-badge.active { display: block; animation: badge-pulse 1.5s infinite; }
-
-.sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
-.sidebar.active { transform: translateX(0); }
-.brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
 
 #offlineBanner { transition: top 0.3s ease-in-out; z-index: 9999; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+/* ===== NEW HEADER ===== */
+.top-header {
+    background: #ffffff;
+    padding: 14px 20px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    border-bottom: 1px solid #f1f5f9;
+}
+.header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.header-icon {
+    font-size: 20px;
+    color: #1e293b;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.header-icon:active { transform: scale(0.9); }
+.deliver-block {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-width: 0;
+}
+.deliver-pin { color: var(--brand-pink); font-size: 16px; flex-shrink: 0; }
+.deliver-text { display: flex; flex-direction: column; min-width: 0; }
+.deliver-label { font-size: 11px; color: #64748b; font-weight: 500; line-height: 1.3; }
+.deliver-value {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.deliver-chev { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+.notif-wrap { position: relative; padding: 4px; cursor: pointer; flex-shrink: 0; }
+.notif-wrap #notifBell { font-size: 21px; color: #1e293b; }
+.notif-badge {
+    position: absolute;
+    top: -2px; right: -2px;
+    background: var(--brand-pink);
+    color: white;
+    border: 2px solid white;
+    min-width: 18px; height: 18px;
+    border-radius: 999px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 0 3px;
+}
+.notif-badge.active { display: flex; }
+@keyframes badge-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+.notif-badge.active { animation: badge-pulse 1.5s infinite; }
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 6px 6px 6px 16px;
+    cursor: pointer;
+}
+.search-icon-left { color: #94a3b8; font-size: 15px; }
+.search-placeholder { flex: 1; color: #94a3b8; font-size: 13px; font-weight: 500; }
+.search-go-btn {
+    background: var(--brand-pink);
+    color: white;
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    border: none;
+    flex-shrink: 0;
+    font-size: 15px;
+}
+.search-go-btn:active { transform: scale(0.92); }
+
+/* ===== CATEGORY ROW ===== */
+.category-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 20px 4px;
+    overflow-x: auto;
+}
+.category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 60px;
+}
+.category-item:active { transform: scale(0.93); }
+.category-icon {
+    width: 56px; height: 56px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    color: var(--brand-pink);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.category-item span { font-size: 11px; font-weight: 700; color: #334155; text-align: center; }
+
+/* ===== SECTION HEADINGS (shared) ===== */
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.section-head h2 { font-size: 16px; font-weight: 800; color: #0f172a; }
+.section-head .see-all { font-size: 12px; font-weight: 700; color: var(--brand-pink); }
+
+.sidebar { transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(-100%); z-index: 100; }
+.sidebar.active { transform: translateX(0); }
+.brand-logo-gol { object-fit: cover; border-radius: 9999px; border: 2px solid #f97316; background: white; box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2); }
 
 #sidebarOverlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40;
     opacity: 0; pointer-events: none; transition: opacity 0.4s;
 }
 #sidebarOverlay.active { opacity: 1; pointer-events: auto; }
+
+/* ===== ORIGINAL ANIMATIONS ===== */
+@keyframes order-continuous-pulse {
+    0% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
+    50% { transform: scale(1.04); background-color: #dcfce7; border-color: #22c55e; box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.4); }
+    100% { transform: scale(1); background-color: #f0fdf4; border-color: #4ade80; }
+}
+.active-order-continuous-glow {
+    animation: order-continuous-pulse 2s ease-in-out infinite !important;
+    border-width: 2px !important; border-color: #22c55e !important;
+    background-color: #f0fdf4 !important; z-index: 5;
+}
+
+@keyframes bell-pulse {
+    0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); }
+    50% { transform: scale(1.2) rotate(15deg); filter: drop-shadow(0 0 8px rgba(227, 28, 121, 0.8)); color: var(--brand-pink); }
+    100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); }
+}
+.bell-active { animation: bell-pulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important; color: var(--brand-pink) !important; }
 
 /* ===== VENDOR STRIP ===== */
 .vendor-strip-wrapper {
@@ -471,3 +600,298 @@ html, body {
     letter-spacing: 0.5px;
     box-shadow: 0 2px 8px rgba(249,115,22,0.3);
 }
+
+/* ============================================================
+   NEW DESIGN ADDITIONS (to match target screenshot)
+   ============================================================ */
+
+/* ===== PROMO CARD (big banner, restyled) ===== */
+#promoContainer:not(.tiktok-fullscreen) {
+    width: 100%;
+}
+#promoContainer:not(.tiktok-fullscreen) #promoSlider {
+    gap: 0;
+    scroll-snap-type: x mandatory;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 190px;
+    scroll-snap-align: start;
+    border-radius: 22px;
+    background: linear-gradient(135deg, var(--brand-pink-light), #ffffff 70%);
+    border: none;
+    box-shadow: 0 4px 16px rgba(227,28,121,0.08);
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .media-box {
+    display: flex;
+    align-items: center;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide img,
+#promoContainer:not(.tiktok-fullscreen) .promo-slide video {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 55%;
+    height: 85%;
+    object-fit: cover;
+    border-radius: 20px;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-overlay {
+    display: none;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 50%;
+    bottom: auto;
+    color: var(--brand-pink-dark);
+    text-shadow: none;
+    padding: 0;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box h3 {
+    font-size: 20px;
+    font-weight: 900;
+    margin-bottom: 4px;
+    color: var(--brand-pink-dark);
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-text-box p {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    white-space: normal;
+    opacity: 1;
+    margin-bottom: 10px;
+}
+#promoContainer:not(.tiktok-fullscreen) .promo-slide .promo-tag {
+    position: absolute;
+    top: auto;
+    bottom: 20px;
+    left: 20px;
+    right: auto;
+    background: var(--brand-pink);
+    font-size: 9px;
+    padding: 8px 20px;
+    border-radius: 30px;
+    box-shadow: 0 4px 10px rgba(227,28,121,0.3);
+}
+.promo-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 10px;
+}
+.promo-dots .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    transition: 0.2s;
+}
+.promo-dots .dot.active {
+    background: var(--brand-pink);
+    width: 16px;
+    border-radius: 4px;
+}
+
+/* ===== TRENDING FOODIE SHORTS & REELS ===== */
+.trending-strip {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.trend-card {
+    flex: 0 0 130px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #0f172a;
+    position: relative;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    cursor: pointer;
+}
+.trend-card img, .trend-card video {
+    width: 100%; height: 150px;
+    object-fit: cover;
+    display: block;
+}
+.trend-play-icon {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    color: white;
+    font-size: 14px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.trend-info {
+    background: white;
+    padding: 8px 10px;
+}
+.trend-info .trend-name {
+    font-size: 12px;
+    font-weight: 800;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.trend-info .trend-meta {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 2px;
+}
+.trend-info .trend-meta .fa-star { color: #f59e0b; }
+
+/* ===== AI ORDER CARD + STAT CARDS ===== */
+.ai-order-card {
+    flex: 1;
+    background: #1e293b;
+    border-radius: 22px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    min-height: 100px;
+}
+.ai-order-card:active { transform: scale(0.97); }
+.ai-bot-icon {
+    width: 34px; height: 34px;
+    background: var(--brand-pink);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+.ai-order-card span {
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+.stat-card {
+    width: 100px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 22px;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    cursor: pointer;
+}
+.stat-card:active { transform: scale(0.96); }
+.stat-icon {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+.stat-icon-green { background: #10b981; }
+.stat-icon-blue { background: #3b82f6; }
+.stat-num { font-size: 20px; font-weight: 900; color: #0f172a; line-height: 1; }
+.stat-label { font-size: 10px; color: #64748b; font-weight: 600; line-height: 1.3; }
+.stat-view { font-size: 10px; color: var(--brand-pink); font-weight: 800; margin-top: 2px; }
+
+/* ===== FASTRIDE CARD ===== */
+.fastride-card {
+    background: #f1f5f9;
+    border-radius: 22px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+}
+.fastride-card:active { transform: scale(0.98); }
+.fastride-icon-left { font-size: 24px; color: #0f172a; }
+.fastride-text { flex: 1; text-align: center; }
+.fastride-text h3 { font-size: 19px; font-weight: 900; color: #0f172a; }
+.fastride-text p { font-size: 12px; color: #64748b; font-weight: 600; }
+.fastride-icon-right { font-size: 26px; color: #0f172a; }
+
+/* ===== PROMOTIONS & OFFERS (small cards) ===== */
+.promo-offers-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+.offer-card {
+    flex: 0 0 140px;
+    border-radius: 16px;
+    padding: 12px;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+}
+.offer-card h4 { font-size: 12px; font-weight: 900; }
+.offer-card p { font-size: 10px; font-weight: 600; margin-top: 2px; }
+.offer-card .offer-icon { align-self: flex-end; font-size: 22px; }
+
+/* ===== BOTTOM NAV ===== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+    z-index: 45;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.04);
+}
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 1;
+    padding-top: 4px;
+}
+.nav-item i { font-size: 18px; }
+.nav-item.active { color: var(--brand-pink); }
+.nav-item:active { transform: scale(0.92); }
+.nav-item-center { margin-top: -22px; }
+.nav-center-icon {
+    width: 46px; height: 46px;
+    background: var(--brand-pink);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 18px;
+    box-shadow: 0 6px 14px rgba(227,28,121,0.4);
+    margin-bottom: 3px;
+}
+.nav-item-center span { color: #94a3b8; }
+
+/* Vendor strip data now feeds the "Trending" section instead - keep the old strip UI hidden always */
+.vendor-strip-wrapper { display: none !important; }
+
+/* App logo (custom branding, restored - small, next to notification bell) */
+.header-logo-wrap { flex-shrink: 0; width: 32px; height: 32px; }
+.header-logo {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--brand-pink);
+}
+.header-logo-fallback {
+    background: var(--brand-pink);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 13px;
+}
+.header-logo.hidden { display: none; }
