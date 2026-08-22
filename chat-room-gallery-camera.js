@@ -66,8 +66,8 @@ async function previewChatMedia(input) {
         document.getElementById('captionBar').classList.remove('hidden');
         document.getElementById('editorTopBar').style.display = 'flex';
         document.getElementById('captionBar').style.display = 'block';
-        document.getElementById('canvasContainer').innerHTML = '';
-        document.getElementById('canvasContainer').appendChild(vid);
+        // Note: canvasContainer.innerHTML ko clear NAHI karte - warna imageCanvas/mediaPreviewImg
+        // permanently DOM se hat jate, aur agli baar image preview kaam karna band ho jata
         ui.classList.remove('hidden');
         ui.style.display = 'flex';
     }
@@ -395,10 +395,11 @@ function closeMediaPreview() {
         img.src = '';
     }
     
-    // Reset canvas container
+    // Reset canvas container - sirf style reset karo, children ko DESTROY mat karo
+    // (imageCanvas/mediaPreviewVideo/mediaPreviewImg permanent elements hain, dobara banane
+    // ki zaroorat nahi honi chahiye - warna agli baar attachment kaam karna band ho jata)
     const canvasContainer = document.getElementById('canvasContainer');
     if (canvasContainer) {
-        canvasContainer.innerHTML = '';
         canvasContainer.style.display = '';
     }
     
@@ -510,9 +511,8 @@ async function handleGalleryPick(input) {
         document.getElementById('captionBar').classList.remove('hidden');
         document.getElementById('editorTopBar').style.display = 'flex';
         document.getElementById('captionBar').style.display = 'block';
-        document.getElementById('canvasContainer').innerHTML = '';
-        document.getElementById('canvasContainer').appendChild(vid);
-        
+        // Note: canvasContainer.innerHTML clear NAHI karte (vid already static child hai HTML mein)
+
         ui.classList.remove('hidden');
         input.value = '';
     }
