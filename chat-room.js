@@ -143,6 +143,7 @@ function renderMessages(messages, appendAtTop = false) {
         const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
         const bubble = document.createElement('div');
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
+        if (msg.id) bubble.dataset.msgId = msg.id; // live "seen" update ke liye tag
 
         let contentHTML = '';
         
@@ -333,7 +334,30 @@ function subscribeToChat() {
         renderMessages([msg], false);
         scrollToBottom();
         ring();
-    }).subscribe();
+
+        // Doosra insaan ne message bheja hai - hum isay abhi dekh rahe hain, turant "read" mark kar do
+        markMessagesAsRead([msg]);
+    })
+    // Blue tick live update - jab doosra insaan humara bheja hua message "seen" kare
+    .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+    }, (payload) => {
+        const msg = payload.new;
+        if (!(msg.sender_id === myId || msg.sender_id === myPhone)) return; // sirf apne bheje messages ki tick update karo
+        if (!msg.read_at) return;
+
+        const bubble = messageContainer.querySelector(`[data-msg-id="${msg.id}"]`);
+        if (!bubble) return;
+        const tick = bubble.querySelector('.read-receipt');
+        if (tick) {
+            tick.classList.remove('fa-check', 'unread');
+            tick.classList.add('fa-check-double');
+        }
+    })
+    .subscribe();
 
     const typingChannel = _supabase.channel(`typing-${conversationId}`);
     typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
