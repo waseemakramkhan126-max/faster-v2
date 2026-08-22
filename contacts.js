@@ -115,12 +115,13 @@ function previewForMessage(type, content) {
     }
 }
 
-async function fetchRecentConversations() {
+async function fetchRecentConversations(silent = false) {
     const container = document.getElementById('chatListContainer');
     if (!myId) {
         container.innerHTML = `<p class="wa-empty">Please log in to see your chats.</p>`;
         return;
     }
+    if (!silent) container.innerHTML = `<p class="wa-loading">Loading chats...</p>`;
 
     try {
         // Step 1: my conversation ids
@@ -129,9 +130,14 @@ async function fetchRecentConversations() {
             .select('conversation_id')
             .eq('user_id', String(myId));
 
-        if (convErr || !myConvRows || myConvRows.length === 0) {
+        if (convErr) {
+            console.error('Could not refresh chats (keeping cached view):', convErr);
+            return; // cached/existing allChats ko chhedo mat, sirf silently fail ho jao
+        }
+        if (!myConvRows || myConvRows.length === 0) {
             allChats = [];
             renderChatList();
+            saveChatsToCache();
             return;
         }
         const convIds = myConvRows.map(r => r.conversation_id);
@@ -207,6 +213,7 @@ async function fetchRecentConversations() {
         }).sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
 
         renderChatList();
+        saveChatsToCache();
     } catch (err) {
         console.error('fetchRecentConversations error:', err);
         container.innerHTML = `<p class="wa-empty">Could not load chats. Pull down to retry.</p>`;
@@ -318,6 +325,7 @@ function setupContactsRealtime() {
             allChats.splice(idx, 1);
             allChats.unshift(chat);
             renderChatList();
+            saveChatsToCache();
 
             // Naye message pe halki si notification sound (agar main hi receiver hun)
             if (!chat.lastSenderIsMe) {
@@ -342,6 +350,7 @@ function setupContactsRealtime() {
                 chat.unreadCount = Math.max(0, (chat.unreadCount || 0) - 1);
             }
             renderChatList();
+            saveChatsToCache();
         })
         // ---- Kisi customer ne apni profile photo (DP) change ki ----
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customers' }, (payload) => {
@@ -354,7 +363,7 @@ function setupContactsRealtime() {
                     changed = true;
                 }
             });
-            if (changed) renderChatList();
+            if (changed) { renderChatList(); saveChatsToCache(); }
         })
         .subscribe();
 }
@@ -392,16 +401,51 @@ async function fetchSingleConversationAndPrepend(convId) {
         };
         allChats.unshift(newChat);
         renderChatList();
+        saveChatsToCache();
     } catch (err) {
         console.error('fetchSingleConversationAndPrepend error:', err);
     }
 }
 
 // =========================================================
+// INSTANT LOAD (WhatsApp jaisa) - pehle cached data turant dikhao, phir background mein fresh karo
+// =========================================================
+const CHATS_CACHE_KEY = 'faster_cached_chats_' + myId;
+
+function loadChatsFromCache() {
+    try {
+        const cached = localStorage.getItem(CHATS_CACHE_KEY);
+        if (cached) {
+            allChats = JSON.parse(cached);
+            renderChatList();
+            return true;
+        }
+    } catch (e) { console.warn('Cache read failed:', e); }
+    return false;
+}
+
+function saveChatsToCache() {
+    try {
+        localStorage.setItem(CHATS_CACHE_KEY, JSON.stringify(allChats));
+    } catch (e) { console.warn('Cache save failed:', e); }
+}
+
+// =========================================================
 // INIT
 // =========================================================
-window.addEventListener('DOMContentLoaded', () => {
-    fetchRecentConversations();   // sirf 1 baar - page open hote waqt
-    setupContactsRealtime();      // uske baad sab kuch live push se
+function initContactsPage() {
+    const hadCache = loadChatsFromCache();       // turant purana data dikhao (agar hai)
+    fetchRecentConversations(hadCache);          // background mein fresh karo (agar cache tha to "Loading..." nahi dikhega)
+    setupContactsRealtime();
+}
+
+window.addEventListener('DOMContentLoaded', initContactsPage);
+
+// bfcache fix: "back" button se wapas aane pe (bina full reload ke) bhi list refresh ho
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        loadChatsFromCache();          // jo bhi last state thi wo turant dikhao
+        fetchRecentConversations(true); // phir silently fresh karo
+    }
 });
 
