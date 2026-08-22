@@ -35,6 +35,7 @@ const LIMIT = 30;
 let isLoadingMore = false;
 let hasMoreMessages = true;
 let audioRecorder = null;
+let isUploading = false; // shared across chat-room-*.js modules (documents, audio-file-pick, wagera) - upload ke dauran duplicate/overlapping uploads rokta hai
 let audioChunks = [];
 let voiceTimerInterval = null;
 let voiceSeconds = 0;
@@ -81,7 +82,7 @@ async function fetchOtherUser() {
 
     const { data: userData, error: uErr } = await _supabase
         .from('customers')
-        .select('name, phone')
+        .select('name, phone, avatar_url')
         .eq('customer_id', otherUserId)
         .maybeSingle();
 
@@ -93,7 +94,14 @@ async function fetchOtherUser() {
     }
 
     headerName.textContent = otherUserName;
-    headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+
+    // DP dikhao agar available hai, warna naam ka pehla letter (fallback)
+    const avatarUrl = userData && userData.avatar_url;
+    if (avatarUrl) {
+        headerAvatar.innerHTML = `<img src="${avatarUrl}" class="w-full h-full rounded-full object-cover" onerror="this.parentElement.textContent='${otherUserName.charAt(0).toUpperCase()}'">`;
+    } else {
+        headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
+    }
 }
 
 // =========================================================
@@ -143,7 +151,6 @@ function renderMessages(messages, appendAtTop = false) {
         const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
         const bubble = document.createElement('div');
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
-        if (msg.id) bubble.dataset.msgId = msg.id; // live "seen" update ke liye tag
 
         let contentHTML = '';
         
@@ -334,30 +341,7 @@ function subscribeToChat() {
         renderMessages([msg], false);
         scrollToBottom();
         ring();
-
-        // Doosra insaan ne message bheja hai - hum isay abhi dekh rahe hain, turant "read" mark kar do
-        markMessagesAsRead([msg]);
-    })
-    // Blue tick live update - jab doosra insaan humara bheja hua message "seen" kare
-    .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`
-    }, (payload) => {
-        const msg = payload.new;
-        if (!(msg.sender_id === myId || msg.sender_id === myPhone)) return; // sirf apne bheje messages ki tick update karo
-        if (!msg.read_at) return;
-
-        const bubble = messageContainer.querySelector(`[data-msg-id="${msg.id}"]`);
-        if (!bubble) return;
-        const tick = bubble.querySelector('.read-receipt');
-        if (tick) {
-            tick.classList.remove('fa-check', 'unread');
-            tick.classList.add('fa-check-double');
-        }
-    })
-    .subscribe();
+    }).subscribe();
 
     const typingChannel = _supabase.channel(`typing-${conversationId}`);
     typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -386,7 +370,7 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         file_url: fileUrl || null
     };
 
-    const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
+    const { error } = await _supabase.from('messages').insert([newMsg]);
 
     sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
     sendBtn.disabled = false;
@@ -397,9 +381,7 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         return;
     }
 
-    // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
-    if (data) newMsg.id = data.id;
-    newMsg.created_at = data ? data.created_at : new Date().toISOString();
+    newMsg.created_at = new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
     msgInput.value = '';
@@ -472,13 +454,11 @@ async function sendMessageWithProgress(text, file, msgType) {
             file_url: fileUrl || null
         };
 
-        const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
+        const { error } = await _supabase.from('messages').insert([newMsg]);
         if (error) throw error;
 
         tempBubble.remove();
-        // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
-        if (data) newMsg.id = data.id;
-        newMsg.created_at = data ? data.created_at : new Date().toISOString();
+        newMsg.created_at = new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
 
