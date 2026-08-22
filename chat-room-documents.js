@@ -1,6 +1,5 @@
-// R2 MIGRATION
 /**
- * chat-room-documents.js - Document sharing with Cloudflare R2 migration
+ * chat-room-documents.js - Document sharing (R2 upload, current messages/conversationId system)
  */
 
 function openDocuments() {
@@ -30,20 +29,7 @@ async function handleDocumentPick(input) {
     if (sendBtn) sendBtn.disabled = true;
 
     try {
-        // Upload to Cloudflare R2 bucket 'fhd-chat-media'
-        const publicUrl = await uploadFileToR2(file, 'fhd-chat-media');
-
-        const { error } = await _supabase.from('order_chats').insert([{
-            order_id: orderId,
-            sender_phone: userPhone,
-            message: file.name || 'Document',
-            type: 'doc',
-            file_url: publicUrl,
-            status: 'sent'
-        }]);
-
-        if (error) throw error;
-        await loadMessages();
+        await sendMessageWithProgress(file.name || 'Document', file, 'document');
     } catch (err) {
         console.error("Document upload error:", err);
         alert("Failed to upload document: " + (err.message || err));
