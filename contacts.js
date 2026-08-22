@@ -115,7 +115,14 @@ function previewForMessage(type, content) {
     }
 }
 
+let _lastFetchTime = 0;
 async function fetchRecentConversations(silent = false) {
+    // Debounce: agar 2 second ke andar dobara call ho (jaise visibilitychange + focus
+    // ek sath fire ho jayen), to duplicate query mat maaro
+    const now = Date.now();
+    if (silent && now - _lastFetchTime < 2000) return;
+    _lastFetchTime = now;
+
     const container = document.getElementById('chatListContainer');
     if (!myId) {
         container.innerHTML = `<p class="wa-empty">Please log in to see your chats.</p>`;
@@ -462,4 +469,9 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('focus', () => {
     fetchRecentConversations(true);
 });
+
+// Note: Yahan jaan boojh kar koi setInterval/polling nahi rakha - wo continuously
+// Supabase ko query maarta rehta (bill badhata), chahe kuch naya na ho. Realtime
+// (jo aap ne already ON kar diya hai) + upar wale 3 event-triggers hi kaafi hain,
+// aur yeh sirf tab chalte hain jab actually kuch badalta hai - koi extra cost nahi.
 
