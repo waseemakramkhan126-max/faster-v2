@@ -379,9 +379,14 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
     msgInput.value = '';
     msgInput.style.height = 'auto';
 
-    // contacts.html ke liye signal - taake wahan wapas jaate hi yeh chat turant top pe aa jaye
-    // (browser lifecycle events ke bharose na rehna pade)
-    localStorage.setItem('faster_chats_dirty', '1');
+    // contacts.html ke liye signal - poora data bhejo taake wahan turant (bina network call ke)
+    // list update ho sake, "light speed" instant
+    localStorage.setItem('faster_chats_dirty', JSON.stringify({
+        conversationId: conversationId,
+        lastMessage: text || '',
+        lastType: msgType,
+        sentAt: newMsg.created_at
+    }));
 }
 
 // =========================================================
@@ -450,7 +455,12 @@ async function sendMessageWithProgress(text, file, msgType) {
         scrollToBottom();
 
         // contacts.html ke liye signal (jaisa text messages ke liye upar diya)
-        localStorage.setItem('faster_chats_dirty', '1');
+        localStorage.setItem('faster_chats_dirty', JSON.stringify({
+            conversationId: conversationId,
+            lastMessage: text || '',
+            lastType: msgType,
+            sentAt: newMsg.created_at
+        }));
     } catch (err) {
         const spinner = tempBubble?.querySelector('.upload-spinner');
         if (spinner) spinner.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Failed';
