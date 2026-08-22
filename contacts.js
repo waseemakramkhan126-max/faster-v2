@@ -419,6 +419,15 @@ async function fetchSingleConversationAndPrepend(convId) {
 // =========================================================
 const CHATS_CACHE_KEY = 'faster_cached_chats_' + myId;
 
+// chat-room.js jab bhi message bhejta hai, wo 'faster_chats_dirty' flag localStorage mein
+// set kar deta hai (extra reliability signal - browser lifecycle events ke bharose nahi rehte)
+function checkForNewMessagesFlag() {
+    if (localStorage.getItem('faster_chats_dirty') === '1') {
+        localStorage.removeItem('faster_chats_dirty');
+        _lastFetchTime = 0; // debounce bypass karo - yeh definite signal hai ke kuch naya hai
+    }
+}
+
 function loadChatsFromCache() {
     try {
         const cached = localStorage.getItem(CHATS_CACHE_KEY);
@@ -448,30 +457,20 @@ function initContactsPage() {
 
 window.addEventListener('DOMContentLoaded', initContactsPage);
 
-// bfcache fix: "back" button se wapas aane pe (bina full reload ke) bhi list refresh ho
-window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-        loadChatsFromCache();          // jo bhi last state thi wo turant dikhao
-        fetchRecentConversations(true); // phir silently fresh karo
-    }
-});
-
-// Zyada reliable fix: jab bhi yeh page dobara visible ho (tab switch, app resume, back button -
-// chahe kisi bhi tareeqe se wapas aaye), turant fresh data mangwao. Yeh bfcache/browser
-// quirks pe depend nahi karta, har situation mein kaam karta hai.
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        fetchRecentConversations(true); // silent - koi "Loading..." flash nahi hoga
-    }
-});
-
-// Extra safety net - jab window ko focus mile
-window.addEventListener('focus', () => {
+// pageshow hamesha chalta hai - fresh page-load pe bhi aur bfcache-restore pe bhi (yeh
+// spec-compliant, sabse reliable event hai "same-tab wapas aane" ko detect karne ke liye -
+// visibilitychange/focus generally sirf TAB-switching ke liye fire hote hain, same-tab ke
+// andar ek page se dusre pe navigate karne ke liye nahi). Debounce (2s) already guard karta
+// hai taake fresh-load ke waqt DOMContentLoaded ke sath duplicate fetch na ho.
+window.addEventListener('pageshow', () => {
+    checkForNewMessagesFlag();       // chat-room.js ka signal check karo (neeche dekho)
     fetchRecentConversations(true);
 });
 
-// Note: Yahan jaan boojh kar koi setInterval/polling nahi rakha - wo continuously
-// Supabase ko query maarta rehta (bill badhata), chahe kuch naya na ho. Realtime
-// (jo aap ne already ON kar diya hai) + upar wale 3 event-triggers hi kaafi hain,
-// aur yeh sirf tab chalte hain jab actually kuch badalta hai - koi extra cost nahi.
+// Note: visibilitychange/focus jaan boojh kar nahi rakhe - yeh same-tab navigation
+// (contacts -> chat-room -> wapas) ke liye reliably fire nahi hote, sirf tab-switching
+// ke liye hote hain. pageshow hi sahi tareeqa hai. Aur koi setInterval/polling bhi nahi
+// rakha - wo continuously Supabase ko query maarta rehta (bill badhata), chahe kuch naya
+// na ho. Realtime (jo aap ne already ON kar diya hai) + pageshow + chat-room.js ka signal
+// (neeche) hi kaafi hain, aur yeh sirf tab chalte hain jab actually kuch badalta hai.
 
