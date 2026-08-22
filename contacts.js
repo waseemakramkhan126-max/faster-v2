@@ -309,8 +309,16 @@ function findChatIndexByConvId(convId) {
     return allChats.findIndex(c => String(c.conversationId) === String(convId));
 }
 
-function setupContactsRealtime() {
-    _supabase.channel('contacts-live')
+let _contactsChannel = null;
+
+function setupContactsRealtime(forceFresh = false) {
+    if (forceFresh && _contactsChannel) {
+        _supabase.removeChannel(_contactsChannel); // purani (shayad disconnected) channel hatao
+        _contactsChannel = null;
+    }
+    if (_contactsChannel) return; // already ek live channel hai, dobara mat banao
+
+    _contactsChannel = _supabase.channel('contacts-live-' + Date.now())
         // ---- Naya message aaya (kisi bhi conversation mein) ----
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
             const msg = payload.new;
@@ -424,12 +432,12 @@ const CHATS_CACHE_KEY = 'faster_cached_chats_' + myId;
 // chat ko top pe la sakte hain - "light speed" instant, background fetch ka wait nahi karna
 function checkForNewMessagesFlag() {
     const raw = localStorage.getItem('faster_chats_dirty');
-    if (!raw) return;
+    if (!raw) return false;
     localStorage.removeItem('faster_chats_dirty');
     _lastFetchTime = 0; // debounce bypass - yeh definite signal hai ke kuch naya hai
 
     let signal;
-    try { signal = JSON.parse(raw); } catch (e) { return; } // purana format (sirf '1') ho to ignore
+    try { signal = JSON.parse(raw); } catch (e) { return false; } // purana format (sirf '1') ho to ignore
 
     const idx = findChatIndexByConvId(signal.conversationId);
 
@@ -449,6 +457,7 @@ function checkForNewMessagesFlag() {
         // Bilkul naya conversation (list mein tha hi nahi) - isko dedicated fetch se laao
         fetchSingleConversationAndPrepend(signal.conversationId);
     }
+    return true;
 }
 
 function loadChatsFromCache() {
@@ -486,8 +495,18 @@ window.addEventListener('DOMContentLoaded', initContactsPage);
 // andar ek page se dusre pe navigate karne ke liye nahi). Debounce (2s) already guard karta
 // hai taake fresh-load ke waqt DOMContentLoaded ke sath duplicate fetch na ho.
 window.addEventListener('pageshow', () => {
-    checkForNewMessagesFlag();       // chat-room.js ka signal check karo (neeche dekho)
-    fetchRecentConversations(true);
+    setupContactsRealtime(true);          // purani (background mein mari hui) connection ko fresh karo - "seen" status jaisi updates dobara live milne lagengi
+    const handledLocally = checkForNewMessagesFlag(); // turant, bina network ke, local update try karo
+
+    if (!handledLocally) {
+        // Koi signal nahi tha (ya purana format tha) - normal background refresh karo
+        fetchRecentConversations(true);
+    } else {
+        // Signal handle ho chuka - poori list ko turant overwrite NAHI karna (race condition
+        // se bachne ke liye - naya conversation abhi DB mein poori tarah "settle" nahi hua
+        // hota). Thodi der baad silently reconcile kar lo.
+        setTimeout(() => fetchRecentConversations(true), 3000);
+    }
 });
 
 // Note: visibilitychange/focus jaan boojh kar nahi rakhe - yeh same-tab navigation
