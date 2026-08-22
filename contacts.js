@@ -196,8 +196,8 @@ async function fetchRecentConversations(silent = false) {
         const detailByConv = {};
         details.forEach(d => { detailByConv[d.cid] = d; });
 
-        // Assemble final list
-        allChats = convIds.map(cid => {
+        // Assemble fresh list from DB
+        const freshList = convIds.map(cid => {
             const otherId = otherIdByConv[cid];
             const cust = custById[otherId] || {};
             const meta = metaByConv[cid] || {};
@@ -217,7 +217,19 @@ async function fetchRecentConversations(silent = false) {
                 lastReadAt: lastMsg ? lastMsg.read_at : null,
                 unreadCount: det.unreadCount || 0
             };
-        }).sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
+        });
+
+        // MERGE (replace nahi karte) - koi bhi chat jo abhi-abhi optimistically add hui thi
+        // (localAddedAt < 15 second pehle) aur is fresh-fetch mein nahi mili (DB lag ki wajah
+        // se), usay giraye mat - warna woh "blink karke gayab" ho jati hai
+        const freshIds = new Set(freshList.map(c => String(c.conversationId)));
+        const recentlyAddedNotYetInDb = allChats.filter(c =>
+            !freshIds.has(String(c.conversationId)) &&
+            c.localAddedAt && (Date.now() - c.localAddedAt) < 15000
+        );
+
+        allChats = [...freshList, ...recentlyAddedNotYetInDb]
+            .sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
 
         renderChatList();
         saveChatsToCache();
@@ -412,7 +424,8 @@ async function fetchSingleConversationAndPrepend(convId) {
             lastAt: lastMsg?.created_at || new Date().toISOString(),
             lastSenderIsMe: lastMsg ? String(lastMsg.sender_id) === String(myId) : false,
             lastReadAt: lastMsg?.read_at || null,
-            unreadCount: lastMsg && String(lastMsg.sender_id) !== String(myId) && !lastMsg.read_at ? 1 : 0
+            unreadCount: lastMsg && String(lastMsg.sender_id) !== String(myId) && !lastMsg.read_at ? 1 : 0,
+            localAddedAt: Date.now() // merge-protection: agla background fetch isay 15s tak girayega nahi
         };
         allChats.unshift(newChat);
         renderChatList();
