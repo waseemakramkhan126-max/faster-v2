@@ -102,31 +102,15 @@
         </div>
     </div>
 
-    <!-- promoContainer/promoSlider/promoDots kept in DOM (hidden) only so existing fetchPromotions()/renderPromoDots() JS keeps working without errors -->
-    <div id="promoContainer" class="relative" style="display:none;">
-        <div id="promoSlider" class="flex overflow-x-auto no-scrollbar scroll-smooth"></div>
-        <div id="promoDots" class="promo-dots"></div>
-    </div>
-
-    <!-- ================= PROMOTIONS & OFFERS (auto-slide + manual swipe) ================= -->
+    <!-- ================= PROMOTIONS & OFFERS (full-width banner, image + playable video, auto-slide + manual swipe) ================= -->
     <div class="mt-4 px-5">
         <div class="section-head">
             <h2>Promotions &amp; Offers</h2>
             <a href="#" class="see-all">See all</a>
         </div>
-        <div id="promoOffersStrip" class="promo-offers-strip no-scrollbar">
-            <p class="text-center text-gray-400 text-xs py-4 w-full">Loading offers...</p>
-        </div>
-    </div>
-
-    <!-- ================= TRENDING FOODIE SHORTS & REELS ================= -->
-    <div class="mt-6 px-5">
-        <div class="section-head">
-            <h2>Trending Foodie Shorts &amp; Reels</h2>
-            <a href="vendor-products.html" class="see-all">See all</a>
-        </div>
-        <div id="trendingReelsStrip" class="trending-strip no-scrollbar">
-            <p class="text-center text-gray-400 text-xs py-6 w-full">Loading...</p>
+        <div id="promoContainer" class="relative">
+            <div id="promoSlider" class="flex overflow-x-auto no-scrollbar scroll-smooth"></div>
+            <div id="promoDots" class="promo-dots"></div>
         </div>
     </div>
 
@@ -190,7 +174,7 @@
             <i class="fas fa-clipboard-list"></i>
             <span>Orders</span>
         </div>
-        <div class="nav-item nav-item-center" onclick="document.getElementById('trendingReelsStrip').scrollIntoView({behavior:'smooth'})">
+        <div class="nav-item nav-item-center" onclick="document.getElementById('promoContainer').scrollIntoView({behavior:'smooth'})">
             <div class="nav-center-icon"><i class="fas fa-clapperboard"></i></div>
             <span>Reels/Feed</span>
         </div>
