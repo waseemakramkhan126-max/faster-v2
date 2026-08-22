@@ -1,81 +1,319 @@
 /* =========================================
-   contacts.css - CSS for Contacts & Search
+   contacts.css - WhatsApp-style dark chat list
    ========================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
-body {
+:root {
+    --wa-bg: #0b141a;
+    --wa-header: #111b21;
+    --wa-green: #25d366;
+    --wa-green-dark: #1faa54;
+    --wa-text: #e9edef;
+    --wa-text-dim: #8696a0;
+    --wa-border: #222d34;
+    --wa-tab-bg: #202c33;
+    --wa-search-bg: #202c33;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+.wa-body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: #f8f9fa;
-    -webkit-tap-highlight-color: transparent;
+    background-color: var(--wa-bg);
+    color: var(--wa-text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     overscroll-behavior-y: none;
 }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hidden { display: none !important; }
 
-/* --- Search Input Styling --- */
-#searchPhone {
-    transition: all 0.2s ease;
+/* ===== HEADER ===== */
+.wa-header {
+    background: var(--wa-header);
+    padding: 14px 16px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
 }
-#searchPhone:focus {
-    border-color: #0077b9;
-    box-shadow: 0 0 0 3px rgba(0, 119, 185, 0.15);
-    background-color: #ffffff;
+.wa-header-left { display: flex; align-items: center; gap: 14px; }
+.wa-back-icon { font-size: 17px; color: var(--wa-text); cursor: pointer; }
+.wa-back-icon:active { transform: scale(0.9); }
+.wa-header h1 { font-size: 26px; font-weight: 800; color: var(--wa-text); }
+.wa-header-icons { display: flex; gap: 22px; }
+.wa-header-icons i { font-size: 20px; color: var(--wa-text); cursor: pointer; }
+.wa-header-icons i:active { transform: scale(0.9); }
+
+/* ===== SEARCH BAR ===== */
+.wa-search-wrap { padding: 8px 12px; flex-shrink: 0; }
+.wa-search-bar {
+    background: var(--wa-search-bg);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
 }
-#searchPhone::placeholder {
-    color: #9ca3af;
+.wa-search-bar i { color: var(--wa-text-dim); font-size: 14px; }
+.wa-search-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--wa-text);
+    font-size: 14px;
+}
+.wa-search-bar input::placeholder { color: var(--wa-text-dim); }
+
+/* ===== TABS ===== */
+.wa-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 6px 12px 10px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    align-items: center;
+}
+.wa-tab {
+    background: var(--wa-tab-bg);
+    color: var(--wa-text-dim);
+    border: none;
+    padding: 7px 16px;
+    border-radius: 20px;
     font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.wa-tab.active { background: #005c4b; color: #d8fce4; }
+.wa-tab:active { transform: scale(0.95); }
+.wa-tab-add {
+    padding: 7px 10px;
+    margin-left: 2px;
 }
 
-/* --- Contact List Items --- */
-.contact-item {
-    background: white;
-    border-radius: 16px;
-    padding: 12px 16px;
-    transition: all 0.15s ease;
+/* ===== CHAT LIST ===== */
+.wa-chat-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 90px;
+}
+.wa-loading, .wa-empty {
+    text-align: center;
+    color: var(--wa-text-dim);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 40px 20px;
+}
+.wa-chat-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
     cursor: pointer;
-    border: 1px solid #f3f4f6;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.02);
 }
-.contact-item:active {
-    transform: scale(0.96);
-    background-color: #f3f4f6;
-}
-.contact-avatar {
-    width: 48px;
-    height: 48px;
+.wa-chat-row:active { background: rgba(255,255,255,0.04); }
+.wa-avatar {
+    width: 52px; height: 52px;
     border-radius: 50%;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
+    font-size: 19px;
     color: white;
+    object-fit: cover;
+    overflow: hidden;
+}
+.wa-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.wa-chat-info { flex: 1; min-width: 0; }
+.wa-chat-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 3px;
+}
+.wa-chat-name {
+    font-size: 16.5px;
+    font-weight: 700;
+    color: var(--wa-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wa-chat-time {
+    font-size: 12px;
+    color: var(--wa-text-dim);
     flex-shrink: 0;
-    font-size: 18px;
+    margin-left: 8px;
 }
+.wa-chat-time.unread-time { color: var(--wa-green); font-weight: 700; }
+.wa-chat-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.wa-chat-preview {
+    font-size: 13.5px;
+    color: var(--wa-text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+.wa-tick { font-size: 14px; flex-shrink: 0; }
+.wa-tick.read { color: #53bdeb; }
+.wa-tick.unread { color: var(--wa-text-dim); }
+.wa-unread-badge {
+    background: var(--wa-green);
+    color: #0b141a;
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.wa-pin-icon { color: var(--wa-text-dim); font-size: 12px; flex-shrink: 0; margin-left: 8px; }
 
-/* --- Search Result Card Animation --- */
-#searchResult {
-    animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+/* ===== FLOATING NEW CHAT BUTTON ===== */
+.wa-fab {
+    position: fixed;
+    right: 18px;
+    bottom: 90px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--wa-green);
+    color: #0b141a;
+    border: none;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    z-index: 30;
+    cursor: pointer;
 }
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-12px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
+.wa-fab:active { transform: scale(0.92); }
 
-/* --- No Contacts Placeholder --- */
-.empty-state {
+/* ===== NEW CHAT OVERLAY / PANEL ===== */
+.wa-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+}
+.wa-new-chat-panel {
+    background: var(--wa-header);
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 20px;
+    animation: wa-slide-up 0.25s ease-out;
+}
+@keyframes wa-slide-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+.wa-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.wa-panel-header h3 { font-size: 18px; font-weight: 800; color: var(--wa-text); }
+.wa-panel-header i { font-size: 18px; color: var(--wa-text-dim); cursor: pointer; }
+.wa-panel-sub { font-size: 12.5px; color: var(--wa-text-dim); margin-bottom: 14px; }
+.wa-panel-search { display: flex; gap: 8px; }
+.wa-panel-search input {
+    flex: 1;
+    background: var(--wa-tab-bg);
+    border: 1px solid #2a3942;
+    border-radius: 12px;
+    padding: 11px 14px;
+    color: var(--wa-text);
+    font-size: 14px;
+    outline: none;
+}
+.wa-panel-search input:focus { border-color: var(--wa-green); }
+.wa-panel-search input::placeholder { color: var(--wa-text-dim); }
+.wa-panel-search button {
+    background: var(--wa-green);
+    color: #0b141a;
+    border: none;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+}
+.wa-panel-search button:active { transform: scale(0.95); }
+
+#searchResult .wa-found-user {
+    background: var(--wa-tab-bg);
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #2a3942;
+}
+#searchResult .wa-found-user p.name { font-weight: 700; color: var(--wa-text); font-size: 14px; }
+#searchResult .wa-found-user p.phone { font-size: 12px; color: var(--wa-text-dim); }
+#searchResult .wa-found-user button {
+    background: var(--wa-green);
+    color: #0b141a;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+#searchResult .wa-msg {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px;
+    border-radius: 12px;
+}
+#searchResult .wa-msg.error { background: #3d1e1e; color: #ff8a8a; }
+#searchResult .wa-msg.warn { background: #3d301e; color: #ffc98a; }
+
+/* ===== BOTTOM NAV ===== */
+.wa-bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--wa-header);
+    border-top: 1px solid var(--wa-border);
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+    z-index: 20;
+}
+.wa-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 60%;
-    color: #9ca3af;
+    gap: 3px;
+    color: var(--wa-text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 1;
 }
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-.empty-state p {
-    font-size: 0.9rem;
-    font-weight: 600;
-}
+.wa-nav-item i { font-size: 19px; }
+.wa-nav-item.active { color: var(--wa-green); }
+.wa-nav-item:active { transform: scale(0.92); }
+   
