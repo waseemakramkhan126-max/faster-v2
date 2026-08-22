@@ -287,8 +287,121 @@ function switchTab(tab) {
 }
 
 // =========================================================
+// 5. REALTIME - page sirf 1 baar load hoti hai, uske baad sab kuch live push se update hota hai
+//    (koi dobara database fetch nahi hoti - naya message/DP-change/seen-status seedha in-memory
+//    allChats array update karta hai aur sirf list ko local re-render karta hai)
+// =========================================================
+function findChatIndexByConvId(convId) {
+    return allChats.findIndex(c => String(c.conversationId) === String(convId));
+}
+
+function setupContactsRealtime() {
+    _supabase.channel('contacts-live')
+        // ---- Naya message aaya (kisi bhi conversation mein) ----
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+            const msg = payload.new;
+            const idx = findChatIndexByConvId(msg.conversation_id);
+            if (idx === -1) {
+                // Yeh conversation abhi list mein nahi hai (pehla message hi ho sakta hai) - sirf isi ek conversation ko halka sa fetch kar lo
+                fetchSingleConversationAndPrepend(msg.conversation_id);
+                return;
+            }
+            const chat = allChats[idx];
+            chat.lastMessage = msg.content;
+            chat.lastType = msg.type;
+            chat.lastAt = msg.created_at;
+            chat.lastSenderIsMe = String(msg.sender_id) === String(myId);
+            chat.lastReadAt = msg.read_at || null;
+            if (!chat.lastSenderIsMe) chat.unreadCount = (chat.unreadCount || 0) + 1;
+
+            // Sabse naya message upar aana chahiye (WhatsApp jaisa)
+            allChats.splice(idx, 1);
+            allChats.unshift(chat);
+            renderChatList();
+
+            // Naye message pe halki si notification sound (agar main hi receiver hun)
+            if (!chat.lastSenderIsMe) {
+                const sound = document.getElementById('notifSound');
+                if (sound) sound.play().catch(() => {});
+            }
+        })
+        // ---- Message ka read_at update hua (seen/delivered status badla) ----
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+            const msg = payload.new;
+            const idx = findChatIndexByConvId(msg.conversation_id);
+            if (idx === -1) return;
+            const chat = allChats[idx];
+
+            // Agar yeh humne bheja hua last message tha aur ab "read" ho gaya -> blue tick
+            if (String(msg.sender_id) === String(myId)) {
+                chat.lastReadAt = msg.read_at || chat.lastReadAt;
+            }
+
+            // Agar dusre insaan ka message tha aur ab hum ne parh liya -> unread count kam karo
+            if (String(msg.sender_id) !== String(myId) && msg.read_at) {
+                chat.unreadCount = Math.max(0, (chat.unreadCount || 0) - 1);
+            }
+            renderChatList();
+        })
+        // ---- Kisi customer ne apni profile photo (DP) change ki ----
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customers' }, (payload) => {
+            const cust = payload.new;
+            let changed = false;
+            allChats.forEach(chat => {
+                if (String(chat.otherId) === String(cust.customer_id)) {
+                    chat.avatarUrl = cust.avatar_url || '';
+                    chat.name = cust.name || chat.name;
+                    changed = true;
+                }
+            });
+            if (changed) renderChatList();
+        })
+        .subscribe();
+}
+
+// Naye conversation ke liye (jo abhi list mein nahi tha) sirf usi ek ka data lao - poori list dobara nahi
+async function fetchSingleConversationAndPrepend(convId) {
+    try {
+        const { data: participants } = await _supabase
+            .from('conversation_participants')
+            .select('user_id')
+            .eq('conversation_id', convId);
+
+        if (!participants || !participants.some(p => String(p.user_id) === String(myId))) return; // yeh mera conversation nahi hai
+
+        const other = participants.find(p => String(p.user_id) !== String(myId));
+        if (!other) return;
+
+        const [{ data: cust }, { data: lastMsg }] = await Promise.all([
+            _supabase.from('customers').select('customer_id, name, phone, avatar_url').eq('customer_id', other.user_id).maybeSingle(),
+            _supabase.from('messages').select('sender_id, type, content, read_at, created_at').eq('conversation_id', convId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        ]);
+
+        const newChat = {
+            conversationId: convId,
+            otherId: other.user_id,
+            name: cust?.name || cust?.phone || 'Unknown User',
+            phone: cust?.phone || '',
+            avatarUrl: cust?.avatar_url || '',
+            lastMessage: lastMsg?.content || '',
+            lastType: lastMsg?.type || 'text',
+            lastAt: lastMsg?.created_at || new Date().toISOString(),
+            lastSenderIsMe: lastMsg ? String(lastMsg.sender_id) === String(myId) : false,
+            lastReadAt: lastMsg?.read_at || null,
+            unreadCount: lastMsg && String(lastMsg.sender_id) !== String(myId) && !lastMsg.read_at ? 1 : 0
+        };
+        allChats.unshift(newChat);
+        renderChatList();
+    } catch (err) {
+        console.error('fetchSingleConversationAndPrepend error:', err);
+    }
+}
+
+// =========================================================
 // INIT
 // =========================================================
 window.addEventListener('DOMContentLoaded', () => {
-    fetchRecentConversations();
+    fetchRecentConversations();   // sirf 1 baar - page open hote waqt
+    setupContactsRealtime();      // uske baad sab kuch live push se
 });
+
