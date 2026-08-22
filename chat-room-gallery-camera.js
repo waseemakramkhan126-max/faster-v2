@@ -437,13 +437,23 @@ async function sendCaptionedMedia() {
     const caption = document.getElementById('mediaCaptionInput').value.trim();
     const ui = document.getElementById('mediaPreviewUI');
     
-    let fileToUpload;
-    
     if (pendingMediaType === 'image' && canvasImage) {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-        fileToUpload = new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+        // Turant (fast, synchronous) low-quality preview - taake bubble bijli ki speed se dikhe
+        const instantPreview = canvas.toDataURL('image/jpeg', 0.5);
+        // Poori quality wali file background mein banao (Promise - slow ho sakta hai, wait nahi karte)
+        const filePromise = new Promise(resolve => {
+            canvas.toBlob(blob => {
+                resolve(new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.9);
+        });
+
+        ui.classList.add('hidden');
+        document.getElementById('mediaCaptionInput').value = '';
+        await sendMessageWithProgress(caption, filePromise, 'image', instantPreview);
+        closeMediaPreview();
+        return;
     } else if (pendingMediaType === 'document') {
-        fileToUpload = pendingMediaFile;
+        const fileToUpload = pendingMediaFile;
         const docName = pendingMediaFile.name;
         const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
         pendingMediaFile = null;
@@ -453,16 +463,18 @@ async function sendCaptionedMedia() {
         closeMediaPreview();
         return;
     } else if (pendingMediaType === 'video') {
-        fileToUpload = pendingMediaFile;
+        const fileToUpload = pendingMediaFile;
         const videoCaption = caption || '';
+        // File already available hai (koi conversion nahi chahiye) - turant preview dikha sakte hain
+        const instantPreview = URL.createObjectURL(fileToUpload);
         pendingMediaFile = null;
         ui.classList.add('hidden');
         document.getElementById('mediaCaptionInput').value = '';
-        await sendMessageWithProgress(videoCaption, fileToUpload, 'video');
+        await sendMessageWithProgress(videoCaption, fileToUpload, 'video', instantPreview);
         closeMediaPreview();
         return;
     } else if (pendingMediaType === 'audio') {
-        fileToUpload = pendingMediaFile;
+        const fileToUpload = pendingMediaFile;
         const audioCaption = caption || '';
         pendingMediaFile = null;
         ui.classList.add('hidden');
@@ -470,10 +482,9 @@ async function sendCaptionedMedia() {
         await sendMessageWithProgress(audioCaption, fileToUpload, 'audio');
         closeMediaPreview();
         return;
-    } else {
-        fileToUpload = pendingMediaFile;
     }
     
+    const fileToUpload = pendingMediaFile;
     pendingMediaFile = null;
     ui.classList.add('hidden');
     document.getElementById('mediaCaptionInput').value = '';
