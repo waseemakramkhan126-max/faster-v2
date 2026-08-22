@@ -386,7 +386,7 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         file_url: fileUrl || null
     };
 
-    const { error } = await _supabase.from('messages').insert([newMsg]);
+    const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
 
     sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
     sendBtn.disabled = false;
@@ -397,7 +397,9 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         return;
     }
 
-    newMsg.created_at = new Date().toISOString();
+    // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
+    if (data) newMsg.id = data.id;
+    newMsg.created_at = data ? data.created_at : new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
     msgInput.value = '';
@@ -470,11 +472,13 @@ async function sendMessageWithProgress(text, file, msgType) {
             file_url: fileUrl || null
         };
 
-        const { error } = await _supabase.from('messages').insert([newMsg]);
+        const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
         if (error) throw error;
 
         tempBubble.remove();
-        newMsg.created_at = new Date().toISOString();
+        // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
+        if (data) newMsg.id = data.id;
+        newMsg.created_at = data ? data.created_at : new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
 
