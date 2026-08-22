@@ -151,7 +151,9 @@ function renderMessages(messages, appendAtTop = false) {
         const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
         const bubble = document.createElement('div');
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
-        if (msg.id) bubble.dataset.msgId = msg.id; // live "seen" (blue tick) update ke liye tag
+        if (msg.id) bubble.dataset.msgId = msg.id; // live "seen" (blue tick) update + edit/delete ke liye tag
+        bubble.dataset.msgType = msg.type;
+        bubble.dataset.createdAt = msg.created_at;
 
         let contentHTML = '';
         
@@ -297,6 +299,9 @@ async function loadMessages(loadMore = false) {
         renderMessages(messages, false);
         scrollToBottom();
         markMessagesAsRead(messages);
+        // Yeh pehli/fresh load thi - cache ko populate kar do taake agli baar instant khule
+        cachedMessages = messages;
+        saveChatCache();
     }
 }
 
@@ -343,11 +348,14 @@ function subscribeToChat() {
         renderMessages([msg], false);
         scrollToBottom();
         ring();
+        cachedMessages.push(msg);
+        saveChatCache();
 
         // Doosra insaan ne message bheja hai - hum isay abhi dekh rahe hain, turant "read" mark kar do
         markMessagesAsRead([msg]);
     })
     // Blue tick live update - jab doosra insaan humara bheja hua message "seen" kare
+    // + Live edit sync - agar doosre insaan ne apna message edit kiya
     .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -355,16 +363,45 @@ function subscribeToChat() {
         filter: `conversation_id=eq.${conversationId}`
     }, (payload) => {
         const msg = payload.new;
-        if (!(msg.sender_id === myId || msg.sender_id === myPhone)) return; // sirf apne bheje messages ki tick update karo
-        if (!msg.read_at) return;
-
         const bubble = messageContainer.querySelector(`[data-msg-id="${msg.id}"]`);
-        if (!bubble) return;
-        const tick = bubble.querySelector('.read-receipt');
-        if (tick) {
-            tick.classList.remove('fa-check', 'unread');
-            tick.classList.add('fa-check-double');
+
+        if (msg.sender_id === myId || msg.sender_id === myPhone) {
+            // Apna hi bheja hua message - sirf blue tick (seen status) update karo
+            if (!msg.read_at || !bubble) return;
+            const tick = bubble.querySelector('.read-receipt');
+            if (tick) {
+                tick.classList.remove('fa-check', 'unread');
+                tick.classList.add('fa-check-double');
+            }
+        } else {
+            // Doosre insaan ka message - agar usne content edit kiya hai to live update karo
+            if (!bubble) return;
+            const textEl = bubble.querySelector('p');
+            if (textEl && textEl.textContent !== msg.content) {
+                textEl.textContent = msg.content;
+            }
         }
+
+        // Cache bhi sync rakho
+        const cachedEntry = cachedMessages.find(m => String(m.id) === String(msg.id));
+        if (cachedEntry) {
+            cachedEntry.content = msg.content;
+            cachedEntry.read_at = msg.read_at;
+            saveChatCache();
+        }
+    })
+    // Live delete sync - agar doosre insaan ne (ya humne khud kisi dusre device se) message delete ki
+    .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+    }, (payload) => {
+        const deletedId = payload.old.id;
+        const bubble = messageContainer.querySelector(`[data-msg-id="${deletedId}"]`);
+        if (bubble) bubble.remove();
+        cachedMessages = cachedMessages.filter(m => String(m.id) !== String(deletedId));
+        saveChatCache();
     })
     .subscribe();
 
@@ -411,6 +448,8 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
     newMsg.created_at = data ? data.created_at : new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
+    cachedMessages.push(newMsg);
+    saveChatCache();
     msgInput.value = '';
     msgInput.style.height = 'auto';
     updateSendVoiceButtonState();
@@ -510,6 +549,8 @@ async function sendMessageWithProgress(text, fileOrFilePromise, msgType, instant
         newMsg.created_at = data ? data.created_at : new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
+        cachedMessages.push(newMsg);
+        saveChatCache();
 
         // contacts.html ke liye signal (jaisa text messages ke liye upar diya)
         localStorage.setItem('faster_chats_dirty', JSON.stringify({
@@ -714,6 +755,47 @@ function closeMediaViewer() {
 // =========================================================
 // 14. INITIALIZATION
 // =========================================================
+// =========================================================
+// CHAT CACHE - turant purani (recent) messages dikhao, sirf naye fetch karo
+// =========================================================
+const CHAT_CACHE_KEY = 'faster_chat_cache_' + conversationId;
+let cachedMessages = []; // yeh hamesha "abhi tak render hui messages" ko track karti hai
+
+function loadChatCache() {
+    try {
+        const raw = localStorage.getItem(CHAT_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function saveChatCache() {
+    try {
+        // Sirf last 50 messages cache karo (poori history nahi - localStorage bhara na ho)
+        localStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(cachedMessages.slice(-50)));
+    } catch (e) { console.warn('Chat cache save failed:', e); }
+}
+
+// Sirf woh messages fetch karo jo cache ke aakhri message ke baad aayi hain
+async function fetchNewMessagesSinceCache() {
+    if (cachedMessages.length === 0) return;
+    const lastMsg = cachedMessages[cachedMessages.length - 1];
+
+    const { data, error } = await _supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .gt('created_at', lastMsg.created_at)
+        .order('created_at', { ascending: true });
+
+    if (error || !data || data.length === 0) return;
+
+    renderMessages(data, false);
+    scrollToBottom();
+    markMessagesAsRead(data);
+    cachedMessages = cachedMessages.concat(data);
+    saveChatCache();
+}
+
 async function init() {
     window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
     window.addEventListener('online', () => {
@@ -727,7 +809,22 @@ async function init() {
         console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
     }
 
-    await loadMessages(false);
+    const cached = loadChatCache();
+    if (cached && cached.length > 0) {
+        // Cache maujood hai - turant (instantly, bina wait kiye) purani messages dikhao
+        cachedMessages = cached;
+        renderMessages(cachedMessages, false);
+        scrollToBottom();
+        markMessagesAsRead(cachedMessages);
+        hasMoreMessages = true; // purani history abhi bhi upar-scroll se load ho sakti hai
+
+        // Ab sirf NAYI messages (jo cache ke baad aayi hain) background mein fetch karo
+        await fetchNewMessagesSinceCache();
+    } else {
+        // Pehli baar yeh chat khul rahi hai - poora load karo (loadMessages khud cache populate kar deti hai)
+        await loadMessages(false);
+    }
+
     subscribeToChat();
 }
 init();
@@ -745,7 +842,12 @@ updateChatHeight();
 // =========================================================
 function sendChatMessage() {
     const text = msgInput.value.trim();
-    if (text) sendMessage(text);
+    if (!text) return;
+    if (editingMessageId) {
+        saveEditedMessage(editingMessageId, text);
+    } else {
+        sendMessage(text);
+    }
 }
 
 function handleChatVoice() {
@@ -1008,3 +1110,189 @@ document.addEventListener("click", function(e) {
         timer.textContent = "0:00";
     };
 });
+
+// =========================================================
+// 20. MESSAGE EDIT & DELETE (10-minute edit window)
+// =========================================================
+const EDIT_WINDOW_MS = 10 * 60 * 1000; // 10 minute
+let editingMessageId = null;
+
+function isWithinEditWindow(createdAt) {
+    return (Date.now() - new Date(createdAt).getTime()) < EDIT_WINDOW_MS;
+}
+
+// ---- Action sheet (Edit / Delete) - bubble ko long-press karne pe khulti hai ----
+function showMessageActions(bubble) {
+    document.getElementById('msgActionSheet')?.remove();
+
+    const msgId = bubble.dataset.msgId;
+    if (!msgId) return; // temp/abhi-upload-ho-rahi message pe action nahi
+    const isMe = bubble.classList.contains('bubble-sent');
+    const msgType = bubble.dataset.msgType;
+    const createdAt = bubble.dataset.createdAt;
+    const canEdit = isMe && msgType === 'text' && isWithinEditWindow(createdAt);
+
+    const sheet = document.createElement('div');
+    sheet.id = 'msgActionSheet';
+    sheet.className = 'fixed inset-0 z-[100000] flex items-end';
+    sheet.innerHTML = `
+        <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('msgActionSheet').remove()"></div>
+        <div class="relative w-full bg-white rounded-t-2xl p-2 pb-safe shadow-2xl">
+            ${canEdit ? `
+            <button onclick="startEditMessage('${msgId}')" class="w-full text-left py-3 px-4 flex items-center gap-3 text-gray-800 font-semibold border-b border-gray-100 active:bg-gray-50">
+                <i class="fas fa-pen text-[#0077b9] w-5"></i> Edit
+            </button>` : ''}
+            ${isMe ? `
+            <button onclick="confirmDeleteMessage('${msgId}')" class="w-full text-left py-3 px-4 flex items-center gap-3 text-red-600 font-semibold active:bg-red-50">
+                <i class="fas fa-trash w-5"></i> Delete
+            </button>` : `
+            <p class="text-center text-gray-400 text-xs py-3 px-4">Sirf apni bheji hui messages edit/delete kar sakte hain</p>
+            `}
+            <button onclick="document.getElementById('msgActionSheet').remove()" class="w-full text-center py-3 mt-1 text-gray-500 font-bold border-t border-gray-100 active:bg-gray-50">
+                Cancel
+            </button>
+        </div>
+    `;
+    document.body.appendChild(sheet);
+}
+
+// ---- Long-press detection on any message bubble ----
+let msgActionLongPressTimer;
+function startMsgActionLongPress(e) {
+    const bubble = e.target.closest('.bubble-sent, .bubble-received');
+    if (!bubble || !bubble.dataset.msgId) return;
+    msgActionLongPressTimer = setTimeout(() => showMessageActions(bubble), 550);
+}
+function cancelMsgActionLongPress() {
+    clearTimeout(msgActionLongPressTimer);
+}
+messageContainer.addEventListener('touchstart', startMsgActionLongPress, { passive: true });
+messageContainer.addEventListener('touchend', cancelMsgActionLongPress);
+messageContainer.addEventListener('touchmove', cancelMsgActionLongPress);
+messageContainer.addEventListener('mousedown', startMsgActionLongPress);
+messageContainer.addEventListener('mouseup', cancelMsgActionLongPress);
+messageContainer.addEventListener('mouseleave', cancelMsgActionLongPress);
+
+// ---- Delete single message ----
+async function confirmDeleteMessage(msgId) {
+    document.getElementById('msgActionSheet')?.remove();
+    if (!confirm('Yeh message delete karna hai?')) return;
+
+    const { error } = await _supabase.from('messages').delete().eq('id', msgId);
+    if (error) {
+        alert('Delete nahi hui: ' + error.message);
+        return;
+    }
+
+    const bubble = messageContainer.querySelector(`[data-msg-id="${msgId}"]`);
+    if (bubble) bubble.remove();
+    cachedMessages = cachedMessages.filter(m => String(m.id) !== String(msgId));
+    saveChatCache();
+}
+
+// ---- Edit message (10 minute window ke andar) ----
+function startEditMessage(msgId) {
+    document.getElementById('msgActionSheet')?.remove();
+    const bubble = messageContainer.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!bubble) return;
+    if (!isWithinEditWindow(bubble.dataset.createdAt)) {
+        alert('10 minute ki edit window guzar chuki hai.');
+        return;
+    }
+
+    // Raw content cache se lo (DOM se nahi) - warna location-share jaisi messages mein
+    // (jo text ke sath URL bhi rakhti hain) URL data loss ho sakta tha
+    const cachedEntry = cachedMessages.find(m => String(m.id) === String(msgId));
+    const rawContent = cachedEntry ? cachedEntry.content : (bubble.querySelector('p')?.textContent || '');
+
+    editingMessageId = msgId;
+    msgInput.value = rawContent;
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
+    msgInput.focus();
+    updateSendVoiceButtonState();
+    showEditingBanner();
+}
+
+function showEditingBanner() {
+    document.getElementById('editingBanner')?.remove();
+    const banner = document.createElement('div');
+    banner.id = 'editingBanner';
+    banner.className = 'fixed left-0 right-0 bg-blue-50 border-t border-blue-200 px-4 py-2 flex items-center justify-between z-[9998]';
+    banner.style.bottom = '64px'; // footer ke upar
+    banner.innerHTML = `
+        <span class="text-xs font-bold text-[#0077b9]"><i class="fas fa-pen mr-1"></i> Editing message</span>
+        <i class="fas fa-times text-gray-500 cursor-pointer p-1" onclick="cancelEditingMode()"></i>
+    `;
+    document.body.appendChild(banner);
+}
+
+function cancelEditingMode() {
+    editingMessageId = null;
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    updateSendVoiceButtonState();
+    document.getElementById('editingBanner')?.remove();
+}
+
+async function saveEditedMessage(msgId, newText) {
+    const bubble = messageContainer.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!isWithinEditWindow(bubble?.dataset.createdAt)) {
+        alert('10 minute ki edit window guzar chuki hai.');
+        cancelEditingMode();
+        return;
+    }
+
+    const { error } = await _supabase.from('messages').update({ content: newText }).eq('id', msgId);
+    cancelEditingMode();
+
+    if (error) {
+        alert('Edit save nahi hui: ' + error.message);
+        return;
+    }
+
+    if (bubble) {
+        const textEl = bubble.querySelector('p');
+        if (textEl) textEl.textContent = newText;
+    }
+    const cachedEntry = cachedMessages.find(m => String(m.id) === String(msgId));
+    if (cachedEntry) cachedEntry.content = newText;
+    saveChatCache();
+}
+
+// ---- Delete ALL messages in this chat ----
+function confirmDeleteAllChat() {
+    document.getElementById('headerMenuSheet')?.remove();
+    if (!confirm('Poori chat delete karni hai? Yeh wapas nahi ho sakta.')) return;
+    deleteAllChatMessages();
+}
+
+async function deleteAllChatMessages() {
+    const { error } = await _supabase.from('messages').delete().eq('conversation_id', conversationId);
+    if (error) {
+        alert('Delete nahi hui: ' + error.message);
+        return;
+    }
+    messageContainer.innerHTML = '';
+    cachedMessages = [];
+    localStorage.removeItem(CHAT_CACHE_KEY);
+}
+
+// ---- Header "..." menu (Delete all chat yahan se) ----
+function toggleHeaderMenu() {
+    const existing = document.getElementById('headerMenuSheet');
+    if (existing) { existing.remove(); return; }
+
+    const sheet = document.createElement('div');
+    sheet.id = 'headerMenuSheet';
+    sheet.className = 'fixed inset-0 z-[100000] flex items-start justify-end p-2';
+    sheet.innerHTML = `
+        <div class="absolute inset-0" onclick="document.getElementById('headerMenuSheet').remove()"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl mt-14 mr-2 py-1 w-52">
+            <button onclick="confirmDeleteAllChat()" class="w-full text-left px-4 py-3 flex items-center gap-3 text-red-600 font-semibold text-sm active:bg-red-50">
+                <i class="fas fa-trash-alt w-4"></i> Delete all messages
+            </button>
+        </div>
+    `;
+    document.body.appendChild(sheet);
+}
