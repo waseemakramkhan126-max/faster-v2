@@ -449,3 +449,17 @@ window.addEventListener('pageshow', (event) => {
     }
 });
 
+// Zyada reliable fix: jab bhi yeh page dobara visible ho (tab switch, app resume, back button -
+// chahe kisi bhi tareeqe se wapas aaye), turant fresh data mangwao. Yeh bfcache/browser
+// quirks pe depend nahi karta, har situation mein kaam karta hai.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        fetchRecentConversations(true); // silent - koi "Loading..." flash nahi hoga
+    }
+});
+
+// Extra safety net - jab window ko focus mile
+window.addEventListener('focus', () => {
+    fetchRecentConversations(true);
+});
+
