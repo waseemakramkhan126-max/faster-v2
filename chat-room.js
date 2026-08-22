@@ -151,6 +151,7 @@ function renderMessages(messages, appendAtTop = false) {
         const isMe = msg.sender_id === myId || msg.sender_id === myPhone;
         const bubble = document.createElement('div');
         bubble.className = `bubble ${isMe ? 'bubble-sent' : 'bubble-received'} animate-pop`;
+        if (msg.id) bubble.dataset.msgId = msg.id; // live "seen" (blue tick) update ke liye tag
 
         let contentHTML = '';
         
@@ -190,6 +191,7 @@ function renderMessages(messages, appendAtTop = false) {
         } else if (msg.type === 'video') {
             contentHTML = `
                 <video src="${msg.file_url}" controls class="max-w-full max-h-64 rounded-lg mt-1"></video>
+                ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
             `;
         } else if (msg.type === 'document') {
             contentHTML = `
@@ -341,7 +343,30 @@ function subscribeToChat() {
         renderMessages([msg], false);
         scrollToBottom();
         ring();
-    }).subscribe();
+
+        // Doosra insaan ne message bheja hai - hum isay abhi dekh rahe hain, turant "read" mark kar do
+        markMessagesAsRead([msg]);
+    })
+    // Blue tick live update - jab doosra insaan humara bheja hua message "seen" kare
+    .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`
+    }, (payload) => {
+        const msg = payload.new;
+        if (!(msg.sender_id === myId || msg.sender_id === myPhone)) return; // sirf apne bheje messages ki tick update karo
+        if (!msg.read_at) return;
+
+        const bubble = messageContainer.querySelector(`[data-msg-id="${msg.id}"]`);
+        if (!bubble) return;
+        const tick = bubble.querySelector('.read-receipt');
+        if (tick) {
+            tick.classList.remove('fa-check', 'unread');
+            tick.classList.add('fa-check-double');
+        }
+    })
+    .subscribe();
 
     const typingChannel = _supabase.channel(`typing-${conversationId}`);
     typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
@@ -370,7 +395,7 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         file_url: fileUrl || null
     };
 
-    const { error } = await _supabase.from('messages').insert([newMsg]);
+    const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
 
     sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm"></i>`;
     sendBtn.disabled = false;
@@ -381,11 +406,14 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
         return;
     }
 
-    newMsg.created_at = new Date().toISOString();
+    // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
+    if (data) newMsg.id = data.id;
+    newMsg.created_at = data ? data.created_at : new Date().toISOString();
     renderMessages([newMsg], false);
     scrollToBottom();
     msgInput.value = '';
     msgInput.style.height = 'auto';
+    updateSendVoiceButtonState();
 
     // contacts.html ke liye signal - poora data bhejo taake wahan turant (bina network call ke)
     // list update ho sake, "light speed" instant
@@ -417,27 +445,46 @@ async function uploadChatFile(file) {
 }
 
 // Upload with progress + local preview
-async function sendMessageWithProgress(text, file, msgType) {
-    if (!text && !file) return;
-
-    let localUrl = null;
-    if (file) localUrl = URL.createObjectURL(file);
+/**
+ * @param {string} text - caption
+ * @param {File|Promise<File>} fileOrFilePromise - ya to seedha File, ya ek Promise jo File resolve kare
+ *        (jaise canvas.toBlob() wale slow conversion ke liye - taake temp bubble uska wait na kare)
+ * @param {string} msgType
+ * @param {string|null} instantPreviewUrl - agar diya jaye, temp bubble turant isi se dikhti hai
+ *        (file/blob conversion complete hone ka wait kiye bina - "bijli ki speed")
+ */
+async function sendMessageWithProgress(text, fileOrFilePromise, msgType, instantPreviewUrl = null) {
+    if (!text && !fileOrFilePromise) return;
 
     const tempMsg = {
         conversation_id: conversationId,
         sender_id: myId,
         type: msgType,
         content: text || '',
-        file_url: localUrl || null,
+        file_url: instantPreviewUrl || null,
         created_at: new Date().toISOString(),
         isTemp: true,
         uploadProgress: 0
     };
 
+    // Turant (instantly, koi wait nahi) temp bubble dikhao
     const tempBubble = renderTempMessage(tempMsg);
     scrollToBottom();
 
     try {
+        // Agar Promise diya gaya hai (slow conversion jaise image-edit/video-compress ke liye),
+        // usay yahan background mein resolve karo - temp bubble already dikh chuki hai upar
+        const file = (fileOrFilePromise && typeof fileOrFilePromise.then === 'function')
+            ? await fileOrFilePromise
+            : fileOrFilePromise;
+
+        // Agar instant preview nahi diya gaya tha, aur ab file mil gayi hai, preview ab set karo
+        if (!instantPreviewUrl && file) {
+            const localUrl = URL.createObjectURL(file);
+            const previewEl = tempBubble.querySelector('img, video');
+            if (previewEl) previewEl.src = localUrl;
+        }
+
         let fileUrl = null;
         if (file) {
             fileUrl = await uploadChatFileWithProgress(file, (progress) => {
@@ -454,11 +501,13 @@ async function sendMessageWithProgress(text, file, msgType) {
             file_url: fileUrl || null
         };
 
-        const { error } = await _supabase.from('messages').insert([newMsg]);
+        const { data, error } = await _supabase.from('messages').insert([newMsg]).select().single();
         if (error) throw error;
 
         tempBubble.remove();
-        newMsg.created_at = new Date().toISOString();
+        // Real database id capture karo - taake baad mein "seen" (blue tick) update isi bubble ko dhoondh sake
+        if (data) newMsg.id = data.id;
+        newMsg.created_at = data ? data.created_at : new Date().toISOString();
         renderMessages([newMsg], false);
         scrollToBottom();
 
@@ -476,6 +525,7 @@ async function sendMessageWithProgress(text, file, msgType) {
 
     msgInput.value = '';
     msgInput.style.height = 'auto';
+    updateSendVoiceButtonState();
 }
 
 function renderTempMessage(msg) {
@@ -495,6 +545,31 @@ function renderTempMessage(msg) {
                 <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
             </div>
             ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+        `;
+    } else if (msg.type === 'video') {
+        contentHTML = `
+            <div class="relative bg-black/20 rounded-lg" style="min-width:180px; min-height:120px;">
+                ${msg.file_url ? `<video src="${msg.file_url}" class="max-w-full max-h-48 rounded-lg object-contain opacity-60 blur-sm w-full"></video>` : ''}
+                <div class="upload-spinner absolute inset-0 flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+                        <i class="fas fa-spinner fa-spin text-white text-lg"></i>
+                    </div>
+                </div>
+                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
+            </div>
+            ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
+        `;
+    } else if (msg.type === 'document') {
+        contentHTML = `
+            <div class="flex items-center gap-3 bg-white/10 rounded-xl p-3">
+                <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-spinner fa-spin text-white"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold truncate">${msg.content || 'Document'}</p>
+                    <p class="text-[10px] opacity-70 upload-doc-status">Uploading...</p>
+                </div>
+            </div>
         `;
     } else if (msg.type === 'voice') {
         contentHTML = `
@@ -593,6 +668,22 @@ msgInput.addEventListener('input', () => {
     msgInput.style.height = 'auto';
     msgInput.style.height = Math.min(msgInput.scrollHeight, 112) + 'px';
 });
+
+// Mic <-> Send button toggle (WhatsApp jaisa) - text likhte hi mic ki jagah send-arrow dikhta hai
+function updateSendVoiceButtonState() {
+    const hasText = msgInput.value.trim().length > 0;
+    const sendMsgBtnEl = document.getElementById('sendMsgBtn');
+    const chatVoiceBtnEl = document.getElementById('chatVoiceBtn');
+    if (hasText) {
+        sendMsgBtnEl.classList.remove('hidden');
+        chatVoiceBtnEl.classList.add('hidden');
+    } else {
+        sendMsgBtnEl.classList.add('hidden');
+        chatVoiceBtnEl.classList.remove('hidden');
+    }
+}
+msgInput.addEventListener('input', updateSendVoiceButtonState);
+updateSendVoiceButtonState(); // initial state set karo (page load pe)
 
 messageContainer.addEventListener('scroll', () => {
     if (messageContainer.scrollTop === 0 && hasMoreMessages) {
