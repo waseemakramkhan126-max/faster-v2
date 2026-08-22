@@ -419,12 +419,35 @@ async function fetchSingleConversationAndPrepend(convId) {
 // =========================================================
 const CHATS_CACHE_KEY = 'faster_cached_chats_' + myId;
 
-// chat-room.js jab bhi message bhejta hai, wo 'faster_chats_dirty' flag localStorage mein
-// set kar deta hai (extra reliability signal - browser lifecycle events ke bharose nahi rehte)
+// chat-room.js jab bhi message bhejta hai, wo 'faster_chats_dirty' mein poora data likh deta
+// hai (conversationId + message). Isse hum turant (bina kisi network call ke) us specific
+// chat ko top pe la sakte hain - "light speed" instant, background fetch ka wait nahi karna
 function checkForNewMessagesFlag() {
-    if (localStorage.getItem('faster_chats_dirty') === '1') {
-        localStorage.removeItem('faster_chats_dirty');
-        _lastFetchTime = 0; // debounce bypass karo - yeh definite signal hai ke kuch naya hai
+    const raw = localStorage.getItem('faster_chats_dirty');
+    if (!raw) return;
+    localStorage.removeItem('faster_chats_dirty');
+    _lastFetchTime = 0; // debounce bypass - yeh definite signal hai ke kuch naya hai
+
+    let signal;
+    try { signal = JSON.parse(raw); } catch (e) { return; } // purana format (sirf '1') ho to ignore
+
+    const idx = findChatIndexByConvId(signal.conversationId);
+
+    if (idx !== -1) {
+        // Existing chat - turant, instantly (0ms, koi network call nahi) top pe le jao
+        const chat = allChats[idx];
+        chat.lastMessage = signal.lastMessage;
+        chat.lastType = signal.lastType;
+        chat.lastAt = signal.sentAt;
+        chat.lastSenderIsMe = true;
+        chat.lastReadAt = null;
+        allChats.splice(idx, 1);
+        allChats.unshift(chat);
+        renderChatList();
+        saveChatsToCache();
+    } else {
+        // Bilkul naya conversation (list mein tha hi nahi) - isko dedicated fetch se laao
+        fetchSingleConversationAndPrepend(signal.conversationId);
     }
 }
 
