@@ -405,7 +405,7 @@ async function fetchPromotions() {
             const isVideo = promo.promo_type === 'video';
             const mediaSrc = promo.promo_url || '';
             const mediaTag = isVideo
-                ? `<video id="vid_${index}" src="${mediaSrc}" muted playsinline class="w-full h-full object-cover"></video>`
+                ? `<video id="vid_${index}" src="${mediaSrc}" muted autoplay loop playsinline class="w-full h-full object-cover"></video>`
                 : `<img src="${mediaSrc || 'https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/160x100/f3f4f6/888?text=Promo'">`;
 
             slide.innerHTML = `
@@ -633,103 +633,37 @@ function renderTrendingSection(vendors) {
     });
 }
 
-// ---- Promotions & Offers small-card strip (reuses same promosData, second presentation) ----
-function renderPromoOffers() {
-    const strip = document.getElementById('promoOffersStrip');
-    if (!strip) return;
+// ---- Auto-slide for the full-width Promotions & Offers banner (manual swipe already works natively via scroll) ----
+let promoAutoScrollInterval = null;
+let promoIsPaused = false;
 
-    if (!promosData || promosData.length === 0) {
-        strip.innerHTML = '<p class="text-center text-gray-400 text-xs py-4 w-full">No offers available</p>';
-        return;
-    }
+function initPromoBannerAutoSlide() {
+    const slider = document.getElementById('promoSlider');
+    if (!slider || slider.dataset.autoSlideBound) return;
+    slider.dataset.autoSlideBound = 'true';
 
-    const bgColors = ['#FCE4EF', '#FFF1E6', '#E6F4FF', '#EAFBEF'];
-    const iconColors = ['#E31C79', '#F97316', '#3B82F6', '#10B981'];
+    slider.addEventListener('touchstart', () => { promoIsPaused = true; }, { passive: true });
+    slider.addEventListener('touchend', () => { setTimeout(() => { promoIsPaused = false; }, 3000); });
+    slider.addEventListener('mouseenter', () => { promoIsPaused = true; });
+    slider.addEventListener('mouseleave', () => { promoIsPaused = false; });
 
-    strip.innerHTML = '';
-    promosData.forEach((promo, i) => {
-        const card = document.createElement('div');
-        card.className = 'offer-card';
-        card.style.background = bgColors[i % bgColors.length];
-        card.innerHTML = `
-            <h4 style="color:${iconColors[i % iconColors.length]}">${promo.title || 'Special Offer'}</h4>
-            <p class="text-slate-600">${promo.promo_text || promo.category || ''}</p>
-            <i class="fas fa-tag offer-icon" style="color:${iconColors[i % iconColors.length]}"></i>
-        `;
-        card.addEventListener('click', () => toggleTikTokFullscreen(i));
-        strip.appendChild(card);
-    });
+    if (promoAutoScrollInterval) clearInterval(promoAutoScrollInterval);
+    promoAutoScrollInterval = setInterval(() => {
+        if (promoIsPaused || !promosData || promosData.length <= 1) return;
+        if (slider.classList.contains('tiktok-fullscreen')) return;
+        const slideWidth = slider.clientWidth || 1;
+        let nextScroll = slider.scrollLeft + slideWidth;
+        if (nextScroll >= slider.scrollWidth - slideWidth / 2) nextScroll = 0;
+        slider.scrollTo({ left: nextScroll, behavior: 'smooth' });
+    }, 4000);
 }
 
-// ---- Generic auto-slide + manual-drag for the Promotions & Offers strip ----
-let offersAutoScrollInterval = null;
-let offersIsPaused = false;
-let offersIsDragging = false;
-let offersStartX = 0;
-let offersScrollLeft = 0;
-let offersInteractionTimeout = null;
-
-function initOffersAutoSlide() {
-    const strip = document.getElementById('promoOffersStrip');
-    if (!strip || strip.dataset.autoSlideBound) return;
-    strip.dataset.autoSlideBound = 'true';
-
-    strip.addEventListener('mousedown', (e) => {
-        offersIsDragging = true;
-        offersStartX = e.pageX - strip.offsetLeft;
-        offersScrollLeft = strip.scrollLeft;
-        strip.style.cursor = 'grabbing';
-        offersIsPaused = true;
-    });
-    strip.addEventListener('touchstart', (e) => {
-        const touch = e.touches[0];
-        offersIsDragging = true;
-        offersStartX = touch.pageX - strip.offsetLeft;
-        offersScrollLeft = strip.scrollLeft;
-        offersIsPaused = true;
-    }, { passive: true });
-    strip.addEventListener('mousemove', (e) => {
-        if (!offersIsDragging) return;
-        e.preventDefault();
-        const x = e.pageX - strip.offsetLeft;
-        strip.scrollLeft = offersScrollLeft - (x - offersStartX);
-    });
-    strip.addEventListener('touchmove', (e) => {
-        if (!offersIsDragging) return;
-        const x = e.touches[0].pageX - strip.offsetLeft;
-        strip.scrollLeft = offersScrollLeft - (x - offersStartX);
-    }, { passive: true });
-    const endDrag = () => {
-        if (!offersIsDragging) return;
-        offersIsDragging = false;
-        strip.style.cursor = 'grab';
-        clearTimeout(offersInteractionTimeout);
-        offersInteractionTimeout = setTimeout(() => { offersIsPaused = false; }, 3000);
-    };
-    strip.addEventListener('mouseup', endDrag);
-    strip.addEventListener('mouseleave', endDrag);
-    strip.addEventListener('touchend', endDrag);
-    strip.addEventListener('mouseenter', () => { offersIsPaused = true; });
-    strip.addEventListener('mouseleave', () => { offersIsPaused = false; });
-
-    if (offersAutoScrollInterval) clearInterval(offersAutoScrollInterval);
-    offersAutoScrollInterval = setInterval(() => {
-        if (offersIsPaused || offersIsDragging) return;
-        const itemWidth = strip.querySelector('.offer-card')?.offsetWidth + 10 || 150;
-        let nextScroll = strip.scrollLeft + itemWidth;
-        if (nextScroll >= strip.scrollWidth - strip.clientWidth) nextScroll = 0;
-        strip.scrollTo({ left: nextScroll, behavior: 'smooth' });
-    }, 2500);
-}
-
-// Hook into the existing fetchPromotions/initVendorStrip results without editing their internals:
-// small polling-free approach - run shortly after the original fetch calls complete.
+// Hook into the existing fetchPromotions result without editing its internals:
 const _origFetchPromotions = fetchPromotions;
 fetchPromotions = async function() {
     await _origFetchPromotions();
     renderPromoDots();
-    renderPromoOffers();
-    initOffersAutoSlide();
+    initPromoBannerAutoSlide();
 };
 
 const _origInitVendorStrip = initVendorStrip;
@@ -748,3 +682,4 @@ window.onload = () => {
     fetchPromotions();
     // fetchRecentChats() no longer called - Recent Chats section removed from home page
 };
+            
