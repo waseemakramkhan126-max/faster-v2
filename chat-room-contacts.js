@@ -11,8 +11,11 @@ async function shareContact() {
             const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
             if (contacts && contacts.length > 0) {
                 const contact = contacts[0];
-                const name = contact.name || 'Unknown';
-                const phone = contact.tel || '';
+                // contact.name aur contact.tel ARRAYS hote hain (Contact Picker API standard),
+                // seedha template mein daalne se poora array ".toString()" ho jata tha jo comma
+                // se saare entries jod deta - isi wajah se number 2 baar dikh raha tha
+                const name = (Array.isArray(contact.name) ? contact.name[0] : contact.name) || 'Unknown';
+                const phone = (Array.isArray(contact.tel) ? contact.tel[0] : contact.tel) || '';
                 
                 const contactMsg = `👤 Contact: ${name}\n📞 ${phone}`;
                 await sendMessage(contactMsg);
