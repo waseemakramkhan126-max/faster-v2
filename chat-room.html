@@ -148,6 +148,8 @@
         </div>
         <div id="canvasContainer" class="flex-1 flex items-center justify-center pt-16 pb-24 overflow-hidden relative">
             <canvas id="imageCanvas" class="max-w-full max-h-full"></canvas>
+            <video id="mediaPreviewVideo" class="max-w-full max-h-full hidden" controls playsinline></video>
+            <img id="mediaPreviewImg" class="max-w-full max-h-full hidden object-contain" alt="Preview">
             <div id="cropOverlay" class="absolute inset-0 bg-black/50 hidden pointer-events-none"></div>
             <div id="cropBox" class="absolute border-2 border-white border-dashed hidden cursor-move" style="width:200px; height:200px; top:50%; left:50%; transform:translate(-50%,-50%);">
                 <div class="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full cursor-nw-resize"></div>
