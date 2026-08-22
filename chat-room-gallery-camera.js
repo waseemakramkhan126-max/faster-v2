@@ -25,6 +25,10 @@ let cropBox = null;
 let cropOverlay = null;
 let cropDragState = null;
 
+// HD / Rotate state (naye toolbar tools)
+let isHdMode = false;
+let currentRotation = 0; // 0, 90, 180, 270
+
 // 1. Preview open karne ka function
 async function previewChatMedia(input) {
     if (!input.files || input.files.length === 0) return;
@@ -364,6 +368,111 @@ function applyCrop() {
     toggleCropMode();
 }
 
+// =========================================================
+// 6.5 NAYE TOOLS: Download, HD, Rotate, Stickers, Text
+// =========================================================
+
+// Download - current edited image ko device pe save karo
+function downloadEditedImage() {
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'faster_image_' + Date.now() + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }, 'image/jpeg', 1.0);
+}
+
+// HD toggle - ON hone par bhejte waqt zyada quality (kam compression) use hoti hai
+function toggleHdMode() {
+    isHdMode = !isHdMode;
+    const btn = document.getElementById('hdToggleBtn');
+    if (btn) {
+        btn.classList.toggle('bg-[#0077b9]', isHdMode);
+        btn.classList.toggle('bg-white/10', !isHdMode);
+    }
+}
+
+// Rotate - image ko 90 degree clockwise ghumao
+function rotateImage() {
+    if (!canvas || !ctx || !canvasImage) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Naya canvas banate hain rotated size ke sath (width/height swap)
+    const rotatedCanvas = document.createElement('canvas');
+    rotatedCanvas.width = h;
+    rotatedCanvas.height = w;
+    const rctx = rotatedCanvas.getContext('2d');
+    rctx.translate(h / 2, w / 2);
+    rctx.rotate(90 * Math.PI / 180);
+    rctx.drawImage(canvas, -w / 2, -h / 2, w, h);
+
+    canvas.width = rotatedCanvas.width;
+    canvas.height = rotatedCanvas.height;
+    ctx.drawImage(rotatedCanvas, 0, 0);
+
+    // canvasImage ko bhi update karo taake redraw/crop sahi kaam kare
+    canvasImage = new Image();
+    canvasImage.src = canvas.toDataURL();
+    currentRotation = (currentRotation + 90) % 360;
+}
+
+// Stickers/Emoji - chhota sa picker dikhao, tap karne pe canvas ke center mein stamp ho jaye
+const QUICK_EMOJIS = ['😀', '😂', '❤️', '👍', '🔥', '🎉', '😍', '👏'];
+function toggleStickerPicker() {
+    let picker = document.getElementById('stickerPicker');
+    if (picker) { picker.remove(); return; }
+
+    picker = document.createElement('div');
+    picker.id = 'stickerPicker';
+    picker.className = 'absolute top-16 left-1/2 -translate-x-1/2 bg-[#1a1a1a] rounded-2xl p-3 flex gap-2 z-30 shadow-xl flex-wrap max-w-[280px] justify-center';
+    QUICK_EMOJIS.forEach(emoji => {
+        const btn = document.createElement('button');
+        btn.textContent = emoji;
+        btn.className = 'text-2xl active:scale-90 transition-transform';
+        btn.onclick = () => {
+            stampEmojiOnCanvas(emoji);
+            picker.remove();
+        };
+        picker.appendChild(btn);
+    });
+    document.getElementById('mediaPreviewUI').appendChild(picker);
+}
+
+function stampEmojiOnCanvas(emoji) {
+    if (!ctx || !canvas) return;
+    const size = Math.min(canvas.width, canvas.height) * 0.18;
+    ctx.font = `${size}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Har naye sticker ko thoda offset karte hain taake purane ke upar bilkul na baithe
+    const offset = (drawings.length % 4) * 15;
+    ctx.fillText(emoji, canvas.width / 2 + offset, canvas.height / 2 + offset);
+}
+
+// Text tool (Aa) - prompt se text lo, canvas ke center mein likh do
+function addTextToImage() {
+    const text = prompt("Text likho:");
+    if (!text || !text.trim()) return;
+    if (!ctx || !canvas) return;
+
+    const fontSize = Math.max(24, Math.min(canvas.width, canvas.height) * 0.08);
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = drawColor;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = fontSize * 0.06;
+    ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+}
+
 // 7. Send Functions
 function closeMediaPreview() {
     const ui = document.getElementById('mediaPreviewUI');
@@ -431,11 +540,23 @@ function closeMediaPreview() {
     
     document.getElementById('mediaCaptionInput').value = '';
 }
+let isSendingMedia = false; // double-tap/double-send guard
+
+// Editor UI ko TURANT aur POORI tarah band karta hai (sirf class change karna kaafi nahi tha -
+// inline style="display:flex" already set hoti hai jab editor khulta hai, jo class se override
+// nahi hoti - isi wajah se editor "atka hua" dikhta tha aur dobara tap karne pe double-send hota tha)
+function hideMediaPreviewUIImmediately() {
+    const ui = document.getElementById('mediaPreviewUI');
+    ui.classList.add('hidden');
+    ui.style.display = 'none';
+}
+
 async function sendCaptionedMedia() {
     if (!canvasImage && !pendingMediaFile) return;
-    
+    if (isSendingMedia) return; // pehle se bhej rahe hain - dobara tap ko ignore karo
+    isSendingMedia = true;
+
     const caption = document.getElementById('mediaCaptionInput').value.trim();
-    const ui = document.getElementById('mediaPreviewUI');
     
     if (pendingMediaType === 'image' && canvasImage) {
         // Turant (fast, synchronous) low-quality preview - taake bubble bijli ki speed se dikhe
@@ -444,23 +565,25 @@ async function sendCaptionedMedia() {
         const filePromise = new Promise(resolve => {
             canvas.toBlob(blob => {
                 resolve(new File([blob], 'edited_' + Date.now() + '.jpg', { type: 'image/jpeg' }));
-            }, 'image/jpeg', 0.9);
+            }, 'image/jpeg', isHdMode ? 1.0 : 0.9);
         });
 
-        ui.classList.add('hidden');
+        hideMediaPreviewUIImmediately();
         document.getElementById('mediaCaptionInput').value = '';
         await sendMessageWithProgress(caption, filePromise, 'image', instantPreview);
         closeMediaPreview();
+        isSendingMedia = false;
         return;
     } else if (pendingMediaType === 'document') {
         const fileToUpload = pendingMediaFile;
         const docName = pendingMediaFile.name;
         const captionWithName = caption ? `${caption}\n📄 ${docName}` : `📄 ${docName}`;
         pendingMediaFile = null;
-        ui.classList.add('hidden');
+        hideMediaPreviewUIImmediately();
         document.getElementById('mediaCaptionInput').value = '';
         await sendMessageWithProgress(captionWithName, fileToUpload, 'document');
         closeMediaPreview();
+        isSendingMedia = false;
         return;
     } else if (pendingMediaType === 'video') {
         const fileToUpload = pendingMediaFile;
@@ -468,28 +591,31 @@ async function sendCaptionedMedia() {
         // File already available hai (koi conversion nahi chahiye) - turant preview dikha sakte hain
         const instantPreview = URL.createObjectURL(fileToUpload);
         pendingMediaFile = null;
-        ui.classList.add('hidden');
+        hideMediaPreviewUIImmediately();
         document.getElementById('mediaCaptionInput').value = '';
         await sendMessageWithProgress(videoCaption, fileToUpload, 'video', instantPreview);
         closeMediaPreview();
+        isSendingMedia = false;
         return;
     } else if (pendingMediaType === 'audio') {
         const fileToUpload = pendingMediaFile;
         const audioCaption = caption || '';
         pendingMediaFile = null;
-        ui.classList.add('hidden');
+        hideMediaPreviewUIImmediately();
         document.getElementById('mediaCaptionInput').value = '';
         await sendMessageWithProgress(audioCaption, fileToUpload, 'audio');
         closeMediaPreview();
+        isSendingMedia = false;
         return;
     }
     
     const fileToUpload = pendingMediaFile;
     pendingMediaFile = null;
-    ui.classList.add('hidden');
+    hideMediaPreviewUIImmediately();
     document.getElementById('mediaCaptionInput').value = '';
     await sendMessageWithProgress(caption || '', fileToUpload, pendingMediaType);
     closeMediaPreview();
+    isSendingMedia = false;
 }
 
 // 8. Gallery/Camera Pick Handler
