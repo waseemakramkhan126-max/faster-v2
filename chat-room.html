@@ -142,7 +142,12 @@
                 <button onclick="setDrawingColor()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><div id="currentColor" class="w-5 h-5 rounded-full bg-red-500"></div></button>
                 <button onclick="undoDrawing()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white"><i class="fas fa-undo text-sm"></i></button>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 flex-wrap justify-end">
+                <button onclick="downloadEditedImage()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-download text-sm"></i></button>
+                <button onclick="toggleHdMode()" id="hdToggleBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors text-[10px] font-black">HD</button>
+                <button onclick="rotateImage()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-rotate text-sm"></i></button>
+                <button onclick="toggleStickerPicker()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-face-smile text-sm"></i></button>
+                <button onclick="addTextToImage()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors font-black text-sm">Aa</button>
                 <button onclick="toggleDrawingMode()" id="toggleDrawBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-pen text-lg"></i></button>
                 <button onclick="toggleCropMode()" id="toggleCropBtn" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white active:scale-95 transition-colors"><i class="fas fa-crop-alt text-lg"></i></button>
                 <button onclick="applyCrop()" id="applyCropBtn" class="hidden w-10 h-10 rounded-full bg-[#0077b9] flex items-center justify-center text-white"><i class="fas fa-check text-sm"></i></button>
