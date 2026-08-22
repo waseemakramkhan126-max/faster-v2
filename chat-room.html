@@ -53,12 +53,14 @@
             <i class="fas fa-circle text-[8px] animate-pulse"></i>
             <span class="font-bold text-sm tracking-wider w-12 text-center" id="recordTimer">00:00</span>
         </div>
-        <button id="sendMsgBtn" onclick="sendChatMessage()" class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-            <i class="fas fa-paper-plane text-sm ml-0.5"></i>
-        </button>
-        <button id="chatVoiceBtn" onclick="handleChatVoice()" class="w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md shrink-0 active:scale-95 transition-transform">
-            <i class="fas fa-microphone" id="micIcon"></i>
-        </button>
+        <div id="sendOrVoiceWrap" class="relative w-11 h-11 shrink-0">
+            <button id="sendMsgBtn" onclick="sendChatMessage()" class="hidden absolute inset-0 w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform">
+                <i class="fas fa-paper-plane text-sm ml-0.5"></i>
+            </button>
+            <button id="chatVoiceBtn" onclick="handleChatVoice()" class="absolute inset-0 w-11 h-11 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform">
+                <i class="fas fa-microphone" id="micIcon"></i>
+            </button>
+        </div>
     </footer>
 
     <!-- Attachment Popup -->
