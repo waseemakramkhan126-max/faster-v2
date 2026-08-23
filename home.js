@@ -682,4 +682,3 @@ window.onload = () => {
     fetchPromotions();
     // fetchRecentChats() no longer called - Recent Chats section removed from home page
 };
-            
