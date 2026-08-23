@@ -447,11 +447,21 @@ function subscribeToChat() {
 // karte hain (Supabase project mein webhook feature ka provisioning bug hai)
 // =========================================================
 function triggerPushNotification(msg) {
+    console.log('[push-trigger] Chal rahi hai, message ID:', msg.id);
     fetch('https://hkabhikizdlbavfkualt.supabase.co/functions/v1/send-push-notification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': SB_KEY,
+            'Authorization': 'Bearer ' + SB_KEY
+        },
         body: JSON.stringify({ record: msg })
-    }).catch(err => console.warn('Push notification trigger fail (koi baat nahi, message to bhej chuki hai):', err));
+    }).then(async (res) => {
+        const text = await res.text();
+        console.log('[push-trigger] Response status:', res.status, '| Body:', text);
+    }).catch(err => {
+        console.error('[push-trigger] ❌ FETCH HI FAIL HO GAYI:', err.message);
+    });
 }
 
 async function sendMessage(text, fileUrl = null, msgType = 'text') {
