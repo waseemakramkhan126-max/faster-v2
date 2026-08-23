@@ -442,6 +442,18 @@ function subscribeToChat() {
 // =========================================================
 // 8. SEND MESSAGE
 // =========================================================
+// =========================================================
+// PUSH NOTIFICATION TRIGGER - Database Webhook ke bajaye seedha yahan se call
+// karte hain (Supabase project mein webhook feature ka provisioning bug hai)
+// =========================================================
+function triggerPushNotification(msg) {
+    fetch('https://hkabhikizdlbavfkualt.supabase.co/functions/v1/send-push-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ record: msg })
+    }).catch(err => console.warn('Push notification trigger fail (koi baat nahi, message to bhej chuki hai):', err));
+}
+
 async function sendMessage(text, fileUrl = null, msgType = 'text') {
     if (!text && !fileUrl) return;
 
@@ -477,6 +489,7 @@ async function sendMessage(text, fileUrl = null, msgType = 'text') {
     msgInput.value = '';
     msgInput.style.height = 'auto';
     updateSendVoiceButtonState();
+    triggerPushNotification(newMsg);
 
     // contacts.html ke liye signal - poora data bhejo taake wahan turant (bina network call ke)
     // list update ho sake, "light speed" instant
@@ -575,6 +588,7 @@ async function sendMessageWithProgress(text, fileOrFilePromise, msgType, instant
         scrollToBottom();
         cachedMessages.push(newMsg);
         saveChatCache();
+        triggerPushNotification(newMsg);
 
         // contacts.html ke liye signal (jaisa text messages ke liye upar diya)
         localStorage.setItem('faster_chats_dirty', JSON.stringify({
