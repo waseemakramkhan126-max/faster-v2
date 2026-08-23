@@ -100,10 +100,11 @@ function gonative_onesignal_notification_opened(jsonData) {
     }
 }
 
+let _newOrderRealtimeChannel = null; // sirf apni khud ki channel hatao, poori app ki nahi
 function setupRealtime() {
     if(!userPhone) return;
-    _supabase.removeAllChannels(); 
-    _supabase.channel('new-order-live')
+    if (_newOrderRealtimeChannel) _supabase.removeChannel(_newOrderRealtimeChannel);
+    _newOrderRealtimeChannel = _supabase.channel('new-order-live')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_chats' }, (payload) => { 
             if(payload.new && payload.new.sender_phone !== userPhone) ring(); 
         })
