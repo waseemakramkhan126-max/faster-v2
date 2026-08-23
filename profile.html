@@ -225,6 +225,7 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
+    <audio id="notifSound" src="https://pub-46c1f50284b64647914d7901e1dd5fea.r2.dev/sound_garage-cat-meow-8-fx-306184.mp3" preload="auto"></audio>
 
     <!-- Header -->
     <header class="app-header sticky top-0 z-30 px-4 py-3 flex items-center gap-3">
@@ -933,5 +934,7 @@
             await loadProfile();
         };
     </script>
+
+    <script src="global-message-notify.js"></script>
 </body>
 </html>
