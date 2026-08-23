@@ -108,9 +108,10 @@
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
         }
 
+        let _notifsRealtimeChannel = null; // sirf apni khud ki channel hatao, poori app ki nahi
         function setupRealtime() {
-            _supabase.removeAllChannels();
-            _supabase.channel('all-notifs')
+            if (_notifsRealtimeChannel) _supabase.removeChannel(_notifsRealtimeChannel);
+            _notifsRealtimeChannel = _supabase.channel('all-notifs')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `phone=eq.${userPhone}` }, () => {
                     ring(); loadNotifications();
                 })
