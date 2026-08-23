@@ -64,7 +64,31 @@ function ring() {
 // =========================================================
 // 1. FETCH OTHER USER INFO
 // =========================================================
+const HEADER_CACHE_KEY = 'faster_chat_header_' + conversationId;
+
+function renderHeaderInfo(name, phone, avatarUrl) {
+    otherUserName = name;
+    headerName.textContent = name;
+    if (phone) headerStatus.textContent = `+${phone}`;
+
+    if (avatarUrl) {
+        headerAvatar.innerHTML = `<img src="${avatarUrl}" class="w-full h-full rounded-full object-cover" onerror="this.parentElement.textContent='${name.charAt(0).toUpperCase()}'">`;
+    } else {
+        headerAvatar.textContent = name.charAt(0).toUpperCase();
+    }
+}
+
 async function fetchOtherUser() {
+    // Pehle cache se turant naam/DP dikhao (WhatsApp jaisa - kabhi "Loading..." nahi dikhna chahiye
+    // agar pehle is chat ko khola ja chuka ho)
+    try {
+        const cachedHeader = JSON.parse(localStorage.getItem(HEADER_CACHE_KEY) || 'null');
+        if (cachedHeader) {
+            renderHeaderInfo(cachedHeader.name, cachedHeader.phone, cachedHeader.avatarUrl);
+            otherUserId = cachedHeader.otherUserId;
+        }
+    } catch (e) { /* cache corrupt ho to ignore, neeche se fresh fetch ho jayegi */ }
+
     const { data: participants, error } = await _supabase
         .from('conversation_participants')
         .select('user_id')
@@ -73,8 +97,10 @@ async function fetchOtherUser() {
 
     if (error || !participants || participants.length === 0) {
         console.warn("⚠️ other user not found, but chat will still work.");
-        headerName.textContent = "Unknown User";
-        headerAvatar.textContent = "?";
+        if (!localStorage.getItem(HEADER_CACHE_KEY)) {
+            headerName.textContent = "Unknown User";
+            headerAvatar.textContent = "?";
+        }
         return;
     }
 
@@ -88,20 +114,18 @@ async function fetchOtherUser() {
 
     if (uErr || !userData) {
         otherUserName = "Unknown";
-    } else {
-        otherUserName = userData.name || "User";
-        headerStatus.textContent = `+${userData.phone}`;
+        return;
     }
 
-    headerName.textContent = otherUserName;
+    const name = userData.name || "User";
+    renderHeaderInfo(name, userData.phone, userData.avatar_url);
 
-    // DP dikhao agar available hai, warna naam ka pehla letter (fallback)
-    const avatarUrl = userData && userData.avatar_url;
-    if (avatarUrl) {
-        headerAvatar.innerHTML = `<img src="${avatarUrl}" class="w-full h-full rounded-full object-cover" onerror="this.parentElement.textContent='${otherUserName.charAt(0).toUpperCase()}'">`;
-    } else {
-        headerAvatar.textContent = otherUserName.charAt(0).toUpperCase();
-    }
+    // Cache update karo taake agli baar yeh instant dikhe
+    try {
+        localStorage.setItem(HEADER_CACHE_KEY, JSON.stringify({
+            name, phone: userData.phone, avatarUrl: userData.avatar_url || '', otherUserId
+        }));
+    } catch (e) { console.warn('Header cache save failed:', e); }
 }
 
 // =========================================================
