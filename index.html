@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Faster · Join Us</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#E31C79">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -187,23 +190,11 @@
         </div>
 
         <!-- Google Login Button (if not logged in) -->
-        <div id="googleLoginSection" class="hidden w-full flex justify-center">
-            <div id="g_id_onload"
-                 data-client_id="903632056430-4uecjr5tbamaa09up6l6eqplf2br3602.apps.googleusercontent.com"
-                 data-context="signin"
-                 data-ux_mode="popup"
-                 data-callback="handleGoogleLogin"
-                 data-auto_prompt="false">
-            </div>
-            <div class="g_id_signin"
-                 data-type="standard"
-                 data-shape="rectangular"
-                 data-theme="outline"
-                 data-text="continue_with"
-                 data-size="large"
-                 data-logo_alignment="left"
-                 data-width="320">
-            </div>
+        <div id="googleLoginSection" class="hidden">
+            <button onclick="loginWithGoogle()" class="w-full bg-white border border-gray-200 shadow-sm text-gray-700 font-bold py-4 rounded-xl flex items-center justify-center gap-3 active:scale-95 transition">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" class="w-5 h-5">
+                Continue with Google
+            </button>
         </div>
 
         <!-- Profile Form (after Google login) -->
@@ -326,7 +317,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
         const _supabase = supabase.createClient(
             "https://hkabhikizdlbavfkualt.supabase.co",
@@ -451,21 +441,12 @@
     }
 }
 
-        async function handleGoogleLogin(response) {
+        async function loginWithGoogle() {
             if (!navigator.onLine) { alert('No internet!'); return; }
-            try {
-                const { data, error } = await _supabase.auth.signInWithIdToken({
-                    provider: 'google',
-                    token: response.credential,
-                });
-                if (error) {
-                    alert('Login failed: ' + error.message);
-                    return;
-                }
-                await checkAuthState();
-            } catch (err) {
-                alert("Error during login.");
-            }
+            const { error } = await _supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.href }
+            });
         }
 
         // --- Map ---
@@ -710,5 +691,6 @@
             await checkAuthState();
         };
     </script>
+    <script src="fcm-init.js"></script>
 </body>
 </html>
