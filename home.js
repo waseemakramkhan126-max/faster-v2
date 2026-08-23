@@ -178,9 +178,11 @@ function openChat(conversationId) {
     // window.location.href = 'chat.html?conversation=' + conversationId;
 }
 
+let _homeRealtimeChannel = null; // sirf apni khud ki channel track karo - removeAllChannels() poori app ki
+                                   // baaki channels (jaise global-message-notify.js) bhi hata deta tha
 function setupRealtime() {
-    _supabase.removeAllChannels();
-    _supabase.channel('customer-home-live')
+    if (_homeRealtimeChannel) _supabase.removeChannel(_homeRealtimeChannel);
+    _homeRealtimeChannel = _supabase.channel('customer-home-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'order_chats' }, () => updateActiveOrdersCard())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
             updateActiveOrdersCard();
