@@ -150,10 +150,15 @@
             setupRealtime();
         }
 
+        let _activeOrdersCh = null, _activeMessagesCh = null, _messagesSeenCh = null;
         function setupRealtime() {
-            _supabase.removeAllChannels();
+            // Sirf apni khud ki 3 channels hatao - removeAllChannels() poori app ki baaki
+            // channels (jaise global-message-notify.js) bhi hata deta tha
+            if (_activeOrdersCh) _supabase.removeChannel(_activeOrdersCh);
+            if (_activeMessagesCh) _supabase.removeChannel(_activeMessagesCh);
+            if (_messagesSeenCh) _supabase.removeChannel(_messagesSeenCh);
 
-            _supabase.channel('active-orders').on('postgres_changes', { 
+            _activeOrdersCh = _supabase.channel('active-orders').on('postgres_changes', { 
                 event: 'UPDATE', schema: 'public', table: 'orders' 
             }, (payload) => {
                 if (payload.new && payload.new.customer_id === customerId) {
@@ -165,7 +170,7 @@
                 }
             }).subscribe();
 
-            _supabase.channel('active-messages').on('postgres_changes', { 
+            _activeMessagesCh = _supabase.channel('active-messages').on('postgres_changes', { 
                 event: 'INSERT', schema: 'public', table: 'order_chats' 
             }, (payload) => {
                 if(payload.new && payload.new.sender_phone !== userPhone) {
@@ -174,7 +179,7 @@
                 }
             }).subscribe();
 
-            _supabase.channel('messages-seen').on('postgres_changes', { 
+            _messagesSeenCh = _supabase.channel('messages-seen').on('postgres_changes', { 
                 event: 'UPDATE', schema: 'public', table: 'order_chats' 
             }, (payload) => {
                 if(payload.new && payload.new.status === 'seen') {
