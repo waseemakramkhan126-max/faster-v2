@@ -803,11 +803,11 @@ async function init() {
         loadMessages(false);
     });
 
-    try {
-        await fetchOtherUser();
-    } catch (e) {
+    // fetchOtherUser() (naam/DP fetch karna) ko background mein chalne do - iska WAIT nahi
+    // karna, warna cache instant hone ke bawajood "Loading..." pe atka rehta tha
+    fetchOtherUser().catch(e => {
         console.warn("Other user info fetch nahi hui, lekin chat continue karegi:", e);
-    }
+    });
 
     const cached = loadChatCache();
     if (cached && cached.length > 0) {
