@@ -44,7 +44,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      // Na network se mila na cache se - koi valid Response zaroor deni hai,
+      // "undefined" dene se "Failed to convert value to Response" crash hota tha
+      return new Response('', { status: 408, statusText: 'Network unavailable' });
+    })
   );
 });
 
