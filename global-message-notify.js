@@ -36,20 +36,31 @@
 
             alreadySubscribed = true;
             const myConvIds = new Set(myConvs.map(c => String(c.conversation_id)));
+            console.log('[global-notify] Setup ho gaya, conversations:', myConvIds.size, 'myId:', myId);
 
             _supabase.channel('global-notify-' + Date.now())
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+                    console.log('[global-notify] NAYA MESSAGE MILA:', payload.new);
                     const msg = payload.new;
-                    if (String(msg.sender_id) === String(myId)) return; // apna khud ka message mat bajao
-                    if (!myConvIds.has(String(msg.conversation_id))) return; // sirf apni chats ka
+                    if (String(msg.sender_id) === String(myId)) { console.log('[global-notify] Apna hi message hai, skip'); return; }
+                    if (!myConvIds.has(String(msg.conversation_id))) { console.log('[global-notify] Yeh meri conversation nahi hai, skip'); return; }
 
+                    console.log('[global-notify] Ring bajane ki koshish kar raha hoon...');
                     const sound = document.getElementById('notifSound');
                     if (sound) {
                         sound.currentTime = 0;
-                        sound.play().catch(() => {}); // agar autoplay block ho to chup chaap ignore karo
+                        sound.play().then(() => {
+                            console.log('[global-notify] ✅ Sound bilkul bajayi!');
+                        }).catch((err) => {
+                            console.log('[global-notify] ❌ Sound bajane mein error:', err.message);
+                        });
+                    } else {
+                        console.log('[global-notify] ❌ #notifSound element hi nahi mila is page pe!');
                     }
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    console.log('[global-notify] Channel status:', status);
+                });
         } catch (e) {
             if (attempts < 10 && !alreadySubscribed) setTimeout(setupGlobalMessageListener, 500);
         }
