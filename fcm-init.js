@@ -6,15 +6,15 @@
 // =========================================================
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDYPlg6nM02i2eJnztb-CxptAe7KeH9-Ng",
+  authDomain: "studio-5291940585-6ed7f.firebaseapp.com",
+  projectId: "studio-5291940585-6ed7f",
+  storageBucket: "studio-5291940585-6ed7f.firebasestorage.app",
+  messagingSenderId: "238685932805",
+  appId: "1:238685932805:web:4e55324d71d2816883bb6c"
 };
 
-const VAPID_KEY = "YOUR_VAPID_KEY"; // Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
+const VAPID_KEY = "BHwX2M_srnqnPXiRCn4eYqZ59Nipih665V2E2sJEBgEtYiDyHesfYUvk-RQLib60gU8X-AyAmzO6jYIXNUNnbCE"; // Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
 
 async function initPushNotifications() {
   // Sirf tab chalao jab customer login ho chuka ho (myId available ho)
