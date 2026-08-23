@@ -32,6 +32,27 @@
         <i class="fas fa-ellipsis-vertical text-lg cursor-pointer active:scale-90 transition-transform p-2" onclick="toggleHeaderMenu()"></i>
     </header>
 
+    <!-- PRE-PAINT: header ko turant (JS files load hone se pehle hi) cache se bhar do -
+         taake "Loading..." kabhi bhi ek pal ke liye bhi na dikhe (WhatsApp jaisa, zero flash) -->
+    <script>
+        (function() {
+            try {
+                var cid = new URLSearchParams(window.location.search).get('conversation_id');
+                if (!cid) return;
+                var cached = JSON.parse(localStorage.getItem('faster_chat_header_' + cid) || 'null');
+                if (!cached) return;
+                document.getElementById('headerName').textContent = cached.name;
+                if (cached.phone) document.getElementById('headerStatus').textContent = '+' + cached.phone;
+                var avatarEl = document.getElementById('headerAvatar');
+                if (cached.avatarUrl) {
+                    avatarEl.innerHTML = '<img src="' + cached.avatarUrl + '" class="w-full h-full rounded-full object-cover">';
+                } else {
+                    avatarEl.textContent = cached.name.charAt(0).toUpperCase();
+                }
+            } catch (e) { /* cache na mile to bas "Loading..." hi dikhega, jaisa pehli baar hota hai */ }
+        })();
+    </script>
+
     <!-- Messages Container -->
     <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 scroll-smooth relative">
         <div id="loadMoreLoader" class="text-center text-gray-400 text-[10px] py-2 hidden"><i class="fas fa-spinner fa-spin mr-1"></i> Loading older messages...</div>
@@ -183,12 +204,12 @@
     <input type="file" id="hiddenAudioInput" accept="audio/*" style="display:none;" onchange="handleAudioPick(this)">
 
     <!-- JS Files (ORDER MATTERS!) -->
-    <script src="r2-upload.js?v=3"></script>
-    <script src="chat-room.js?v=3"></script>
-    <script src="chat-room-gallery-camera.js?v=3"></script>
-    <script src="chat-room-location.js?v=3"></script>
-    <script src="chat-room-contacts.js?v=3"></script>
-    <script src="chat-room-documents.js?v=3"></script>
-    <script src="chat-room-audio.js?v=3"></script>
+    <script src="r2-upload.js?v=6"></script>
+    <script src="chat-room.js?v=6"></script>
+    <script src="chat-room-gallery-camera.js?v=6"></script>
+    <script src="chat-room-location.js?v=6"></script>
+    <script src="chat-room-contacts.js?v=6"></script>
+    <script src="chat-room-documents.js?v=6"></script>
+    <script src="chat-room-audio.js?v=6"></script>
 </body>
 </html>
