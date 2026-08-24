@@ -55,7 +55,7 @@ select.modern-input {
 
 /* Primary Button (Save & Continue) */
 .modern-btn {
-    background: #2563eb; /* Solid Blue */
+    background: #14508C; /* Solid Blue */
     color: white;
     border-radius: 16px;
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
@@ -78,7 +78,7 @@ select.modern-input {
 /* GPS Button */
 .gps-btn {
     background: #eff6ff; /* Light blue tint */
-    color: #2563eb;
+    color: #14508C;
     border: 1.5px solid #bfdbfe;
     border-radius: 16px;
     transition: all 0.2s ease;

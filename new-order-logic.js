@@ -419,7 +419,7 @@ function addToDraft(type, content) {
         const objUrl = URL.createObjectURL(content);
         
         b.innerHTML = `
-            <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+            <div class="voice-player-container flex items-center gap-2 bg-[#14508C] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
                 <button type="button" class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform" style="min-width: 28px;">
                     <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
                 </button>

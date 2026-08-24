@@ -78,7 +78,7 @@ async function handleConfirmPrompt() {
     voiceContainer.innerHTML = '';
     draftData.voices.forEach((vceObj, index) => {
         voiceContainer.innerHTML += `
-            <div class="flex items-center gap-2 bg-blue-100 text-[#0077b9] px-3 py-2 rounded-lg text-xs font-bold border border-blue-200">
+            <div class="flex items-center gap-2 bg-blue-100 text-[#14508C] px-3 py-2 rounded-lg text-xs font-bold border border-blue-200">
                 <i class="fas fa-microphone"></i> Voice Note attached (${index + 1})
             </div>
         `;

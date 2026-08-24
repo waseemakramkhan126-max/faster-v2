@@ -233,7 +233,7 @@ function renderMessages(messages, appendAtTop = false) {
             `;
         } else if (msg.type === 'voice') {
             contentHTML = `
-                <div class="voice-player-container flex items-center gap-2 bg-[#0077b9] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
+                <div class="voice-player-container flex items-center gap-2 bg-[#14508C] px-3 h-10 rounded-full shadow-sm max-w-[320px] my-1" style="border-radius: 50px 50px 0px 50px;">
                     <button class="play-btn-custom flex items-center justify-center w-7 h-7 bg-[#e0532b] rounded-full text-white active:scale-95 transition-transform">
                         <i class="fas fa-play text-[10px] ml-0.5 pointer-events-none"></i>
                     </button>
@@ -631,7 +631,7 @@ function renderTempMessage(msg) {
                         <i class="fas fa-spinner fa-spin text-white text-lg"></i>
                     </div>
                 </div>
-                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
+                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#14508C] rounded-full" style="width:0%"></div>
             </div>
             ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
         `;
@@ -644,7 +644,7 @@ function renderTempMessage(msg) {
                         <i class="fas fa-spinner fa-spin text-white text-lg"></i>
                     </div>
                 </div>
-                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#0077b9] rounded-full" style="width:0%"></div>
+                <div class="upload-progress-bar absolute bottom-0 left-0 h-1 bg-[#14508C] rounded-full" style="width:0%"></div>
             </div>
             ${msg.content ? `<p class="mt-1 text-sm whitespace-pre-wrap">${msg.content}</p>` : ''}
         `;
@@ -1188,7 +1188,7 @@ function showMessageActions(bubble) {
         <div class="relative w-full bg-white rounded-t-2xl p-2 pb-safe shadow-2xl">
             ${canEdit ? `
             <button onclick="startEditMessage('${msgId}')" class="w-full text-left py-3 px-4 flex items-center gap-3 text-gray-800 font-semibold border-b border-gray-100 active:bg-gray-50">
-                <i class="fas fa-pen text-[#0077b9] w-5"></i> Edit
+                <i class="fas fa-pen text-[#14508C] w-5"></i> Edit
             </button>` : ''}
             ${isMe ? `
             <button onclick="confirmDeleteMessage('${msgId}')" class="w-full text-left py-3 px-4 flex items-center gap-3 text-red-600 font-semibold active:bg-red-50">
@@ -1269,7 +1269,7 @@ function showEditingBanner() {
     banner.className = 'fixed left-0 right-0 bg-blue-50 border-t border-blue-200 px-4 py-2 flex items-center justify-between z-[9998]';
     banner.style.bottom = '64px'; // footer ke upar
     banner.innerHTML = `
-        <span class="text-xs font-bold text-[#0077b9]"><i class="fas fa-pen mr-1"></i> Editing message</span>
+        <span class="text-xs font-bold text-[#14508C]"><i class="fas fa-pen mr-1"></i> Editing message</span>
         <i class="fas fa-times text-gray-500 cursor-pointer p-1" onclick="cancelEditingMode()"></i>
     `;
     document.body.appendChild(banner);

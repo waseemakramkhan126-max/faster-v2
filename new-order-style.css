@@ -9,7 +9,7 @@
     --chat-area-bg: #e5ddd5;          /* Chat area ka background color (agar wallpaper image load na ho) */
     
     /* 2. APPBAR AREA (Enter Order Details) */
-    --appbar-bg: #0077b9;             /* Appbar ka background color */
+    --appbar-bg: #14508C;             /* Appbar ka background color */
     --appbar-text-color: #ffffff;     /* "Enter Order Details" text ka color */
     --appbar-bottom-border: #e5e7eb;  /* Appbar ke neeche wali patli line ka color */
 
@@ -20,7 +20,7 @@
     --footer-border: transparent;         /* Footer area ki oopar wali patli line ka color */
 
     /* 4. BUTTONS KE BACKGROUND AUR TEXT COLORS */
-    --confirm-btn-bg: #0077b9;        /* "Confirm order" button ka background color */
+    --confirm-btn-bg: #14508C;        /* "Confirm order" button ka background color */
     --confirm-btn-text: #ffffff;      /* "Confirm order" button ke andar likhe text ka color */
     
     --plus-btn-bg: #f3f4f6;           /* Plus (+) button ka background color */
@@ -29,7 +29,7 @@
     --send-btn-bg: #f97316;           /* Message send karne wale Teer (arrow) button ka background color */
     --send-btn-icon: #ffffff;         /* Send button ke andar arrow icon ka color */
     
-    --mic-btn-bg: #0077b9;            /* Microphone (Voice record) button ka background color */
+    --mic-btn-bg: #14508C;            /* Microphone (Voice record) button ka background color */
     --mic-btn-icon: #ffffff;          /* Microphone button ke andar icon ka color */
 
     /* 5. TEXT INPUT BOX COLORS */
@@ -37,7 +37,7 @@
     --input-text-color: #1f2937;      /* Jo text type ho rha hota hai uska color */
 
     /* 6. CHAT BUBBLES COLORS (Messages) */
-    --customer-bubble-bg: #0077b9;    /* Jo order details chat me add hoti hain unke bubble ka background color */
+    --customer-bubble-bg: #14508C;    /* Jo order details chat me add hoti hain unke bubble ka background color */
     --customer-bubble-text: #ffffff;  /* Chat ke andar likhe hue details ke text ka color */
 }
 
@@ -246,7 +246,7 @@ textarea::-webkit-scrollbar { display: none; }
 .ai-bubble { 
     background-color: #f3e8ff; 
     color: #6b21a8; 
-    border-left: 4px solid #0077b9; 
+    border-left: 4px solid #14508C; 
     padding: 10px; 
     border-radius: 12px; 
     margin: 8px 0;

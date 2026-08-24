@@ -198,9 +198,9 @@ function resetEditorState() {
     isCropMode = false;
     drawings = [];
     document.getElementById('drawingTools').classList.add('hidden');
-    document.getElementById('toggleDrawBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleDrawBtn').classList.remove('bg-[#14508C]');
     document.getElementById('toggleDrawBtn').classList.add('bg-white/10');
-    document.getElementById('toggleCropBtn').classList.remove('bg-[#0077b9]');
+    document.getElementById('toggleCropBtn').classList.remove('bg-[#14508C]');
     document.getElementById('toggleCropBtn').classList.add('bg-white/10');
     document.getElementById('applyCropBtn').classList.add('hidden');
     document.getElementById('captionBar').classList.remove('hidden');
@@ -237,14 +237,14 @@ function toggleDrawingMode() {
     
     if (isDrawingMode) {
         tools.classList.remove('hidden');
-        btn.classList.add('bg-[#0077b9]');
+        btn.classList.add('bg-[#14508C]');
         btn.classList.remove('bg-white/10');
         canvas.classList.add('drawing-mode');
         document.getElementById('captionBar').classList.add('hidden');
         setDrawingTool('pen');
     } else {
         tools.classList.add('hidden');
-        btn.classList.remove('bg-[#0077b9]');
+        btn.classList.remove('bg-[#14508C]');
         btn.classList.add('bg-white/10');
         canvas.classList.remove('drawing-mode');
         document.getElementById('captionBar').classList.remove('hidden');
@@ -255,11 +255,11 @@ function setDrawingTool(tool) {
     currentTool = tool;
     document.querySelectorAll('#drawingTools button[id$="Tool"]').forEach(btn => {
         btn.classList.add('bg-white/10');
-        btn.classList.remove('bg-[#0077b9]');
+        btn.classList.remove('bg-[#14508C]');
     });
     const activeBtn = document.getElementById(tool + 'Tool');
     if (activeBtn) {
-        activeBtn.classList.add('bg-[#0077b9]');
+        activeBtn.classList.add('bg-[#14508C]');
         activeBtn.classList.remove('bg-white/10');
     }
 }
@@ -316,7 +316,7 @@ function toggleCropMode() {
     const applyBtn = document.getElementById('applyCropBtn');
     
     if (isCropMode) {
-        btn.classList.add('bg-[#0077b9]');
+        btn.classList.add('bg-[#14508C]');
         btn.classList.remove('bg-white/10');
         applyBtn.classList.remove('hidden');
         cropOverlay.classList.remove('hidden');
@@ -324,7 +324,7 @@ function toggleCropMode() {
         document.getElementById('captionBar').classList.add('hidden');
         document.getElementById('toggleDrawBtn').classList.add('hidden');
     } else {
-        btn.classList.remove('bg-[#0077b9]');
+        btn.classList.remove('bg-[#14508C]');
         btn.classList.add('bg-white/10');
         applyBtn.classList.add('hidden');
         cropOverlay.classList.add('hidden');
@@ -392,7 +392,7 @@ function toggleHdMode() {
     isHdMode = !isHdMode;
     const btn = document.getElementById('hdToggleBtn');
     if (btn) {
-        btn.classList.toggle('bg-[#0077b9]', isHdMode);
+        btn.classList.toggle('bg-[#14508C]', isHdMode);
         btn.classList.toggle('bg-white/10', !isHdMode);
     }
 }

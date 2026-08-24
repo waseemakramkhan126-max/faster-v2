@@ -7,8 +7,8 @@
 :root {
     --wa-bg: #0b141a;
     --wa-header: #111b21;
-    --wa-green: #25d366;
-    --wa-green-dark: #1faa54;
+    --wa-green: #14508C;
+    --wa-green-dark: #0A326E;
     --wa-text: #e9edef;
     --wa-text-dim: #8696a0;
     --wa-border: #222d34;
@@ -90,7 +90,7 @@
     flex-shrink: 0;
     cursor: pointer;
 }
-.wa-tab.active { background: #005c4b; color: #d8fce4; }
+.wa-tab.active { background: #14508C; color: #EAF2FB; }
 .wa-tab:active { transform: scale(0.95); }
 .wa-tab-add {
     padding: 7px 10px;

@@ -1,9 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
 :root {
-    --primary-blue: #0077b9;
+    --primary-blue: #14508C;
     --bg-chat: #e5ddd5;
-    --sent-bubble: #0077b9;
+    --sent-bubble: #14508C;
     --sent-text: #ffffff;
     --received-bubble: #ffffff;
     --received-text: #1f2937;
@@ -194,7 +194,7 @@ footer{
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #0077b9;
+    background: #14508C;
     display: flex;
     align-items: center;
     justify-content: center;
