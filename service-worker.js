@@ -44,34 +44,32 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      const cached = await caches.match(event.request);
-      if (cached) return cached;
-      // Na network se mila na cache se - koi valid Response zaroor deni hai,
-      // "undefined" dene se "Failed to convert value to Response" crash hota tha
-      return new Response('', { status: 408, statusText: 'Network unavailable' });
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
 
 // ---- PUSH NOTIFICATION receive karo (app band/background ho tab bhi yeh chalta hai) ----
 self.addEventListener('push', (event) => {
-  let data = { title: 'Faster', body: 'Naya message aaya hai', url: './contacts.html' };
+  let payload = { title: 'Faster', body: 'Naya message aaya hai', url: './contacts.html' };
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    if (event.data) {
+      const parsed = event.data.json();
+      // FCM "data" message ka format: asal fields "data" ke andar nested hote hain
+      const fields = parsed.data || parsed;
+      payload = { ...payload, ...fields };
+    }
   } catch (e) { /* plain text ho to default hi use karo */ }
 
   const options = {
-    body: data.body,
+    body: payload.body,
     icon: './icon-192.png',
     badge: './icon-192.png',
-    sound: './custom-ringtone.mp3', // Android notification channel ke through respect hota hai (TWA build)
     vibrate: [200, 100, 200],
-    data: { url: data.url },
-    tag: data.tag || 'faster-message'
+    data: { url: payload.url },
+    tag: 'faster-message'
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(self.registration.showNotification(payload.title, options));
 });
 
 // ---- Notification pe tap karne pe sahi page kholo ----
