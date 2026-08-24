@@ -1,12 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
 
 :root {
-    --primary-blue: #14508C;
-    --bg-chat: #e5ddd5;
-    --sent-bubble: #14508C;
+    --primary-blue: #2CA9C9;
+    --bg-chat: #ffffff;
+    --sent-bubble: #2CA9C9;
     --sent-text: #ffffff;
-    --received-bubble: #ffffff;
+    --received-bubble: #f2f4f6;
     --received-text: #1f2937;
+    --date-chip-bg: rgba(44, 169, 201, 0.12);
+    --date-chip-text: #1D7A93;
+    --card-bg: #f2f4f6;
+    --card-text: #1f2937;
+    --map-placeholder-bg: #e5e7eb;
+    --scroll-thumb: rgba(0,0,0,0.2);
+    --footer-bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-chat: #0b141a;
+        --received-bubble: #1e2a30;
+        --received-text: #e9edef;
+        --date-chip-bg: rgba(44, 169, 201, 0.2);
+        --date-chip-text: #7fd4e8;
+        --card-bg: #1e2a30;
+        --card-text: #e9edef;
+        --map-placeholder-bg: #263139;
+        --scroll-thumb: rgba(255,255,255,0.2);
+        --footer-bg: #111b21;
+    }
 }
 
 html,
@@ -17,8 +39,6 @@ body {
     padding: 0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: var(--bg-chat);
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-attachment: fixed;
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
 }
@@ -32,8 +52,8 @@ body{
 /* Custom Scrollbar (WhatsApp Style) */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb); }
 
 /* Message Bubbles */
 .bubble {
@@ -43,7 +63,7 @@ body{
     font-size: 14px;
     word-wrap: break-word;
     position: relative;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
     animation: pop 0.2s ease-out forwards;
 }
 .bubble-sent {
@@ -69,20 +89,20 @@ body{
     font-size: 10px;
     opacity: 0.7;
 }
-.bubble-sent .bubble-meta { color: #cce3ff; }
+.bubble-sent .bubble-meta { color: #e0f4f9; }
 .bubble-received .bubble-meta { color: #888; }
-.read-receipt { color: #53bdeb; }
+.read-receipt { color: #34b7f1; }
 .read-receipt.unread { color: #b0b0b0; }
 
 /* Date Divider */
 .date-divider { text-align: center; margin: 16px 0; }
 .date-divider span {
-    background-color: rgba(225, 245, 254, 0.92);
-    color: #54656f;
+    background-color: var(--date-chip-bg);
+    color: var(--date-chip-text);
     font-size: 12px;
     padding: 4px 12px;
     border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     font-weight: 600;
 }
 
@@ -112,7 +132,7 @@ footer{
     position: fixed;
     left:0; right:0; bottom:0;
     z-index:9999;
-    background:#fff;
+    background: var(--footer-bg);
     padding-bottom:calc(10px + env(safe-area-inset-bottom));
 }
 
@@ -162,18 +182,18 @@ footer{
 
 /* Popup Option Buttons */
 #attachPopup button > div {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 /* Location Preview Card */
 .location-preview {
-    background: #2a2a2a;
+    background: var(--card-bg);
     border-radius: 12px;
     overflow: hidden;
 }
 .location-preview .map-placeholder {
     height: 120px;
-    background: #3a3a3a;
+    background: var(--map-placeholder-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -183,7 +203,8 @@ footer{
 
 /* Contact Card */
 .contact-card {
-    background: #2a2a2a;
+    background: var(--card-bg);
+    color: var(--card-text);
     border-radius: 12px;
     padding: 12px;
     display: flex;
@@ -194,7 +215,7 @@ footer{
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #14508C;
+    background: #2CA9C9;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -212,7 +233,7 @@ footer{
     flex: 1;
     min-height: 0;
     position: relative;
-    background: #1a1a1a;
+    background: var(--map-placeholder-bg);
     overflow: hidden;
 }
 #locationMap {

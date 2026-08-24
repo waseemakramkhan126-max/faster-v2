@@ -55,17 +55,17 @@ select.modern-input {
 
 /* Primary Button (Save & Continue) */
 .modern-btn {
-    background: #14508C; /* Solid Blue */
+    background: #2CA9C9; /* Solid Blue */
     color: white;
     border-radius: 16px;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 4px 14px rgba(44,169,201, 0.25);
     transition: all 0.2s ease;
     border: none;
 }
 
 .modern-btn:active {
     transform: translateY(2px);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 2px 8px rgba(44,169,201, 0.25);
 }
 
 .modern-btn:disabled {
@@ -78,7 +78,7 @@ select.modern-input {
 /* GPS Button */
 .gps-btn {
     background: #eff6ff; /* Light blue tint */
-    color: #14508C;
+    color: #2CA9C9;
     border: 1.5px solid #bfdbfe;
     border-radius: 16px;
     transition: all 0.2s ease;

@@ -6,7 +6,7 @@
     <title>Faster · Join Us</title>
     <link rel="icon" href="favicon.ico">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#14508C">
+    <meta name="theme-color" content="#2CA9C9">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -15,24 +15,36 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
-            --brand: #14508C;
-            --brand-dark: #0A326E;
-            --brand-light: #EAF2FB;
+            --brand: #2CA9C9;
+            --brand-dark: #1D7A93;
+            --brand-light: #E0F4F9;
             --ink: #0f172a;
             --muted: #64748b;
             --line: #e7eaf0;
+            --page-bg: #ffffff;
+            --card-bg: rgba(255,255,255,0.9);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ink: #f1f5f9;
+                --muted: #94a3b8;
+                --line: #223041;
+                --page-bg: #0f1720;
+                --card-bg: rgba(22, 32, 43, 0.9);
+            }
         }
 
         * { -webkit-tap-highlight-color: transparent; }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: linear-gradient(180deg, #eef2f9 0%, #f8fafc 100%);
+            background: var(--page-bg);
             color: var(--ink);
         }
 
         .glass-card {
-            background: rgba(255,255,255,0.9);
+            background: var(--card-bg);
             backdrop-filter: blur(12px);
             border-radius: 28px;
             border: 1px solid var(--line);
@@ -60,7 +72,7 @@
         .field-group:focus-within {
             background: #ffffff;
             border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
+            box-shadow: 0 0 0 3px rgba(44,169,201,0.10);
         }
         .field-icon {
             width: 28px;
@@ -135,11 +147,11 @@
         }
 
         .save-btn {
-            background: linear-gradient(135deg, #14508C, #0A326E);
-            box-shadow: 0 14px 28px -10px rgba(37,99,235,0.5);
+            background: linear-gradient(135deg, #2CA9C9, #1D7A93);
+            box-shadow: 0 14px 28px -10px rgba(44,169,201,0.5);
             transition: all 0.18s;
         }
-        .save-btn:active { transform: scale(0.985); box-shadow: 0 8px 16px -8px rgba(37,99,235,0.4); }
+        .save-btn:active { transform: scale(0.985); box-shadow: 0 8px 16px -8px rgba(44,169,201,0.4); }
         .save-btn:disabled { opacity: 0.85; }
 
         .modal-overlay {
