@@ -80,7 +80,7 @@ async function saveFcmTokenToSupabase(customerId, token) {
 // Service worker register karo (agar pehle se nahi hua)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js?v=2')
       .then(() => initPushNotifications())
       .catch(err => console.error('Service worker register nahi hua:', err));
   });
