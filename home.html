@@ -190,15 +190,18 @@
         <div class="nav-item flex flex-col items-center gap-1 cursor-pointer" onclick="location.href='contacts.html'">
     <!-- Round Circle Container -->
     <div class="w-10 h-10 rounded-full bg-blue-50 text-[#14508C] flex items-center justify-center border border-blue-100 shadow-sm">
-        <div class="flex items-center gap-2">
-            <!-- Phone inside Chat Bubble -->
-            <div class="relative inline-flex items-center justify-center">
-                <!-- Chat Bubble (Orange) -->
-                <i class="fas fa-comment text-orange-500 text-[14px]"></i>
-                <!-- Phone Icon (White - Inside Chat) -->
-                <i class="fas fa-phone text-white text-[6px] absolute top-[3.5px]"></i>
+        
+        <!-- Chat + Phone Combo -->
+        <div class="relative inline-flex items-center justify-center">
+            <!-- Main Chat Icon (Bara aur Saaf) -->
+            <i class="fas fa-comment-dots text-orange-500 text-lg"></i>
+            
+            <!-- Phone Badge (White Circle Ring ke sath) -->
+            <div class="absolute -bottom-1 -right-1.5 bg-white text-[#14508C] w-4 h-4 rounded-full flex items-center justify-center border border-blue-100 shadow-sm">
+                <i class="fas fa-phone text-[8px]"></i>
             </div>
         </div>
+
     </div>
 
     <!-- Label -->
