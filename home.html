@@ -191,15 +191,17 @@
     <!-- Round Circle Container -->
 
         <!-- Chat + Phone Combo -->
+
 <div class="relative inline-flex items-center justify-center w-8 h-8">
-    <!-- Orange Chat Bubble (Base) -->
-    <i class="fas fa-comment text-blue-500 text-2xl"></i>
+    <!-- Chat bubble (base) -->
+    <i class="fas fa-comment-dots text-3xl text-blue-500"></i>
     
-    <!-- Phone Icon - ab apne white circle ke andar, alag se saaf dikhega -->
-    <span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center shadow-sm ring-1 ring-black/5">
-        <i class="fas fa-phone text-green-500 text-[9px]"></i>
-    </span>
+    <!-- Phone icon - bilkul center mein overlay, white halo ke sath taake saaf dikhe -->
+    <i class="fas fa-phone text-green-500 text-[10px] absolute" 
+       style="top: 40%; left: 50%; transform: translate(-50%, -50%); 
+              text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;"></i>
 </div>
+
 
     <!-- Label -->
     <span>Chats</span>
