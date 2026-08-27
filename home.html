@@ -188,19 +188,30 @@
             <span>Reels/Feed</span>
         </div>
         <div class="nav-item flex flex-col items-center gap-1 cursor-pointer" onclick="location.href='contacts.html'">
-    <!-- Slightly Larger Circle -->
-    <div class="w-11 h-11 rounded-full bg-blue-50 text-[#14508C] flex items-center justify-center border border-blue-100 shadow-sm">
-        <div class="flex items-center gap-1">
-            <i class="fas fa-user text-[9px]"></i>
-            <i class="fas fa-comment-dots text-[8px] text-orange-500"></i>
-            <i class="fas fa-phone text-[8px]"></i>
-            <i class="fas fa-user text-[9px]"></i>
+    <!-- Round Circle Container -->
+    <div class="relative w-10 h-10 rounded-full bg-blue-50 border border-blue-100 shadow-sm flex items-center justify-center">
+        
+        <!-- Center Wrapper for Icons -->
+        <div class="relative w-7 h-7">
+            <!-- Left User -->
+            <i class="fas fa-user text-[10px] text-[#14508C] absolute left-0 bottom-1"></i>
+
+            <!-- Right User -->
+            <i class="fas fa-user text-[10px] text-[#14508C] absolute right-0 bottom-1"></i>
+
+            <!-- Main Chat Bubble (Centered/Top) -->
+            <i class="fas fa-comment text-orange-500 text-[14px] absolute left-1/2 top-0 -translate-x-1/2"></i>
+            
+            <!-- Phone Icon (Overlayed on Chat) -->
+            <i class="fas fa-phone text-[#14508C] text-[7px] absolute left-[55%] top-[4px] z-10 bg-blue-50 rounded-full p-[1px]"></i>
         </div>
+
     </div>
 
     <!-- Label -->
-    <span class="text-xs font-medium">Chats</span>
+    <span class="text-xs font-medium text-gray-700">Chats</span>
 </div>
+
         <div class="nav-item" onclick="location.href='profile.html'">
             <i class="fas fa-user"></i>
             <span>Profile</span>
