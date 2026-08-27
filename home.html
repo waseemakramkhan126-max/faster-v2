@@ -187,24 +187,16 @@
             <div class="nav-center-icon"><i class="fas fa-clapperboard"></i></div>
             <span>Reels/Feed</span>
         </div>
-        <div class="nav-item flex flex-col items-center" onclick="location.href='contacts.html'">
-    <!-- Top Icons Row (Person <-> Chat/Call <-> Person) -->
-    <div class="flex items-center gap-1">
-        <!-- Left Person -->
-        <i class="fas fa-user text-[11px]"></i>
-
-        <!-- Middle (Chat & Call Icons) -->
-        <div class="flex items-center gap-0.5 text-[9px] opacity-80">
-            <i class="fas fa-comment-dots"></i>
-            <i class="fas fa-phone"></i>
-        </div>
-
-        <!-- Right Person -->
-        <i class="fas fa-user text-[11px]"></i>
+        <div class="nav-item flex flex-col items-center gap-1 cursor-pointer" onclick="location.href='contacts.html'">
+    <!-- Round Circle Container -->
+    <div class="w-10 h-10 rounded-full bg-blue-50 text-[#14508C] flex items-center justify-center gap-1 border border-blue-100 shadow-sm">
+        <i class="fas fa-user text-[10px]"></i>
+        <i class="fas fa-comment-dots text-[9px] text-orange-500"></i>
+        <i class="fas fa-user text-[10px]"></i>
     </div>
 
     <!-- Label -->
-    <span>Chats</span>
+    <span class="text-xs font-medium">Chats</span>
 </div>
         <div class="nav-item" onclick="location.href='profile.html'">
             <i class="fas fa-user"></i>
