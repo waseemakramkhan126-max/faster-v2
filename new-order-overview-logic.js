@@ -7,11 +7,15 @@ let currentExtractedSummary = "";
 async function handleConfirmPrompt() {
     if (!navigator.onLine) return Dialog.show("No Internet", "Connect to the internet to submit your order.", "alert");
     const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) { await Dialog.show("Session Expired", "Please login again."); window.location.replace("index.html"); return; }
 
-    // Hybrid Fee Calculation Setup
-    const city = localStorage.getItem('faster_city') || "Lahore";
-    const area = localStorage.getItem('faster_area') || "";
+    // Guest customers enter their delivery city/area in the order confirmation form.
+    const isGuest = !session;
+    const city = isGuest ? (document.getElementById('guestCity')?.value.trim() || "") : (localStorage.getItem('faster_city') || "Lahore");
+    const area = isGuest ? (document.getElementById('guestArea')?.value.trim() || "") : (localStorage.getItem('faster_area') || "");
+    if (isGuest) {
+        const guestFields = document.getElementById('guestOrderFields');
+        if (guestFields) guestFields.classList.remove('hidden');
+    }
     const block = localStorage.getItem('faster_block') || ""; 
     
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
@@ -41,6 +45,15 @@ async function handleConfirmPrompt() {
 
     if (!currentExtractedSummary) {
         currentExtractedSummary = "Order details are in attached voice notes/images.";
+    }
+
+    // Show guest contact/location fields only when no logged-in session.
+    const { data: { session: currentSession } } = await _supabase.auth.getSession();
+    const guestFields = document.getElementById('guestOrderFields');
+    if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
+    if (!currentSession) {
+        document.getElementById('guestCity').value = localStorage.getItem('faster_city') || "";
+        document.getElementById('guestArea').value = localStorage.getItem('faster_area') || "";
     }
 
     // Populate Overview Fields
@@ -116,8 +129,7 @@ function openFullWithCaption(srcUrl, captionText) {
 // Final Submission Execution Flow
 async function confirmOrderFromOverview() {
     const { data: { session } } = await _supabase.auth.getSession();
-    if(!session) return;
-
+    const isGuest = !session;
     const btn = document.getElementById('overviewSubmitBtn');
 
     // Inline Error Display Helper
@@ -145,36 +157,31 @@ async function confirmOrderFromOverview() {
     let customerCity = localStorage.getItem('faster_city');
     let customerArea = localStorage.getItem('faster_area');
 
-    if (!customerArea || customerArea === "null" || !customerCity) {
+    if (isGuest) {
+        customerCity = (document.getElementById('guestCity')?.value || '').trim();
+        customerArea = (document.getElementById('guestArea')?.value || '').trim();
+        if (!customerCity || !customerArea) {
+            showInlineError("Delivery Area Required", "Apni city aur delivery area enter karein.");
+            return;
+        }
+        localStorage.setItem('faster_city', customerCity);
+        localStorage.setItem('faster_area', customerArea);
+    } else if (!customerArea || customerArea === "null" || !customerCity) {
         if (!customerId || customerId.trim() === '' || isNaN(customerId)) {
-            if (typeof Dialog !== 'undefined') {
-                await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
-            } else {
-                alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
-            }
+            await Dialog.show("Area Missing 📍", "Apna delivery area profile mein set karein.", "alert");
             window.location.href = "profile.html";
             return;
         }
         try {
             const { data: custData } = await _supabase.from('customers').select('city, area').eq('customer_id', customerId).single();
             if (custData && custData.area) {
-                customerCity = custData.city;
-                customerArea = custData.area;
-                localStorage.setItem('faster_city', customerCity);
-                localStorage.setItem('faster_area', customerArea);
+                customerCity = custData.city; customerArea = custData.area;
+                localStorage.setItem('faster_city', customerCity); localStorage.setItem('faster_area', customerArea);
             } else {
-                if (typeof Dialog !== 'undefined') {
-                    await Dialog.show("Area Missing 📍", "Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.", "alert");
-                } else {
-                    alert("Order place karne ke liye apna Delivery Area set karna zaroori hai. Hum aapko Profile page par bhej rahe hain.");
-                }
-                window.location.href = "profile.html"; 
-                return;
+                await Dialog.show("Area Missing 📍", "Apna delivery area profile mein set karein.", "alert");
+                window.location.href = "profile.html"; return;
             }
-        } catch(e) {
-            showInlineError("Network Error", "Area fetch nahi ho saka, internet check karein.");
-            return;
-        }
+        } catch(e) { showInlineError("Network Error", "Area fetch nahi ho saka, internet check karein."); return; }
     }
 
     const safeAreaToSave = (customerArea || "").trim().toLowerCase();
@@ -218,6 +225,13 @@ async function confirmOrderFromOverview() {
     if(!name || !addr) {
         showInlineError("Missing Information", "Please enter your Name and Address to proceed.");
         return;
+    }
+    if (isGuest) {
+        const guestPhone = document.getElementById('guestPhone')?.value.trim() || '';
+        if (!guestPhone || guestPhone.length < 7) {
+            showInlineError("Phone Required", "Valid WhatsApp phone number enter karein.");
+            return;
+        }
     }
 
     // Dynamic Operating Hours Time Check Logic
@@ -301,7 +315,9 @@ async function confirmOrderFromOverview() {
         
         fullSavedAddress = addr;
         
-        await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
+        if (session) {
+            await _supabase.from('customers').update({ name: name, address: addr }).eq('email', session.user.email);
+        }
 
         // Safe Media Cloud Upload Handling - ab errors chup nahi rahenge, list mein collect hote hain
         const uploadErrors = [];
@@ -352,7 +368,7 @@ async function confirmOrderFromOverview() {
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
         const { error } = await _supabase.from('orders').insert([{
-            customer_phone: userPhone, 
+            customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
             ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
             customer_name: name, 
             delivery_address: addr, 
