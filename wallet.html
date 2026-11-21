@@ -277,29 +277,29 @@
                     let isSettledViaTopUp = false;
                     let isSettledViaRider = false;
 
-                    if (bal > 0 && window.currentGlobalBalance <= 0) {
+                    // ✅ FIX: currentGlobalBalance pe depend nahi — sirf newer transactions pe depend
+                    if (bal > 0) {
                         let clearedByRider = false;
-                        
+                        let clearedByTopUp = false;
+
                         if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                             clearedByRider = true;
                         } else {
+                            // list newest-first hai, slice(0, idx).reverse() = saare NEWER transactions oldest-first
                             const newerTransactions = list.slice(0, idx).reverse();
-                            const clearingTx = newerTransactions.find(t => 
-                                (t.txType === 'topup' && t.status === 'approved') || 
+                            const clearingTx = newerTransactions.find(t =>
+                                (t.txType === 'topup' && t.status === 'approved') ||
                                 (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0)
                             );
-
-                            if (clearingTx && clearingTx.txType === 'order') {
-                                clearedByRider = true;
+                            if (clearingTx) {
+                                if (clearingTx.txType === 'order') clearedByRider = true;
+                                else clearedByTopUp = true;
                             }
                         }
 
-                        if (clearedByRider) {
-                            isSettledViaRider = true;
-                        } else {
-                            isSettledViaTopUp = true;
-                        }
-                    } 
+                        if (clearedByRider) isSettledViaRider = true;
+                        else if (clearedByTopUp) isSettledViaTopUp = true;
+                    }
                     else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
                         isSettledViaTopUp = true;
                     }
@@ -392,28 +392,28 @@
                 let isSettledViaTopUp = false;
                 let isSettledViaRider = false;
 
-                if (bal > 0 && window.currentGlobalBalance <= 0) {
+                // ✅ FIX: currentGlobalBalance pe depend nahi — sirf newer transactions pe depend
+                if (bal > 0) {
                     let clearedByRider = false;
-                    
+                    let clearedByTopUp = false;
+
                     if (tx.settled_via === 'rider' || tx.cleared_by_rider === true) {
                         clearedByRider = true;
                     } else {
                         const newerTransactions = window.unifiedCache.slice(0, index).reverse();
-                        const clearingTx = newerTransactions.find(t => 
-                            (t.txType === 'topup' && t.status === 'approved') || 
+                        const clearingTx = newerTransactions.find(t =>
+                            (t.txType === 'topup' && t.status === 'approved') ||
                             (t.txType === 'order' && parseFloat(t.balance_amount || 0) <= 0)
                         );
-                        if (clearingTx && clearingTx.txType === 'order') {
-                            clearedByRider = true;
+                        if (clearingTx) {
+                            if (clearingTx.txType === 'order') clearedByRider = true;
+                            else clearedByTopUp = true;
                         }
                     }
 
-                    if (clearedByRider) {
-                        isSettledViaRider = true;
-                    } else {
-                        isSettledViaTopUp = true;
-                    }
-                } 
+                    if (clearedByRider) isSettledViaRider = true;
+                    else if (clearedByTopUp) isSettledViaTopUp = true;
+                }
                 else if (bal === 0 && paid < totalPayable && totalPayable > 0) {
                     isSettledViaTopUp = true;
                 }
