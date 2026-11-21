@@ -268,7 +268,9 @@ const Dialog = {
 
 // Page Initialization (100% Dynamic Exact Area Matching)
 async function initPage() {
-    if(!userPhone) return window.location.replace('index.html');
+    // Guest users are allowed to view the order page; no forced login redirect.
+    const guestFields = document.getElementById('guestOrderFields');
+    if (guestFields && !userPhone) guestFields.classList.remove('hidden');
     
     document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
     document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
