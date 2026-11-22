@@ -166,34 +166,11 @@
                 <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-0.5 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#14508C] bg-transparent">
                 <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-0.5 outline-none text-[13px] text-gray-800 resize-none focus:border-[#14508C] bg-transparent"></textarea>
                 <div id="guestOrderFields" class="hidden mt-2 space-y-2">
-    <input type="tel" id="guestPhone" placeholder="WhatsApp number (e.g. 03XXXXXXXXX)" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
-
-    <div>
-        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">City</label>
-        <select id="guestCity" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white mt-0.5">
-            <option value="">Select City</option>
-        </select>
-    </div>
-
-    <div>
-        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Area</label>
-        <select id="guestArea" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white mt-0.5" disabled>
-            <option value="">Select City first</option>
-        </select>
-    </div>
-
-    <div id="guestBlockSection" class="hidden">
-    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Block (Optional)</label>
-    <div class="relative mt-0.5">
-        <input type="text" id="guestBlock" placeholder="Search or select block..." autocomplete="off"
-            class="w-full border border-gray-200 rounded-lg pl-2 pr-8 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white">
-        <i class="fas fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-        <div id="guestBlockDropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-30"></div>
-    </div>
-</div>
-
-    <p class="text-[10px] text-gray-500">Guest order ke liye phone, city aur area zaroori hain.</p>
-</div>
+                    <input type="tel" id="guestPhone" placeholder="WhatsApp number (e.g. 03XXXXXXXXX)" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
+                    <input type="text" id="guestCity" placeholder="City (e.g. Lahore)" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
+                    <input type="text" id="guestArea" placeholder="Delivery area / locality" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
+                    <p class="text-[10px] text-gray-500">Guest order ke liye phone, city aur area zaroori hain.</p>
+                </div>
                 
                 <div id="overviewBlockDisplay" class="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-100 rounded-lg p-0.5 mt-2 leading-none">
                     📍 Block: Checking coordinates...
