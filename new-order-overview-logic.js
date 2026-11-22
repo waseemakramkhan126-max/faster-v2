@@ -10,13 +10,17 @@ async function handleConfirmPrompt() {
 
     // Guest customers enter their delivery city/area in the order confirmation form.
     const isGuest = !session;
-    const city = isGuest ? (document.getElementById('guestCity')?.value.trim() || "") : (localStorage.getItem('faster_city') || "Lahore");
-    const area = isGuest ? (document.getElementById('guestArea')?.value.trim() || "") : (localStorage.getItem('faster_area') || "");
-    if (isGuest) {
-        const guestFields = document.getElementById('guestOrderFields');
-        if (guestFields) guestFields.classList.remove('hidden');
-    }
-    const block = isGuest
+
+// ✅ FIX: Guest ke liye dropdowns PEHLE populate karo
+if (isGuest) {
+    const guestFields = document.getElementById('guestOrderFields');
+    if (guestFields) guestFields.classList.remove('hidden');
+    await loadGuestCities();   // <-- YE LINE SABSE ZAROORI HAI
+}
+
+const city = isGuest ? (document.getElementById('guestCity')?.value.trim() || "") : (localStorage.getItem('faster_city') || "Lahore");
+const area = isGuest ? (document.getElementById('guestArea')?.value.trim() || "") : (localStorage.getItem('faster_area') || "");
+const block = isGuest
     ? (document.getElementById('guestBlock')?.value.trim() || "")
     : (localStorage.getItem('faster_block') || "");
     
@@ -50,12 +54,9 @@ async function handleConfirmPrompt() {
     }
 
     // Show guest contact/location fields only when no logged-in session.
-    const { data: { session: currentSession } } = await _supabase.auth.getSession();
-    const guestFields = document.getElementById('guestOrderFields');
+const { data: { session: currentSession } } = await _supabase.auth.getSession();
+const guestFields = document.getElementById('guestOrderFields');
 if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
-if (!currentSession) {
-    await loadGuestCities();
-}
 
     // Populate Overview Fields
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
