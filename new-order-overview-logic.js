@@ -10,44 +10,19 @@ async function handleConfirmPrompt() {
 
     // Guest customers enter their delivery city/area in the order confirmation form.
     const isGuest = !session;
-
-// ✅ FIX: Guest ke liye dropdowns PEHLE populate karo
-if (isGuest) {
-    const guestFields = document.getElementById('guestOrderFields');
-    if (guestFields) guestFields.classList.remove('hidden');
-    await loadGuestCities();   // <-- YE LINE SABSE ZAROORI HAI
-}
-
-const city = isGuest ? (document.getElementById('guestCity')?.value.trim() || "") : (localStorage.getItem('faster_city') || "Lahore");
-const area = isGuest ? (document.getElementById('guestArea')?.value.trim() || "") : (localStorage.getItem('faster_area') || "");
-const block =isGuest
-    ? (document.getElementById('guestBlock')?.value.trim() || "")
-    : (localStorage.getItem('faster_block') || "");
+    const city = isGuest ? (document.getElementById('guestCity')?.value.trim() || "") : (localStorage.getItem('faster_city') || "Lahore");
+    const area = isGuest ? (document.getElementById('guestArea')?.value.trim() || "") : (localStorage.getItem('faster_area') || "");
+    if (isGuest) {
+        const guestFields = document.getElementById('guestOrderFields');
+        if (guestFields) guestFields.classList.remove('hidden');
+    }
+    const block = localStorage.getItem('faster_block') || ""; 
     
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
 
-    // ✅ Preview ke liye bhi customer_id resolve karo (accurate fee ke liye)
-let previewCustomerId = null;
-if (isGuest) {
-    const previewPhone = document.getElementById('guestPhone')?.value.trim() || '';
-    if (previewPhone && previewPhone.length >= 7) {
-        previewCustomerId = await resolveGuestCustomerId(
-    previewPhone, 
-    document.getElementById('editName').value || 'Guest', 
-    document.getElementById('overviewAddress').value.trim(),
-    city, area,
-    false   // ✅ Preview — sirf lookup, create NAHI
-);
-    }
-}
-
-// Temporarily customerId set karo taake custom fee preview bhi mile
-const _origCid = customerId;
-if (previewCustomerId) customerId = previewCustomerId;
-const currentFee = await getFinalDeliveryFee(city, area, block, 
-    document.getElementById('overviewAddress').value.trim()
-);
-customerId = _origCid;
+    const currentFee = await getFinalDeliveryFee(city, area, block, 
+        document.getElementById('overviewAddress').value.trim()
+    );
 
     // Manual Summary Extraction Logic
     const customerBubbles = document.querySelectorAll('.customer-bubble');
@@ -63,26 +38,23 @@ customerId = _origCid;
 
     currentExtractedSummary = manualSummaryList.join("\n");
 
-    if (
-    !currentExtractedSummary &&
-    draftData.voices.length === 0 &&
-    draftData.images.length === 0 &&
-    draftData.videos.length === 0 &&
-    draftData.docs.length === 0          // ← YEH LINE ADD KAREIN
-) {
-    // Custom Dialog use karein, native alert nahi
-    await Dialog.show("Empty Order", "Please enter order details or attach a file first.", "alert");
-    return;
-}
+    if (!currentExtractedSummary && draftData.voices.length === 0 && draftData.images.length === 0 && draftData.videos.length === 0) {
+        alert("Please enter order details or attach a file first.");
+        return;
+    }
 
     if (!currentExtractedSummary) {
-    currentExtractedSummary = "Order details are in attached voice notes / images / videos / documents.";
-}
+        currentExtractedSummary = "Order details are in attached voice notes/images.";
+    }
 
     // Show guest contact/location fields only when no logged-in session.
-const { data: { session: currentSession } } = await _supabase.auth.getSession();
-const guestFields = document.getElementById('guestOrderFields');
-if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
+    const { data: { session: currentSession } } = await _supabase.auth.getSession();
+    const guestFields = document.getElementById('guestOrderFields');
+    if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
+    if (!currentSession) {
+        document.getElementById('guestCity').value = localStorage.getItem('faster_city') || "";
+        document.getElementById('guestArea').value = localStorage.getItem('faster_area') || "";
+    }
 
     // Populate Overview Fields
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
@@ -124,41 +96,6 @@ if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
             </div>
         `;
     });
-
-    // ✅ NEW — Videos Preview
-draftData.videos.forEach((vidObj, index) => {
-    const vidUrl = URL.createObjectURL(vidObj.data || vidObj);
-    voiceContainer.innerHTML += `
-        <div class="flex items-center gap-2 bg-pink-100 text-pink-700 px-3 py-2 rounded-lg text-xs font-bold border border-pink-200">
-            <i class="fas fa-video"></i> Video attached (${index + 1})
-            <button onclick="openFullWithVideo('${vidUrl}')" class="ml-auto bg-pink-600 text-white px-2 py-0.5 rounded-full text-[10px]">
-                Play
-            </button>
-        </div>
-    `;
-});
-
-// ✅ NEW — Docs Preview
-draftData.docs.forEach((docObj, index) => {
-    const fileName = (docObj.data?.name || docObj.data?.file?.name || 'Document').substring(0, 20);
-    voiceContainer.innerHTML += `
-        <div class="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold border border-gray-200">
-            <i class="fas fa-file-pdf text-red-500"></i> Doc attached (${index + 1})
-            <span class="ml-auto text-[10px] text-gray-500 truncate max-w-[100px]">${fileName}</span>
-        </div>
-    `;
-});
-    // ✅ Phone change pe fee preview update karo (guest only)
-if (isGuest) {
-    const phoneInput = document.getElementById('guestPhone');
-    if (phoneInput && !phoneInput.dataset.feeListener) {
-        phoneInput.dataset.feeListener = 'true';
-        phoneInput.addEventListener('input', function () {
-            clearTimeout(window._phoneFeeDebounce);
-            window._phoneFeeDebounce = setTimeout(refreshGuestFeeOnPhoneChange, 500);
-        });
-    }
-}
 
     // Display Popup Modal
     document.getElementById('orderOverviewModal').classList.remove('hidden');
@@ -427,44 +364,24 @@ async function confirmOrderFromOverview() {
             scheduledAtValue = new Date(scheduleTime).toISOString();
         }
 
-        const userBlock = isGuest
-    ? (document.getElementById('guestBlock')?.value.trim() || "")
-    : (localStorage.getItem('faster_block') || "");
+        const userBlock = localStorage.getItem('faster_block') || "";
+        const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
-// ✅ STEP 1: PEHLE customer_id resolve karo
-let finalCustomerId = null;
-if (isGuest) {
-    const guestPhone = document.getElementById('guestPhone').value.trim();
-    finalCustomerId = await resolveGuestCustomerId(guestPhone, name, addr, customerCity, realDBAreaName, true);
-    if (!finalCustomerId) {
-        console.warn("⚠️ Guest customer_id resolve nahi hua — order place hoga lekin dues tracking limited rahegi.");
-    }
-} else if (customerId && String(customerId).trim() && !isNaN(customerId)) {
-    finalCustomerId = String(customerId);
-}
-
-// ✅ STEP 2: Ab fee calculate karo — temporarily customerId set karke
-// Isse returning guest ko uska custom_delivery_fee milega
-const originalCustomerId = customerId;
-if (finalCustomerId) customerId = finalCustomerId;
-const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
-customerId = originalCustomerId;  // restore — baaki code pe asar na ho
-
-const { error } = await _supabase.from('orders').insert([{
-    customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
-    ...(finalCustomerId ? { customer_id: finalCustomerId } : {}),
-    customer_name: name, 
-    delivery_address: addr, 
-    area: realDBAreaName, 
-    order_details: currentExtractedSummary, 
-    image_url: imgURLs, 
-    video_url: vidURLs, 
-    voice_url: vceURLs, 
-    doc_url: docURLs, 
-    status: finalStatus, 
-    scheduled_at: scheduledAtValue, 
-    dc_amount: finalFee 
-}]);
+        const { error } = await _supabase.from('orders').insert([{
+            customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
+            ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
+            customer_name: name, 
+            delivery_address: addr, 
+            area: realDBAreaName, 
+            order_details: currentExtractedSummary, 
+            image_url: imgURLs, 
+            video_url: vidURLs, 
+            voice_url: vceURLs, 
+            doc_url: docURLs, 
+            status: finalStatus, 
+            scheduled_at: scheduledAtValue, 
+            dc_amount: finalFee 
+        }]);
         
         if(error) throw error;
         
@@ -513,7 +430,7 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     const cleanArea = (areaName || "").trim();
 
     // Customer override profile fee verification check
-    if (customerId && String(customerId).trim() && !isNaN(customerId)) {
+    if (customerId && !isNaN(customerId) && typeof userPhone !== 'undefined' && userPhone) {
         try {
             const { data: cust } = await _supabase
                 .from('customers')
@@ -632,148 +549,5 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     } catch (err) {
         console.error("Fee calculation error:", err);
         return 0;
-    }
-}
-
-// ==========================================
-// GUEST CUSTOMER RESOLUTION
-// Find existing customer by phone, ya naya create karo.
-// Returns customer_id (as string) ya null agar resolve na ho.
-// Regular logged-in users ke liye YEH FUNCTION CALL NAHI HOTA.
-// ==========================================
-async function resolveGuestCustomerId(phone, name, address, city, area, createIfNotFound = true) {
-    let cleanPhone = (phone || '').trim();
-    if (!cleanPhone) return null;
-
-    // ✅ Phone normalize — Pakistani format
-    // "03001234567", "+923001234567", "923001234567", "0300-1234567" → sab "03001234567"
-    cleanPhone = cleanPhone.replace(/[\s\-\(\)\.]/g, '');
-    if (cleanPhone.startsWith('+92')) cleanPhone = '0' + cleanPhone.slice(3);
-    else if (cleanPhone.startsWith('92') && cleanPhone.length === 12) cleanPhone = '0' + cleanPhone.slice(2);
-    else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) cleanPhone = '0' + cleanPhone;
-
-    // Ab cleanPhone hamesha "03XXXXXXXXX" format me hoga
-
-    try {
-        const { data: existing, error: findErr } = await _supabase
-            .from('customers')
-            .select('customer_id')
-            .eq('phone', cleanPhone)
-            .limit(1)
-            .maybeSingle();
-
-        if (!findErr && existing && existing.customer_id) {
-            console.log("✅ Guest matched to existing customer:", existing.customer_id);
-            return String(existing.customer_id);
-        }
-
-        // ✅ NEW — agar preview hai to sirf lookup, create nahi
-        if (!createIfNotFound) {
-            console.log("🔍 Preview: no existing customer found for", cleanPhone);
-            return null;
-        }
-        
-        // ... baaki create logic same ...
-
-        // ---------------------------------------------------------------
-        // STEP 2: Nahi mila → naya customer row banao
-        // ---------------------------------------------------------------
-        const basePayload = {
-            phone: cleanPhone,
-            name: (name || 'Guest Customer').trim(),
-            address: (address || '').trim(),
-            city: (city || '').trim(),
-            area: (area || '').trim()
-        };
-
-        // Pehli koshish: bina email ke (agar email nullable hai)
-        let insertResult = await _supabase
-            .from('customers')
-            .insert([basePayload])
-            .select('customer_id')
-            .single();
-
-        // Agar email column NOT NULL hai → placeholder email ke saath retry
-        if (
-            insertResult.error &&
-            /email.*null|null.*email|not.null|violates/i.test(insertResult.error.message || '')
-        ) {
-            console.warn("Customers.email required hai — guest ke liye placeholder email use kar rahe hain");
-            const fallbackPayload = {
-                ...basePayload,
-                email: `guest_${cleanPhone.replace(/\D/g, '')}_${Date.now()}@faster.local`
-            };
-            insertResult = await _supabase
-                .from('customers')
-                .insert([fallbackPayload])
-                .select('customer_id')
-                .single();
-        }
-
-        if (insertResult.error) {
-            console.warn("Guest customer creation failed:", insertResult.error);
-            return null;
-        }
-
-        if (insertResult.data && insertResult.data.customer_id) {
-            console.log("✅ New guest customer created:", insertResult.data.customer_id);
-            return String(insertResult.data.customer_id);
-        }
-
-        return null;
-    } catch (err) {
-        // Kuch bhi fail ho to order ko rukna nahi chahiye —
-        // sirf customer_id skip ho jayegi.
-        console.warn("Guest customer resolution error:", err);
-        return null;
-    }
-}
-
-function openFullWithVideo(srcUrl) {
-    const fv = document.getElementById('fullView');
-    fv.style.display = 'flex';
-    document.getElementById('fullContent').innerHTML = `<video src="${srcUrl}" controls autoplay playsinline class="max-w-full max-h-[85vh] rounded"></video>`;
-    document.getElementById('fullCaption').classList.add('hidden');
-    fv.onclick = function() { this.style.display = 'none'; };
-}
-// ==========================================
-// PHONE CHANGE PE FEE REFRESH (GUEST ONLY)
-// ==========================================
-async function refreshGuestFeeOnPhoneChange() {
-    const feeEl = document.getElementById('overviewDcAmount');
-    if (!feeEl) return;
-
-    const phone = document.getElementById('guestPhone')?.value.trim() || '';
-    const city = document.getElementById('guestCity')?.value.trim() || '';
-    const area = document.getElementById('guestArea')?.value.trim() || '';
-    const block = document.getElementById('guestBlock')?.value.trim() || '';
-    const addr = document.getElementById('overviewAddress')?.value.trim() || '';
-
-    if (!city || !area) {
-        feeEl.innerText = 'Rs. 0';
-        return;
-    }
-
-    // Preview — sirf lookup, create NAHI
-    let previewCustomerId = null;
-    if (phone && phone.length >= 7) {
-        previewCustomerId = await resolveGuestCustomerId(
-            phone, 'Guest', addr, city, area,
-            false   // ✅ No create
-        );
-    }
-
-    const _origCid = customerId;
-    if (previewCustomerId) customerId = previewCustomerId;
-    const fee = await getFinalDeliveryFee(city, area, block, addr);
-    customerId = _origCid;
-
-    feeEl.innerText = `Rs. ${fee}`;
-
-    const blockDisplay = document.getElementById('overviewBlockDisplay');
-    if (blockDisplay) {
-        blockDisplay.innerText = matchedBlockName
-            ? '✅ Block: ' + matchedBlockName
-            : '📍 Block: (using area fee)';
     }
 }
