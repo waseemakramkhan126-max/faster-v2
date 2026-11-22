@@ -764,10 +764,10 @@ async function loadGuestAreas(city) {
             areaSel.value = savedArea;
             await loadGuestBlocks(savedArea);
         } else if (blockSection) {
-            blockSection.classList.add('hidden');
-            const blockSel = document.getElementById('guestBlock');
-            if (blockSel) blockSel.innerHTML = '<option value="">Select Block (Optional)</option>';
-        }
+    blockSection.classList.add('hidden');
+    const blockSel = document.getElementById('guestBlock');
+    if (blockSel) blockSel.value = '';
+}
     } catch (e) {
         console.error("Guest areas load failed:", e);
         areaSel.innerHTML = '<option value="">Failed to load areas</option>';
@@ -776,17 +776,18 @@ async function loadGuestAreas(city) {
 
 async function loadGuestBlocks(area) {
     const blockSection = document.getElementById('guestBlockSection');
-    const blockSel = document.getElementById('guestBlock');
-    const searchEl = document.getElementById('guestBlockSearch');
-    if (!blockSection || !blockSel) return;
+    const blockInput = document.getElementById('guestBlock');
+    const dropdown = document.getElementById('guestBlockDropdown');
+    if (!blockSection || !blockInput) return;
 
     if (!area) {
         blockSection.classList.add('hidden');
         return;
     }
 
-    blockSel.innerHTML = '<option value="">Loading blocks...</option>';
-    if (searchEl) searchEl.value = '';
+    if (dropdown) dropdown.classList.add('hidden');
+    blockInput.value = '';
+    localStorage.removeItem('faster_block');
 
     try {
         const { data, error } = await _supabase
@@ -807,32 +808,52 @@ async function loadGuestBlocks(area) {
         }
 
         blockSection.classList.remove('hidden');
-        blockSel.dataset.allBlocks = JSON.stringify(blocks);
-        renderGuestBlockOptions(blocks);
+        blockInput.dataset.allBlocks = JSON.stringify(blocks);
+        renderGuestBlockDropdown(blocks);
     } catch (e) {
         console.error("Guest blocks load failed:", e);
         blockSection.classList.add('hidden');
     }
 }
 
-function renderGuestBlockOptions(blocks) {
-    const blockSel = document.getElementById('guestBlock');
-    if (!blockSel) return;
-    const currentVal = blockSel.value;
-    blockSel.innerHTML = '<option value="">Select Block (Optional)</option>' +
-        blocks.map(b => `<option value="${b}">${b}</option>`).join('');
-    if (currentVal && blocks.includes(currentVal)) blockSel.value = currentVal;
+function renderGuestBlockDropdown(blocks) {
+    const dropdown = document.getElementById('guestBlockDropdown');
+    if (!dropdown) return;
+
+    if (!blocks || blocks.length === 0) {
+        dropdown.innerHTML = `<div class="px-3 py-3 text-[12px] text-gray-400 text-center italic">No blocks found</div>`;
+        return;
+    }
+
+    dropdown.innerHTML = blocks.map(b => {
+        const safe = String(b).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        return `<div class="guest-block-option px-3 py-2 text-[13px] text-gray-800 hover:bg-blue-50 active:bg-blue-100 cursor-pointer border-b border-gray-50 last:border-0" data-value="${safe}">${safe}</div>`;
+    }).join('');
+
+    dropdown.querySelectorAll('.guest-block-option').forEach(el => {
+        el.addEventListener('click', () => selectGuestBlock(el.dataset.value));
+    });
+}
+
+function selectGuestBlock(value) {
+    const blockInput = document.getElementById('guestBlock');
+    const dropdown = document.getElementById('guestBlockDropdown');
+    if (blockInput) blockInput.value = value || '';
+    if (dropdown) dropdown.classList.add('hidden');
+    if (value) localStorage.setItem('faster_block', value);
+    else localStorage.removeItem('faster_block');
+    refreshGuestFeePreview();
 }
 
 function filterGuestBlocks(query) {
-    const blockSel = document.getElementById('guestBlock');
-    if (!blockSel) return;
+    const blockInput = document.getElementById('guestBlock');
+    if (!blockInput) return;
 
     let allBlocks = [];
-    try { allBlocks = JSON.parse(blockSel.dataset.allBlocks || '[]'); } catch (e) { allBlocks = []; }
+    try { allBlocks = JSON.parse(blockInput.dataset.allBlocks || '[]'); } catch (e) { allBlocks = []; }
 
     const q = (query || '').trim().toLowerCase();
-    if (!q) { renderGuestBlockOptions(allBlocks); return; }
+    if (!q) { renderGuestBlockDropdown(allBlocks); return; }
 
     const normalize = (s) => (s || '')
         .toLowerCase()
@@ -859,15 +880,12 @@ function filterGuestBlocks(query) {
     })
     .filter(x => x.score < 99)
     .sort((a, b) => a.score - b.score)
-    .slice(0, 50);
+    .slice(0, 50)
+    .map(x => x.name);
 
-    if (scored.length === 0) {
-        blockSel.innerHTML = '<option value="">No block match (leave blank for area fee)</option>';
-    } else {
-        blockSel.innerHTML = '<option value="">Select Block (Optional)</option>' +
-            scored.map(x => `<option value="${x.name}">${x.name}</option>`).join('');
-    }
+    renderGuestBlockDropdown(scored);
 }
+
 
 async function refreshGuestFeePreview() {
     const feeEl = document.getElementById('overviewDcAmount');
@@ -896,8 +914,7 @@ async function refreshGuestFeePreview() {
 (function wireGuestDropdowns() {
     const citySel = document.getElementById('guestCity');
     const areaSel = document.getElementById('guestArea');
-    const blockSel = document.getElementById('guestBlock');
-    const blockSearch = document.getElementById('guestBlockSearch');
+    const blockInput = document.getElementById('guestBlock');
 
     if (citySel) {
         citySel.addEventListener('change', async function () {
@@ -908,7 +925,7 @@ async function refreshGuestFeePreview() {
             localStorage.removeItem('faster_block');
 
             if (areaSel) areaSel.value = '';
-            if (blockSel) blockSel.value = '';
+            if (blockInput) blockInput.value = '';
             document.getElementById('guestBlockSection')?.classList.add('hidden');
 
             await loadGuestAreas(city);
@@ -923,25 +940,47 @@ async function refreshGuestFeePreview() {
             else localStorage.removeItem('faster_area');
             localStorage.removeItem('faster_block');
 
-            if (blockSel) blockSel.value = '';
+            if (blockInput) blockInput.value = '';
 
             await loadGuestBlocks(area);
             await refreshGuestFeePreview();
         });
     }
 
-    if (blockSel) {
-        blockSel.addEventListener('change', function () {
-            const block = this.value.trim();
-            if (block) localStorage.setItem('faster_block', block);
+    if (blockInput) {
+        // Focus par poori list dikhao
+        blockInput.addEventListener('focus', function () {
+            const section = document.getElementById('guestBlockSection');
+            if (!section || section.classList.contains('hidden')) return;
+            filterGuestBlocks(this.value);
+            document.getElementById('guestBlockDropdown')?.classList.remove('hidden');
+        });
+
+        // Type karte hi fuzzy filter chalao
+        blockInput.addEventListener('input', function () {
+            filterGuestBlocks(this.value);
+            document.getElementById('guestBlockDropdown')?.classList.remove('hidden');
+
+            const v = this.value.trim();
+            if (v) localStorage.setItem('faster_block', v);
             else localStorage.removeItem('faster_block');
+
             refreshGuestFeePreview();
+        });
+
+        // Blur par thoda delay — taake option ka click register ho jaye pehle
+        blockInput.addEventListener('blur', function () {
+            setTimeout(() => {
+                document.getElementById('guestBlockDropdown')?.classList.add('hidden');
+            }, 180);
         });
     }
 
-    if (blockSearch) {
-        blockSearch.addEventListener('input', function () {
-            filterGuestBlocks(this.value);
-        });
-    }
+    // Bahar click karne par dropdown band
+    document.addEventListener('click', function (e) {
+        const section = document.getElementById('guestBlockSection');
+        const dropdown = document.getElementById('guestBlockDropdown');
+        if (!section || !dropdown) return;
+        if (!section.contains(e.target)) dropdown.classList.add('hidden');
+    });
 })();
