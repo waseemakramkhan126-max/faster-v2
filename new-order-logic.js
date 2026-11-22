@@ -270,7 +270,10 @@ const Dialog = {
 async function initPage() {
     // Guest users are allowed to view the order page; no forced login redirect.
     const guestFields = document.getElementById('guestOrderFields');
-    if (guestFields && !userPhone) guestFields.classList.remove('hidden');
+if (guestFields && !userPhone) {
+    guestFields.classList.remove('hidden');
+    loadGuestCities();
+}
     
     document.getElementById('editName').value = localStorage.getItem('faster_name') || "";
     document.getElementById('editAddress').value = localStorage.getItem('faster_address') || "";
@@ -695,3 +698,250 @@ document.addEventListener('click', function(event) {
 
 window.addEventListener('offline', () => document.getElementById('offlineBanner').style.top = '0');
 window.addEventListener('online', () => { document.getElementById('offlineBanner').style.top = '-50px'; initPage(); });
+
+// ==========================================
+// GUEST LOCATION DROPDOWNS (City / Area / Block)
+// Sirf guest ke liye — regular user ka flow untouched.
+// ==========================================
+async function loadGuestCities() {
+    const citySel = document.getElementById('guestCity');
+    if (!citySel) return;
+    if (citySel.dataset.loaded === 'true') return;
+
+    try {
+        const { data, error } = await _supabase
+            .from('delivery_areas')
+            .select('city')
+            .not('city', 'is', null);
+        if (error) throw error;
+
+        const uniqueCities = [...new Set((data || []).map(r => r.city).filter(Boolean))].sort();
+        citySel.innerHTML = '<option value="">Select City</option>' +
+            uniqueCities.map(c => `<option value="${c}">${c}</option>`).join('');
+        citySel.dataset.loaded = 'true';
+
+        const savedCity = localStorage.getItem('faster_city') || "";
+        if (savedCity && uniqueCities.includes(savedCity)) {
+            citySel.value = savedCity;
+            await loadGuestAreas(savedCity);
+        }
+    } catch (e) {
+        console.error("Guest cities load failed:", e);
+        citySel.innerHTML = '<option value="">Failed to load cities</option>';
+    }
+}
+
+async function loadGuestAreas(city) {
+    const areaSel = document.getElementById('guestArea');
+    const blockSection = document.getElementById('guestBlockSection');
+    if (!areaSel) return;
+
+    if (!city) {
+        areaSel.innerHTML = '<option value="">Select City first</option>';
+        areaSel.disabled = true;
+        if (blockSection) blockSection.classList.add('hidden');
+        return;
+    }
+
+    areaSel.innerHTML = '<option value="">Loading...</option>';
+    areaSel.disabled = true;
+
+    try {
+        const { data, error } = await _supabase
+            .from('delivery_areas')
+            .select('area_name')
+            .ilike('city', city);
+        if (error) throw error;
+
+        const areas = [...new Set((data || []).map(r => r.area_name).filter(Boolean))].sort();
+        areaSel.innerHTML = '<option value="">Select Area</option>' +
+            areas.map(a => `<option value="${a}">${a}</option>`).join('');
+        areaSel.disabled = false;
+
+        const savedCity = localStorage.getItem('faster_city');
+        const savedArea = localStorage.getItem('faster_area') || "";
+        if (savedCity === city && savedArea && areas.includes(savedArea)) {
+            areaSel.value = savedArea;
+            await loadGuestBlocks(savedArea);
+        } else if (blockSection) {
+            blockSection.classList.add('hidden');
+            const blockSel = document.getElementById('guestBlock');
+            if (blockSel) blockSel.innerHTML = '<option value="">Select Block (Optional)</option>';
+        }
+    } catch (e) {
+        console.error("Guest areas load failed:", e);
+        areaSel.innerHTML = '<option value="">Failed to load areas</option>';
+    }
+}
+
+async function loadGuestBlocks(area) {
+    const blockSection = document.getElementById('guestBlockSection');
+    const blockSel = document.getElementById('guestBlock');
+    const searchEl = document.getElementById('guestBlockSearch');
+    if (!blockSection || !blockSel) return;
+
+    if (!area) {
+        blockSection.classList.add('hidden');
+        return;
+    }
+
+    blockSel.innerHTML = '<option value="">Loading blocks...</option>';
+    if (searchEl) searchEl.value = '';
+
+    try {
+        const { data, error } = await _supabase
+            .from('delivery_blocks')
+            .select('block_name, delivery_fee')
+            .ilike('area_name', area);
+        if (error) throw error;
+
+        const blocks = (data || [])
+            .filter(b => b.block_name && Number(b.delivery_fee) > 0)
+            .map(b => b.block_name.trim())
+            .filter((v, i, arr) => arr.indexOf(v) === i)
+            .sort();
+
+        if (blocks.length === 0) {
+            blockSection.classList.add('hidden');
+            return;
+        }
+
+        blockSection.classList.remove('hidden');
+        blockSel.dataset.allBlocks = JSON.stringify(blocks);
+        renderGuestBlockOptions(blocks);
+    } catch (e) {
+        console.error("Guest blocks load failed:", e);
+        blockSection.classList.add('hidden');
+    }
+}
+
+function renderGuestBlockOptions(blocks) {
+    const blockSel = document.getElementById('guestBlock');
+    if (!blockSel) return;
+    const currentVal = blockSel.value;
+    blockSel.innerHTML = '<option value="">Select Block (Optional)</option>' +
+        blocks.map(b => `<option value="${b}">${b}</option>`).join('');
+    if (currentVal && blocks.includes(currentVal)) blockSel.value = currentVal;
+}
+
+function filterGuestBlocks(query) {
+    const blockSel = document.getElementById('guestBlock');
+    if (!blockSel) return;
+
+    let allBlocks = [];
+    try { allBlocks = JSON.parse(blockSel.dataset.allBlocks || '[]'); } catch (e) { allBlocks = []; }
+
+    const q = (query || '').trim().toLowerCase();
+    if (!q) { renderGuestBlockOptions(allBlocks); return; }
+
+    const normalize = (s) => (s || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\bblock\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const normQ = normalize(q);
+
+    const scored = allBlocks.map(b => {
+        const nb = normalize(b);
+        if (!nb) return { name: b, score: 99 };
+        if (nb === normQ) return { name: b, score: 0 };
+        if (nb.startsWith(normQ)) return { name: b, score: 1 };
+        if (nb.includes(normQ)) return { name: b, score: 2 };
+
+        let dist = 99;
+        if (typeof levenshtein === 'function') {
+            dist = levenshtein(normQ.replace(/\s+/g, ''), nb.replace(/\s+/g, ''));
+        }
+        const threshold = Math.max(2, Math.ceil(nb.length / 3));
+        if (dist <= threshold) return { name: b, score: 3 + dist };
+        return { name: b, score: 99 };
+    })
+    .filter(x => x.score < 99)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 50);
+
+    if (scored.length === 0) {
+        blockSel.innerHTML = '<option value="">No block match (leave blank for area fee)</option>';
+    } else {
+        blockSel.innerHTML = '<option value="">Select Block (Optional)</option>' +
+            scored.map(x => `<option value="${x.name}">${x.name}</option>`).join('');
+    }
+}
+
+async function refreshGuestFeePreview() {
+    const feeEl = document.getElementById('overviewDcAmount');
+    const blockDisplay = document.getElementById('overviewBlockDisplay');
+    if (!feeEl) return;
+
+    const city = document.getElementById('guestCity')?.value.trim() || '';
+    const area = document.getElementById('guestArea')?.value.trim() || '';
+    const block = document.getElementById('guestBlock')?.value.trim() || '';
+    const addr = document.getElementById('overviewAddress')?.value.trim() || '';
+
+    if (!city || !area) {
+        feeEl.innerText = 'Rs. 0';
+        return;
+    }
+    const fee = await getFinalDeliveryFee(city, area, block, addr);
+    feeEl.innerText = `Rs. ${fee}`;
+
+    if (blockDisplay) {
+        blockDisplay.innerText = matchedBlockName
+            ? '✅ Block: ' + matchedBlockName
+            : '📍 Block: (using area fee)';
+    }
+}
+
+(function wireGuestDropdowns() {
+    const citySel = document.getElementById('guestCity');
+    const areaSel = document.getElementById('guestArea');
+    const blockSel = document.getElementById('guestBlock');
+    const blockSearch = document.getElementById('guestBlockSearch');
+
+    if (citySel) {
+        citySel.addEventListener('change', async function () {
+            const city = this.value.trim();
+            if (city) localStorage.setItem('faster_city', city);
+            else localStorage.removeItem('faster_city');
+            localStorage.removeItem('faster_area');
+            localStorage.removeItem('faster_block');
+
+            if (areaSel) areaSel.value = '';
+            if (blockSel) blockSel.value = '';
+            document.getElementById('guestBlockSection')?.classList.add('hidden');
+
+            await loadGuestAreas(city);
+            await refreshGuestFeePreview();
+        });
+    }
+
+    if (areaSel) {
+        areaSel.addEventListener('change', async function () {
+            const area = this.value.trim();
+            if (area) localStorage.setItem('faster_area', area);
+            else localStorage.removeItem('faster_area');
+            localStorage.removeItem('faster_block');
+
+            if (blockSel) blockSel.value = '';
+
+            await loadGuestBlocks(area);
+            await refreshGuestFeePreview();
+        });
+    }
+
+    if (blockSel) {
+        blockSel.addEventListener('change', function () {
+            const block = this.value.trim();
+            if (block) localStorage.setItem('faster_block', block);
+            else localStorage.removeItem('faster_block');
+            refreshGuestFeePreview();
+        });
+    }
+
+    if (blockSearch) {
+        blockSearch.addEventListener('input', function () {
+            filterGuestBlocks(this.value);
+        });
+    }
+})();
