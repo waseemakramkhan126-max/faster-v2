@@ -369,23 +369,37 @@ async function confirmOrderFromOverview() {
         const userBlock = isGuest
     ? (document.getElementById('guestBlock')?.value.trim() || "")
     : (localStorage.getItem('faster_block') || "");
-        const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
+const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
-        const { error } = await _supabase.from('orders').insert([{
-            customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
-            ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
-            customer_name: name, 
-            delivery_address: addr, 
-            area: realDBAreaName, 
-            order_details: currentExtractedSummary, 
-            image_url: imgURLs, 
-            video_url: vidURLs, 
-            voice_url: vceURLs, 
-            doc_url: docURLs, 
-            status: finalStatus, 
-            scheduled_at: scheduledAtValue, 
-            dc_amount: finalFee 
-        }]);
+// ✅ NEW: Guest ke liye customer_id resolve karo (find by phone, ya create karo)
+// Isse guest ke pending payments customer level pe track ho sakte hain
+// aur agle order me adjust ho sakte hain.
+let finalCustomerId = null;
+if (isGuest) {
+    const guestPhone = document.getElementById('guestPhone').value.trim();
+    finalCustomerId = await resolveGuestCustomerId(guestPhone, name, addr, customerCity, realDBAreaName);
+    if (!finalCustomerId) {
+        console.warn("⚠️ Guest customer_id resolve nahi hua — order place hoga lekin dues tracking limited rahegi.");
+    }
+} else if (customerId && String(customerId).trim() && !isNaN(customerId)) {
+    finalCustomerId = String(customerId);
+}
+
+const { error } = await _supabase.from('orders').insert([{
+    customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
+    ...(finalCustomerId ? { customer_id: finalCustomerId } : {}),
+    customer_name: name, 
+    delivery_address: addr, 
+    area: realDBAreaName, 
+    order_details: currentExtractedSummary, 
+    image_url: imgURLs, 
+    video_url: vidURLs, 
+    voice_url: vceURLs, 
+    doc_url: docURLs, 
+    status: finalStatus, 
+    scheduled_at: scheduledAtValue, 
+    dc_amount: finalFee 
+}]);
         
         if(error) throw error;
         
@@ -553,5 +567,89 @@ async function getFinalDeliveryFee(cityName, areaName, userInputBlock, addressTe
     } catch (err) {
         console.error("Fee calculation error:", err);
         return 0;
+    }
+}
+
+// ==========================================
+// GUEST CUSTOMER RESOLUTION
+// Find existing customer by phone, ya naya create karo.
+// Returns customer_id (as string) ya null agar resolve na ho.
+// Regular logged-in users ke liye YEH FUNCTION CALL NAHI HOTA.
+// ==========================================
+async function resolveGuestCustomerId(phone, name, address, city, area) {
+    const cleanPhone = (phone || '').trim();
+    if (!cleanPhone) return null;
+
+    try {
+        // ---------------------------------------------------------------
+        // STEP 1: Existing customer dhoondo is phone se
+        // NOTE: Agar aap ke customers table me phone column ka naam
+        //       'phone' nahi hai (e.g. 'customer_phone' ya 'phone_number'
+        //       hai), to neeche `.eq('phone', cleanPhone)` me column
+        //       ka naam badal dein.
+        // ---------------------------------------------------------------
+        const { data: existing, error: findErr } = await _supabase
+            .from('customers')
+            .select('customer_id')
+            .eq('phone', cleanPhone)
+            .limit(1)
+            .maybeSingle();
+
+        if (!findErr && existing && existing.customer_id) {
+            console.log("✅ Guest matched to existing customer:", existing.customer_id);
+            return String(existing.customer_id);
+        }
+
+        // ---------------------------------------------------------------
+        // STEP 2: Nahi mila → naya customer row banao
+        // ---------------------------------------------------------------
+        const basePayload = {
+            phone: cleanPhone,
+            name: (name || 'Guest Customer').trim(),
+            address: (address || '').trim(),
+            city: (city || '').trim(),
+            area: (area || '').trim()
+        };
+
+        // Pehli koshish: bina email ke (agar email nullable hai)
+        let insertResult = await _supabase
+            .from('customers')
+            .insert([basePayload])
+            .select('customer_id')
+            .single();
+
+        // Agar email column NOT NULL hai → placeholder email ke saath retry
+        if (
+            insertResult.error &&
+            /email.*null|null.*email|not.null|violates/i.test(insertResult.error.message || '')
+        ) {
+            console.warn("Customers.email required hai — guest ke liye placeholder email use kar rahe hain");
+            const fallbackPayload = {
+                ...basePayload,
+                email: `guest_${cleanPhone.replace(/\D/g, '')}_${Date.now()}@faster.local`
+            };
+            insertResult = await _supabase
+                .from('customers')
+                .insert([fallbackPayload])
+                .select('customer_id')
+                .single();
+        }
+
+        if (insertResult.error) {
+            console.warn("Guest customer creation failed:", insertResult.error);
+            return null;
+        }
+
+        if (insertResult.data && insertResult.data.customer_id) {
+            console.log("✅ New guest customer created:", insertResult.data.customer_id);
+            return String(insertResult.data.customer_id);
+        }
+
+        return null;
+    } catch (err) {
+        // Kuch bhi fail ho to order ko rukna nahi chahiye —
+        // sirf customer_id skip ho jayegi.
+        console.warn("Guest customer resolution error:", err);
+        return null;
     }
 }
