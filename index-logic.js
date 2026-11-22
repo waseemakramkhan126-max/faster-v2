@@ -272,42 +272,90 @@ async function saveProfile() {
         const { data: { session } } = await _supabase.auth.getSession();
         const userEmail = session.user.email.toLowerCase();
 
-        // 3. STRONG UPSERT: Email ki base par check karega
-        const { data: upsertData, error } = await _supabase.from('customers').upsert([{ 
-            email: userEmail, // Email ab identity check hai
-            phone: phone, 
-            name: name, 
-            address: address, 
-            city: city, 
-            area: area, 
+        // Profile ki baqi details ek object mein daal lein
+        const profileData = {
+            name: name,
+            address: address,
+            city: city,
+            area: area,
             block: block || null,
-            lat: String(lat), 
+            lat: String(lat),
             lng: String(lng)
-         }], { onConflict: 'email' }).select('customer_id'); 
+        };
 
-        // 4. SMART ERROR HANDLING: Agar number pehle se majood hai
-        if (error) {
-            // Postgres error code '23505' ka matlab hai "Unique Violation"
-            if (error.code === '23505' && error.message.includes('phone')) {
+        // 🔍 STEP 1: Check karein ke kya yeh Phone Number pehle se database mein hai? (Guest Order)
+        const { data: guestRecord } = await _supabase
+            .from('customers')
+            .select('customer_id, email')
+            .eq('phone', phone)
+            .maybeSingle();
+
+        // 🔍 STEP 2: Check karein ke kya is Google Email se pehle koi record bana hua hai?
+        const { data: emailRecord } = await _supabase
+            .from('customers')
+            .select('customer_id')
+            .eq('email', userEmail)
+            .maybeSingle();
+
+        let finalCustomerId = null;
+
+        if (guestRecord) {
+            if (guestRecord.email === userEmail) {
+                // 1. Agar phone aur email dono pehle se isi user ke hain -> Normal Update
+                const { data, error } = await _supabase.from('customers')
+                    .update(profileData).eq('customer_id', guestRecord.customer_id).select('customer_id');
+                if (error) throw error;
+                if (data && data.length > 0) finalCustomerId = data[0].customer_id;
+            } 
+            else if (guestRecord.email && !guestRecord.email.includes('@faster.local')) {
+                // 2. Agar yeh phone kisi aur asli account ke sath juda hai -> Error dein
                 throw new Error("Yeh phone number pehle hi kisi aur account ke sath register hai! Kripya apna sahi number darj karein.");
+            } 
+            else {
+                // 3. YEH GUEST RECORD HAI (WhatsApp link wala)
+                // Agar is user ka pehle se koi khali record (bina phone ke) bana hua hai, to use delete kar dein
+                if (emailRecord) {
+                    await _supabase.from('customers').delete().eq('customer_id', emailRecord.customer_id);
+                }
+                
+                // Ab us Guest record ko naye Google Email ke sath Update (Link) kar dein
+                const { data, error } = await _supabase.from('customers')
+                    .update({ email: userEmail, phone: phone, ...profileData })
+                    .eq('customer_id', guestRecord.customer_id).select('customer_id');
+                if (error) throw error;
+                if (data && data.length > 0) finalCustomerId = data[0].customer_id;
             }
-            throw error; // Agar koi aur error hai toh normally handle kare
+        } else {
+            // Agar is phone number se koi record nahi mila
+            if (emailRecord) {
+                // 4. Pehle se email ka record hai -> Usme naya phone number add kar dein
+                const { data, error } = await _supabase.from('customers')
+                    .update({ phone: phone, ...profileData })
+                    .eq('customer_id', emailRecord.customer_id).select('customer_id');
+                if (error) throw error;
+                if (data && data.length > 0) finalCustomerId = data[0].customer_id;
+            } else {
+                // 5. Bilkul naya user hai -> Naya record create karein
+                const { data, error } = await _supabase.from('customers')
+                    .insert([{ email: userEmail, phone: phone, ...profileData }]).select('customer_id');
+                if (error) throw error;
+                if (data && data.length > 0) finalCustomerId = data[0].customer_id;
+            }
         }
 
-        // 5. Success hone par LocalStorage update aur redirect
+        // Success hone par LocalStorage update aur redirect
         localStorage.setItem('faster_phone', phone);
         localStorage.setItem('faster_name', name);
         localStorage.setItem('faster_city', city);
         localStorage.setItem('faster_area', area);
         localStorage.setItem('faster_block', block || ""); 
-        if (upsertData && upsertData.length > 0) {
-            localStorage.setItem('faster_customer_id', upsertData[0].customer_id);
+        if (finalCustomerId) {
+            localStorage.setItem('faster_customer_id', String(finalCustomerId));
         }
         
         window.location.replace('home.html');
         
     } catch (err) {
-        // User ko clean error dikhayen
         alert(err.message || "Error saving profile. Please try again.");
         btn.disabled = false;
         btn.innerHTML = `<span>Save & Continue</span><i class="fas fa-arrow-right"></i>`;
