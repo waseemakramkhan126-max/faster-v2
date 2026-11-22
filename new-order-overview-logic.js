@@ -155,6 +155,9 @@ function selectGuestBlock(blockName, fee) {
         label.innerText = `✅ Selected: ${blockName} (Delivery: Rs. ${fee})`;
         label.classList.remove('hidden');
     }
+    // 👇 NEW: Auto-update displayed fee
+    const feeEl = document.getElementById('overviewDcAmount');
+    if (feeEl) feeEl.innerText = `Rs. ${fee}`;
 }
 
 // Close block dropdown on outside click
@@ -239,8 +242,7 @@ async function handleConfirmPrompt() {
     currentExtractedSummary = manualSummaryList.join("\n");
 
     if (!currentExtractedSummary && draftData.voices.length === 0 && draftData.images.length === 0 && draftData.videos.length === 0) {
-        alert("Please enter order details or attach a file first.");
-        return;
+        Dialog.show("Order Required", "Please enter order details or attach a file first.", "alert"); return;
     }
     if (!currentExtractedSummary) {
         currentExtractedSummary = "Order details are in attached voice notes/images.";
@@ -351,8 +353,7 @@ async function confirmOrderFromOverview() {
     localStorage.setItem('faster_city', customerCity);
     localStorage.setItem('faster_area', customerArea);
     localStorage.setItem('faster_block', guestBlock);
-}
-    } else if (!customerArea || customerArea === "null" || !customerCity) {
+} else if (!customerArea || customerArea === "null" || !customerCity) {   // ✅ FIXED
         if (!customerId || customerId.trim() === '' || isNaN(customerId)) {
             await Dialog.show("Area Missing 📍", "Apna delivery area profile mein set karein.", "alert");
             window.location.href = "profile.html";
