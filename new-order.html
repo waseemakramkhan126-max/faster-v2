@@ -166,11 +166,45 @@
                 <input type="text" id="overviewName" placeholder="Full Name" class="w-full border-b border-gray-200 py-0.5 mb-2 outline-none text-[13px] font-semibold text-gray-800 focus:border-[#14508C] bg-transparent">
                 <textarea id="overviewAddress" placeholder="Delivery Address" rows="1" class="w-full border-b border-gray-200 py-0.5 outline-none text-[13px] text-gray-800 resize-none focus:border-[#14508C] bg-transparent"></textarea>
                 <div id="guestOrderFields" class="hidden mt-2 space-y-2">
-                    <input type="tel" id="guestPhone" placeholder="WhatsApp number (e.g. 03XXXXXXXXX)" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
-                    <input type="text" id="guestCity" placeholder="City (e.g. Lahore)" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
-                    <input type="text" id="guestArea" placeholder="Delivery area / locality" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
-                    <p class="text-[10px] text-gray-500">Guest order ke liye phone, city aur area zaroori hain.</p>
-                </div>
+    <div>
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Phone Number</label>
+        <input type="tel" id="guestPhone" placeholder="03XXXXXXXXX"
+               class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
+    </div>
+    <div>
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">City</label>
+        <select id="guestCitySelect" onchange="onGuestCityChange()"
+                class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white">
+            <option value="">Loading cities...</option>
+        </select>
+    </div>
+    <div>
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Area</label>
+        <select id="guestAreaSelect" onchange="onGuestAreaChange()" disabled
+                class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white disabled:opacity-60">
+            <option value="">Select city first</option>
+        </select>
+    </div>
+    <div>
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Block</label>
+        <div class="relative">
+            <input type="text" id="guestBlockSearch" placeholder="Search block (e.g. A, B1...)"
+                   autocomplete="off" disabled
+                   oninput="filterGuestBlocks(this.value)" onfocus="showGuestBlockList()"
+                   class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white disabled:opacity-60">
+            <div id="guestBlockDropdown"
+                 class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto z-50"></div>
+        </div>
+        <input type="hidden" id="guestBlockSelected">
+        <p id="guestBlockSelectedLabel" class="text-[10px] text-green-600 font-bold mt-1 hidden"></p>
+    </div>
+    <div>
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Address Detail (optional)</label>
+        <input type="text" id="guestAddressDetail" placeholder="House 12, Street 3..."
+               class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-transparent">
+    </div>
+    <p class="text-[10px] text-gray-500">Phone, city, area aur block zaroori hain.</p>
+</div>
                 
                 <div id="overviewBlockDisplay" class="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-100 rounded-lg p-0.5 mt-2 leading-none">
                     📍 Block: Checking coordinates...
