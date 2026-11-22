@@ -183,12 +183,14 @@
     </div>
 
     <div id="guestBlockSection" class="hidden">
-        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Block (Optional)</label>
-        <input type="text" id="guestBlockSearch" placeholder="Search block (e.g. A, 12, B1...)" class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-[12px] outline-none focus:border-[#14508C] bg-gray-50 mt-0.5 mb-1">
-        <select id="guestBlock" class="w-full border border-gray-200 rounded-lg px-2 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white">
-            <option value="">Select Block (Optional)</option>
-        </select>
+    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Block (Optional)</label>
+    <div class="relative mt-0.5">
+        <input type="text" id="guestBlock" placeholder="Search or select block..." autocomplete="off"
+            class="w-full border border-gray-200 rounded-lg pl-2 pr-8 py-2 text-[13px] outline-none focus:border-[#14508C] bg-white">
+        <i class="fas fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+        <div id="guestBlockDropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto z-30"></div>
     </div>
+</div>
 
     <p class="text-[10px] text-gray-500">Guest order ke liye phone, city aur area zaroori hain.</p>
 </div>
