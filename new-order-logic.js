@@ -786,8 +786,6 @@ async function loadGuestBlocks(area) {
     }
 
     if (dropdown) dropdown.classList.add('hidden');
-    blockInput.value = '';
-    localStorage.removeItem('faster_block');
 
     try {
         const { data, error } = await _supabase
@@ -804,12 +802,23 @@ async function loadGuestBlocks(area) {
 
         if (blocks.length === 0) {
             blockSection.classList.add('hidden');
+            blockInput.value = '';
+            localStorage.removeItem('faster_block');
             return;
         }
 
         blockSection.classList.remove('hidden');
         blockInput.dataset.allBlocks = JSON.stringify(blocks);
         renderGuestBlockDropdown(blocks);
+
+        // ✅ Restore saved block if it still exists in this area's list
+        const savedBlock = localStorage.getItem('faster_block') || "";
+        if (savedBlock && blocks.includes(savedBlock)) {
+            blockInput.value = savedBlock;
+        } else {
+            blockInput.value = '';
+            if (savedBlock) localStorage.removeItem('faster_block');
+        }
     } catch (e) {
         console.error("Guest blocks load failed:", e);
         blockSection.classList.add('hidden');
