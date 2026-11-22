@@ -16,7 +16,9 @@ async function handleConfirmPrompt() {
         const guestFields = document.getElementById('guestOrderFields');
         if (guestFields) guestFields.classList.remove('hidden');
     }
-    const block = localStorage.getItem('faster_block') || ""; 
+    const block = isGuest
+    ? (document.getElementById('guestBlock')?.value.trim() || "")
+    : (localStorage.getItem('faster_block') || "");
     
     document.getElementById('overviewAddress').value = fullSavedAddress || document.getElementById('editAddress').value || "";
 
@@ -50,11 +52,10 @@ async function handleConfirmPrompt() {
     // Show guest contact/location fields only when no logged-in session.
     const { data: { session: currentSession } } = await _supabase.auth.getSession();
     const guestFields = document.getElementById('guestOrderFields');
-    if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
-    if (!currentSession) {
-        document.getElementById('guestCity').value = localStorage.getItem('faster_city') || "";
-        document.getElementById('guestArea').value = localStorage.getItem('faster_area') || "";
-    }
+if (guestFields) guestFields.classList.toggle('hidden', !!currentSession);
+if (!currentSession) {
+    await loadGuestCities();
+}
 
     // Populate Overview Fields
     document.getElementById('overviewName').value = document.getElementById('editName').value || "";
@@ -364,7 +365,9 @@ async function confirmOrderFromOverview() {
             scheduledAtValue = new Date(scheduleTime).toISOString();
         }
 
-        const userBlock = localStorage.getItem('faster_block') || "";
+        const userBlock = isGuest
+    ? (document.getElementById('guestBlock')?.value.trim() || "")
+    : (localStorage.getItem('faster_block') || "");
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
         const { error } = await _supabase.from('orders').insert([{
