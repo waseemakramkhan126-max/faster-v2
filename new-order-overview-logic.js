@@ -574,12 +574,88 @@ if (isGuest) {
             scheduledAtValue = new Date(scheduleTime).toISOString();
         }
 
-        const userBlock = localStorage.getItem('faster_block') || "";
+                const userBlock = localStorage.getItem('faster_block') || "";
         const finalFee = await getFinalDeliveryFee(customerCity, customerArea, userBlock, addr);
 
+        // =========================================================
+        // ✅ GUEST CUSTOMER ENSURE: customer_id har haal mein mile
+        // =========================================================
+        let finalCustomerId = customerId;
+        const guestPhoneForOrder = isGuest 
+            ? (document.getElementById('guestPhone')?.value.trim() || '') 
+            : userPhone;
+
+        if (isGuest && guestPhoneForOrder) {
+            try {
+                // 1. Phone se existing customer check karo
+                const { data: existingCust, error: lookupErr } = await _supabase
+                    .from('customers')
+                    .select('customer_id')
+                    .eq('phone', guestPhoneForOrder)
+                    .maybeSingle();
+
+                if (lookupErr) throw lookupErr;
+
+                if (existingCust && existingCust.customer_id) {
+                    finalCustomerId = existingCust.customer_id;
+                    console.log("♻️ Existing customer reused:", finalCustomerId);
+                } else {
+                    // 2. Naya customer record banao
+                    const { data: newCust, error: custErr } = await _supabase
+                        .from('customers')
+                        .insert([{
+                            phone: guestPhoneForOrder,
+                            name: name,
+                            city: customerCity,
+                            area: realDBAreaName,
+                            block: userBlock
+                        }])
+                        .select('customer_id')
+                        .single();
+
+                    if (custErr) throw custErr;
+                    finalCustomerId = newCust.customer_id;
+                    console.log("🆕 New guest customer created:", finalCustomerId);
+                }
+
+                // 3. localStorage mein save karo (agli baar same user same id use karega)
+                localStorage.setItem('faster_customer_id', String(finalCustomerId));
+                localStorage.setItem('faster_phone', guestPhoneForOrder);
+                localStorage.setItem('faster_name', name);
+                localStorage.setItem('faster_city', customerCity);
+                localStorage.setItem('faster_area', customerArea);
+                customerId = String(finalCustomerId);
+
+            } catch (custError) {
+                console.error("Guest customer setup failed:", custError);
+                showInlineError("Customer Setup Failed", "Aapka record set nahi ho saka. Baraye meharbani dobara koshish karein.");
+                btn.disabled = false;
+                btn.innerHTML = `Confirm & Place Order <i class="fas fa-check-circle ml-1"></i>`;
+                btn.classList.replace('bg-gray-400', 'bg-orange-600');
+                return;
+            }
+        }
+
+        // Non-guest fallback: agar customerId khali hai to session se laao
+        if (!isGuest && !finalCustomerId && session?.user?.email) {
+            try {
+                const { data: sessCust } = await _supabase
+                    .from('customers')
+                    .select('customer_id')
+                    .eq('email', session.user.email)
+                    .maybeSingle();
+                if (sessCust?.customer_id) {
+                    finalCustomerId = String(sessCust.customer_id);
+                    customerId = finalCustomerId;
+                    localStorage.setItem('faster_customer_id', finalCustomerId);
+                }
+            } catch (e) { console.warn("Session customer fetch failed:", e); }
+        }
+
+        // 4. Order insert karo — customer_id GUARANTEED
         const { error } = await _supabase.from('orders').insert([{
-            customer_phone: isGuest ? document.getElementById('guestPhone').value.trim() : userPhone, 
-            ...(customerId && !isNaN(customerId) ? { customer_id: customerId } : {}),
+            customer_phone: guestPhoneForOrder, 
+            customer_id: finalCustomerId || null,
             customer_name: name, 
             delivery_address: addr, 
             area: realDBAreaName, 
