@@ -34,6 +34,16 @@ let draftData = { texts: [], images: [], voices: [], videos: [], docs: [] };
 let deliveryCharges = 0; // Default zero, sirf Supabase se fetch hoga
 let selectedItems = []; 
 let userPhone = localStorage.getItem('faster_phone');
+
+// 👇 URL se JID nikal kar phone number save karna
+const urlParams = new URLSearchParams(window.location.search);
+const jidParam = urlParams.get('jid');
+if (jidParam) {
+    // Agar URL mein number aya hai, to usay local storage mein save kar lein
+    localStorage.setItem('faster_phone', jidParam);
+    userPhone = jidParam; // Variable ko bhi update kar dein
+}
+
 let customerId = localStorage.getItem('faster_customer_id') || ''; // ✅ Fixed: Changed const to let
 let fullSavedAddress = ""; 
 let matchedBlockName = null;  // Yahan block ka naam store hoga
