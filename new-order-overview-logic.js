@@ -186,9 +186,20 @@ async function handleConfirmPrompt() {
     const overviewAddr = document.getElementById('overviewAddress');
     if (overviewAddr) overviewAddr.style.display = isGuest ? 'none' : '';
 
-    let city, area, block;
-    if (isGuest) {
-        await loadGuestCities();
+                let city, area, block;
+            if (isGuest) {
+                
+                // 👇 YAHAN SE NAYA CODE ADD KAREIN 👇
+                const guestPhoneInput = document.getElementById('guestPhone');
+                if (guestPhoneInput) {
+                    const savedPhone = localStorage.getItem('faster_phone');
+                    if (savedPhone) {
+                        guestPhoneInput.value = savedPhone;
+                    }
+                }
+                // 👆 YAHAN TAK 👆
+
+                await loadGuestCities();
 
         // Restore previous selection if any
         const savedCity = localStorage.getItem('faster_city') || '';
