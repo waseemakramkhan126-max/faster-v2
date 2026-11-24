@@ -153,7 +153,7 @@ async function loginWithGoogle() {
     if (!navigator.onLine) { alert('No internet!'); return; }
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin + '/index.html' }
+        options: { redirectTo: 'https://waseemakramkhan126-max.github.io/faster-v2/index.html' } // 👈 YEH NAYA LINK LAGAYEIN
     });
     if (error) alert(error.message);
 }
