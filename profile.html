@@ -943,9 +943,16 @@
         window.addEventListener('offline', () => { document.getElementById('offlineBanner')?.style?.setProperty('top','0'); });
         window.addEventListener('online', () => { document.getElementById('offlineBanner')?.style?.setProperty('top','-50px'); });
 
-        window.onload = async () => {
+                window.onload = async () => {
             await loadDeliveryData();
             await loadProfile();
+            
+            // 👇 URL se number utha kar profile input mein dalna
+            const urlParams = new URLSearchParams(window.location.search);
+            const jidParam = urlParams.get('jid');
+            if (jidParam && !document.getElementById('phoneInput').value) {
+                document.getElementById('phoneInput').value = jidParam;
+            }
         };
     </script>
 
