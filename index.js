@@ -359,7 +359,7 @@ async function refreshAreasForCity(city) {
 // ==== SAVE PROFILE (with guest merge + orphan backfill) ====
 async function saveProfile() {
     const name = document.getElementById('nameInput').value.trim();
-    const phone = document.getElementById('phoneInput').value.trim();
+    let phone = document.getElementById('phoneInput').value.trim();
     const address = document.getElementById('addressInput').value.trim();
     const block = document.getElementById('blockInput').value.trim();
     const lat = document.getElementById('latInput').value;
@@ -369,6 +369,18 @@ async function saveProfile() {
     if (!name || !phone || !selectedCity || !selectedArea || !address) {
         alert('Please fill all required fields.');
         return;
+    }
+
+    // 🚀 FIX: PHONE NUMBER NORMALIZATION (Sabko 92... format mein badalna)
+    // 1. Sab spaces, dashes (-) hata do
+    phone = phone.replace(/[^0-9]/g, '');
+    // 2. Agar 0 se shuru ho raha hai (0300...), to 0 hata kar 92 laga do
+    if (phone.startsWith('0')) {
+        phone = '92' + phone.substring(1);
+    } 
+    // 3. Agar bina 92 ke shuru ho raha hai (300...), to aage 92 laga do
+    else if (!phone.startsWith('92') && phone.length === 10) {
+        phone = '92' + phone;
     }
 
     // Block validation
@@ -395,7 +407,7 @@ async function saveProfile() {
 
         const profileData = {
             name,
-            address,
+            address, // Yeh ab NULL nahi rahega, form se address utha kar yahan save hoga
             city: selectedCity,
             area: selectedArea,
             block: block || null,
@@ -404,7 +416,7 @@ async function saveProfile() {
             location: `${lat},${lng}`
         };
 
-        // Step 1: Phone se guest record dhoondo
+        // Step 1: Phone se guest record dhoondo (Ab normalized phone se check hoga)
         const { data: guestRecord } = await _supabase
             .from('customers')
             .select('customer_id, email')
@@ -437,7 +449,7 @@ async function saveProfile() {
                     await _supabase.from('customers').delete().eq('customer_id', emailRecord.customer_id);
                 }
                 const { data, error } = await _supabase.from('customers')
-                    .update({ email: userEmail, phone, ...profileData })
+                    .update({ email: userEmail, phone, ...profileData }) // Address yahan update ho jayega
                     .eq('customer_id', guestRecord.customer_id).select('customer_id');
                 if (error) throw error;
                 if (data?.[0]) finalCustomerId = data[0].customer_id;
@@ -470,16 +482,15 @@ async function saveProfile() {
         }
 
         // Step 3: PURANE ORPHAN ORDERS KO LINK KARO
-        // (jo guest orders customer_id = NULL ke saath pade hain)
         if (finalCustomerId) {
             const { error: backfillErr } = await _supabase.from('orders')
                 .update({ customer_id: finalCustomerId })
-                .eq('customer_phone', phone)
+                .eq('customer_phone', phone) // Ab yeh match karega
                 .is('customer_id', null);
             if (backfillErr) console.warn('Orphan orders backfill failed:', backfillErr);
         }
 
-        // LocalStorage update
+        // LocalStorage update (Phone ko formatted form mein save karein UI ke liye)
         localStorage.setItem('faster_phone', phone);
         localStorage.setItem('faster_name', name);
         localStorage.setItem('faster_city', selectedCity);
