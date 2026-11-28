@@ -224,19 +224,36 @@ async function initChat() {
   return;
  }
 
- // Confirm karein ke order isi customer ka hai
- const { data: order, error } = await db
+ // Verify customer order access
+const { data: order, error } = await db
   .from('orders')
-  .select('id')
+  .select('id, customer_id')
   .eq('id', orderId)
-  .eq('customer_id', customerId)
   .maybeSingle();
 
- if (error || !order) {
-  alert('Invalid order ya chat access nahi hai.');
-  history.back();
+if (error) {
+  console.error('Order verification error:', error);
+  alert('Supabase Error: ' + error.message);
   return;
- }
+}
+
+if (!order) {
+  console.error('Order not found or blocked by RLS:', orderId);
+  alert('Order database mein nahi mila ya Supabase access block kar raha hai.');
+  return;
+}
+
+if (String(order.customer_id) !== String(customerId)) {
+  console.error('Customer ID mismatch:', {
+    orderCustomerId: order.customer_id,
+    loggedInCustomerId: customerId
+  });
+
+  alert('Customer ID match nahi ho rahi. Please dobara login karein.');
+  return;
+}
+
+console.log('Order verified successfully:', order.id);
 
  await loadMessages();
 
