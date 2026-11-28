@@ -1,0 +1,268 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Faster - Rider Chat</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./r2-upload.js"></script>
+
+<style>
+body { height:100dvh; }
+.bubble-in,.bubble-out {
+ max-width:85%; overflow-wrap:anywhere; word-break:break-word;
+}
+.bubble-in {
+ background:white; border-radius:0 14px 14px 14px;
+ align-self:flex-start;
+}
+.bubble-out {
+ background:#dcf8c6; border-radius:14px 0 14px 14px;
+ align-self:flex-end;
+}
+</style>
+</head>
+
+<body class="fixed inset-0 flex flex-col bg-[#e5ddd5]">
+
+<header class="bg-[#14508C] text-white p-4 flex items-center gap-3">
+ <button onclick="history.back()">
+  <i class="fas fa-arrow-left text-xl"></i>
+ </button>
+ <div>
+  <div class="font-bold">Rider Chat</div>
+  <div class="text-xs opacity-80">Faster Delivery</div>
+ </div>
+</header>
+
+<main id="chatBox" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+ <p class="text-center text-gray-500 text-xs">Loading messages...</p>
+</main>
+
+<footer class="bg-white p-2 flex items-center gap-2">
+ <button onclick="document.getElementById('imageInput').click()"
+  class="text-blue-600 text-xl px-2">
+  <i class="fas fa-camera"></i>
+ </button>
+
+ <input id="imageInput" type="file" accept="image/*"
+  class="hidden" onchange="uploadImage(this)">
+
+ <textarea id="msgInput" rows="1"
+  placeholder="Message..."
+  class="flex-1 bg-gray-100 rounded-xl p-3 outline-none resize-none"></textarea>
+
+ <button onclick="sendMessage()"
+  class="bg-blue-600 text-white w-11 h-11 rounded-full">
+  <i class="fas fa-paper-plane"></i>
+ </button>
+</footer>
+
+<script>
+const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0IiwiaWF0IjoxNzc2NDg4MjI1LCJleHAiOjIwOTIwNjQyMjV9.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
+
+const db = supabase.createClient(SB_URL, SB_KEY);
+
+const params = new URLSearchParams(location.search);
+const orderId = params.get('orderId');
+
+const myPhone = (localStorage.getItem('faster_phone') || '').trim();
+const customerId = localStorage.getItem('faster_customer_id');
+
+const chatBox = document.getElementById('chatBox');
+const msgInput = document.getElementById('msgInput');
+
+let chatChannel = null;
+let sending = false;
+
+function escapeHTML(value) {
+ return String(value ?? '').replace(/[&<>"']/g, ch => ({
+  '&':'&amp;', '<':'&lt;', '>':'&gt;',
+  '"':'&quot;', "'":'&#39;'
+ }[ch]));
+}
+
+function renderMessage(m) {
+ const isMe = m.sender_phone === myPhone;
+ const time = m.created_at
+  ? new Date(m.created_at).toLocaleTimeString([], {
+     hour:'2-digit', minute:'2-digit'
+    })
+  : 'Just now';
+
+ let media = '';
+
+ if (m.type === 'image' && m.file_url) {
+  const url = escapeHTML(m.file_url);
+  media = `<img src="${url}" class="max-h-60 rounded-lg mb-1"
+   onclick="window.open('${url}','_blank')">`;
+ }
+
+ if (m.type === 'voice' && m.file_url) {
+  media = `<audio controls src="${escapeHTML(m.file_url)}"
+   class="max-w-full mb-1"></audio>`;
+ }
+
+ const div = document.createElement('div');
+ div.className = `bubble-${isMe ? 'out' : 'in'} p-2 px-3 shadow-sm`;
+
+ div.innerHTML = `
+  ${media}
+  ${m.message ? `<p class="text-sm whitespace-pre-wrap">${escapeHTML(m.message)}</p>` : ''}
+  <div class="text-right text-[9px] text-gray-500 mt-1">
+   ${time}
+   ${isMe ? (m.status === 'seen' ? '✓✓' : '✓') : ''}
+  </div>
+ `;
+
+ return div;
+}
+
+async function loadMessages() {
+ const { data, error } = await db
+  .from('order_chats')
+  .select('*')
+  .eq('order_id', orderId)
+  .order('created_at', { ascending:true });
+
+ if (error) {
+  console.error(error);
+  chatBox.textContent = 'Messages load nahi ho sake. Dobara try karein.';
+  return;
+ }
+
+ chatBox.innerHTML = '';
+
+ (data || []).forEach(m => {
+  chatBox.appendChild(renderMessage(m));
+ });
+
+ chatBox.scrollTop = chatBox.scrollHeight;
+
+ // Rider ke unread messages ko seen mark karein
+ const unreadIds = (data || [])
+  .filter(m => m.sender_phone !== myPhone && m.status !== 'seen')
+  .map(m => m.id)
+  .filter(Boolean);
+
+ if (unreadIds.length) {
+  const { error: seenError } = await db
+   .from('order_chats')
+   .update({ status:'seen' })
+   .in('id', unreadIds);
+
+  if (seenError) console.error('Seen update failed:', seenError);
+ }
+}
+
+async function sendMessage() {
+ const message = msgInput.value.trim();
+
+ if (!message || sending) return;
+
+ sending = true;
+
+ const { error } = await db.from('order_chats').insert([{
+  order_id: orderId,
+  sender_phone: myPhone,
+  message: message,
+  type: 'text',
+  file_url: null,
+  status: 'sent'
+ }]);
+
+ sending = false;
+
+ if (error) {
+  console.error(error);
+  alert('Message send nahi hua.');
+  return;
+ }
+
+ msgInput.value = '';
+}
+
+async function uploadImage(input) {
+ const file = input.files[0];
+ if (!file) return;
+
+ try {
+  const publicUrl = await uploadToR2(file, 'chat-media', {
+   idFolder: orderId,
+   mediaType: 'image',
+   maxSizeMB: 15
+  });
+
+  const { error } = await db.from('order_chats').insert([{
+   order_id: orderId,
+   sender_phone: myPhone,
+   message: '',
+   type: 'image',
+   file_url: publicUrl,
+   status: 'sent'
+  }]);
+
+  if (error) throw error;
+
+ } catch (err) {
+  console.error(err);
+  alert('Image send nahi hui: ' + (err.message || err));
+ } finally {
+  input.value = '';
+ }
+}
+
+async function initChat() {
+ if (!orderId || !myPhone || !customerId) {
+  alert('Customer ya order information missing hai.');
+  history.back();
+  return;
+ }
+
+ // Confirm karein ke order isi customer ka hai
+ const { data: order, error } = await db
+  .from('orders')
+  .select('id')
+  .eq('id', orderId)
+  .eq('customer_id', customerId)
+  .maybeSingle();
+
+ if (error || !order) {
+  alert('Invalid order ya chat access nahi hai.');
+  history.back();
+  return;
+ }
+
+ await loadMessages();
+
+ chatChannel = db.channel('customer-order-chat-' + orderId)
+  .on('postgres_changes', {
+   event:'INSERT',
+   schema:'public',
+   table:'order_chats',
+   filter:`order_id=eq.${orderId}`
+  }, () => loadMessages())
+  .subscribe();
+}
+
+msgInput.addEventListener('keydown', e => {
+ if (e.key === 'Enter' && !e.shiftKey) {
+  e.preventDefault();
+  sendMessage();
+ }
+});
+
+window.addEventListener('beforeunload', () => {
+ if (chatChannel) db.removeChannel(chatChannel);
+});
+
+initChat();
+</script>
+
+</body>
+</html>
