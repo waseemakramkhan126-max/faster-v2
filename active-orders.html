@@ -324,7 +324,7 @@
                             <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Live Tracked</span>
                         </div>
                         ${(status === 'assigned' || isArrived) ? 
-                            `<button onclick="event.stopPropagation(); window.location.href='chat.html?orderId=${order.id}'" class="relative bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black shadow-lg shadow-blue-500/20 active:bg-blue-700 transition-colors flex items-center gap-2">
+                            `<button onclick="event.stopPropagation(); window.location.href='order-chat.html?orderId=${order.id}'" class="relative bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[11px] font-black shadow-lg shadow-blue-500/20 active:bg-blue-700 transition-colors flex items-center gap-2">
                                 <i class="fas fa-comment-dots"></i> CHAT
                                 ${unreadCounts[order.id] ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-bounce font-bold">${unreadCounts[order.id]}</span>` : ''}
                             </button>` : ''}
