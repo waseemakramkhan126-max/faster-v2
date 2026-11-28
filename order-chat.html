@@ -2,151 +2,447 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Faster - Order Chat</title>
 <link rel="icon" href="favicon.ico">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  html, body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; padding-top: env(safe-area-inset-top); }
+  #messagesContainer { -webkit-overflow-scrolling: touch; }
+  .msg-in { animation: pop 0.18s ease-out; }
+  @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
 </head>
-<body class="bg-gray-100 flex flex-col h-screen overflow-hidden">
+<body class="bg-[#e5ddd5] flex flex-col h-screen overflow-hidden">
+
+<!-- Offline Banner -->
+<div id="offlineBanner" class="fixed top-[-50px] left-0 w-full bg-red-500 text-white text-center text-[10px] uppercase tracking-widest py-2 font-black z-50 transition-all duration-300">
+    <i class="fas fa-wifi-slash"></i> No Internet Connection
+</div>
+
+<audio id="notifSound" src="https://pub-46c1f50284b64647914d7901e1dd5fea.r2.dev/sound_garage-cat-meow-8-fx-306184.mp3" preload="auto"></audio>
 
 <!-- Header -->
-<header class="bg-blue-600 text-white px-4 py-3 flex items-center gap-3 shadow-md shrink-0">
-    <i class="fas fa-arrow-left text-xl cursor-pointer" onclick="history.back()"></i>
-    <div class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center font-bold">R</div>
+<header class="bg-[#14508C] text-white px-4 py-3 flex items-center gap-3 shadow-md shrink-0 z-10">
+    <i class="fas fa-arrow-left text-xl cursor-pointer active:scale-90 transition-transform"
+       onclick="history.back()"></i>
+    <div id="headerAvatar"
+         class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+        R
+    </div>
     <div class="flex-1 min-w-0">
-        <div id="chatTitle" class="font-bold">Order Chat</div>
-        <div id="chatSubtitle" class="text-[11px] opacity-80">Loading...</div>
+        <div id="headerName" class="font-bold text-base truncate">Order Chat</div>
+        <div id="headerStatus" class="text-[11px] opacity-80">Loading...</div>
     </div>
 </header>
 
 <!-- Messages -->
-<div id="messagesContainer" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-white"></div>
+<div id="messagesContainer"
+     class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-white"></div>
 
 <!-- Input -->
-<footer class="bg-white p-2.5 flex items-center gap-2 border-t border-gray-200">
-    <input id="msgInput" type="text" placeholder="Type a message..."
-        class="flex-1 bg-gray-100 rounded-full px-4 py-2.5 outline-none text-sm">
-    <button onclick="sendMessage()" class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center active:scale-95 transition">
-        <i class="fas fa-paper-plane"></i>
+<footer class="bg-white p-2.5 pb-safe flex items-center gap-2 border-t border-gray-200 shrink-0">
+    <div class="flex-1 bg-gray-100 rounded-3xl flex items-center px-4 border border-gray-200">
+        <textarea id="msgInput" placeholder="Type a message..." rows="1"
+                  class="w-full bg-transparent py-3 outline-none text-sm resize-none max-h-32 text-gray-800"></textarea>
+    </div>
+    <button id="sendBtn" onclick="sendMessage()"
+            class="w-11 h-11 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0">
+        <i class="fas fa-paper-plane text-sm ml-0.5"></i>
     </button>
 </footer>
 
 <script>
+/* ============================================================
+   ORDER CHAT — Customer ↔ Rider for a specific order
+   Table: order_chats  (order_id, sender_phone, receiver_phone,
+                        message, file_url, type, status, created_at)
+   ============================================================ */
+
 const SB_URL = "https://hkabhikizdlbavfkualt.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrYWJoaWtpemRsYmF2Zmt1YWx0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODgyMjUsImV4cCI6MjA5MjA2NDIyNX0.iMlS6-M1aylW8K915LPYDHOg7qUxwu5GelH_CPHLP2U";
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
+/* ---- Current user ---- */
 const myPhone = (localStorage.getItem('faster_phone') || '').trim();
+const myName  = localStorage.getItem('faster_name') || 'Me';
+
+/* ---- URL params ---- */
 const urlParams = new URLSearchParams(location.search);
-const orderId = urlParams.get('orderId');
-if (!orderId) { alert('Invalid order chat'); history.back(); }
+const orderId   = urlParams.get('orderId');
 
-const container = document.getElementById('messagesContainer');
-const input = document.getElementById('msgInput');
-
-/* ---------- helpers ---------- */
-function formatTime(ts) {
-    return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+if (!orderId) {
+    alert('Invalid order chat. Missing order ID.');
+    history.back();
 }
+if (!myPhone) {
+    alert('Session expired. Please login again.');
+    location.replace('index.html');
+}
+
+/* ---- DOM ---- */
+const container   = document.getElementById('messagesContainer');
+const input       = document.getElementById('msgInput');
+const sendBtn     = document.getElementById('sendBtn');
+const headerName  = document.getElementById('headerName');
+const headerStat  = document.getElementById('headerStatus');
+const headerAv    = document.getElementById('headerAvatar');
+const notifSound  = document.getElementById('notifSound');
+
+/* ---- State ---- */
+let otherPartyPhone = null;   // rider's phone (or customer's, on rider side)
+let orderStatus     = null;
+let realtimeChannel = null;
+let lastDateLabel   = null;
+const seenMsgIds    = new Set();  // duplicate "seen" updates na ho
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
 function escapeHtml(s) {
-    const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
-}
-function scrollBottom() { setTimeout(() => container.scrollTop = container.scrollHeight, 50); }
-
-function renderMessage(msg) {
-    const isMe = msg.sender_phone === myPhone;
-    const div = document.createElement('div');
-    div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-    div.innerHTML = `
-        <div class="max-w-[78%] px-3 py-2 rounded-2xl ${isMe
-            ? 'bg-blue-600 text-white rounded-br-sm'
-            : 'bg-gray-200 text-gray-900 rounded-bl-sm'}">
-            <p class="text-sm whitespace-pre-wrap">${escapeHtml(msg.message || '')}</p>
-            <div class="text-[10px] opacity-70 mt-1 text-right">${formatTime(msg.created_at)}</div>
-        </div>`;
-    container.appendChild(div);
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
 }
 
-/* ---------- header info (rider name) ---------- */
+function formatTime(ts) {
+    try { return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+    catch (e) { return ''; }
+}
+
+function dateLabel(ts) {
+    const d = new Date(ts);
+    const today = new Date();
+    const yest  = new Date(today);
+    yest.setDate(today.getDate() - 1);
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function scrollBottom(instant = false) {
+    setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+    }, instant ? 0 : 60);
+}
+
+function ring() {
+    if (!notifSound) return;
+    notifSound.currentTime = 0;
+    notifSound.play().catch(() => {
+        if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+    });
+}
+
+/* ============================================================
+   HEADER  — rider ka naam nikaalne ki koshish (multiple fallbacks)
+   ============================================================ */
 async function loadOrderInfo() {
-    const { data: order } = await _supabase.from('orders').select('*').eq('id', orderId).single();
-    if (!order) return;
-    // ⚠️ column name verify karein: rider_id / assigned_rider_id / rider_customer_id
-    const riderId = order.rider_id;
-    if (riderId) {
-        const { data: rider } = await _supabase.from('customers')
-            .select('name, phone').eq('customer_id', riderId).maybeSingle();
-        if (rider) {
-            document.getElementById('chatTitle').textContent = rider.name || 'Rider';
-            document.getElementById('chatSubtitle').textContent = 'Order #' + orderId;
+    try {
+        const { data: order, error } = await _supabase
+            .from('orders').select('*').eq('id', orderId).single();
+
+        if (error || !order) {
+            headerName.textContent = 'Order #' + orderId;
+            headerStat.textContent = 'Chat';
             return;
         }
+        orderStatus = order.status;
+
+        // Try to identify rider — common column names
+        const riderIdCandidates  = ['rider_id', 'assigned_rider_id', 'rider_customer_id', 'assigned_to'];
+        const riderPhoneCands    = ['rider_phone', 'assigned_rider_phone', 'rider_contact'];
+
+        let riderPhone = null;
+        let riderId    = null;
+
+        for (const col of riderPhoneCands) if (order[col]) { riderPhone = order[col]; break; }
+        for (const col of riderIdCandidates) if (order[col]) { riderId = order[col]; break; }
+
+        // Try to fetch rider name
+        let riderName = null;
+        if (riderPhone) {
+            const { data: r } = await _supabase.from('customers')
+                .select('name, avatar_url').eq('phone', riderPhone).maybeSingle();
+            if (r) { riderName = r.name; if (r.avatar_url) setHeaderAvatar(r.avatar_url, riderName); }
+            otherPartyPhone = riderPhone;
+        } else if (riderId) {
+            const { data: r } = await _supabase.from('customers')
+                .select('name, phone, avatar_url').eq('customer_id', riderId).maybeSingle();
+            if (r) {
+                riderName = r.name;
+                otherPartyPhone = r.phone;
+                if (r.avatar_url) setHeaderAvatar(r.avatar_url, riderName);
+            }
+        }
+
+        headerName.textContent = riderName ? riderName : ('Order #' + orderId);
+        headerStat.textContent = 'Rider • Order #' + orderId;
+
+        if (riderName && !headerAv.querySelector('img')) {
+            headerAv.textContent = riderName.charAt(0).toUpperCase();
+        }
+
+        // Fallback: if rider phone still unknown, look at existing messages
+        if (!otherPartyPhone) await discoverOtherPartyFromMessages();
+
+    } catch (e) {
+        console.warn('Order info fetch failed:', e);
+        headerName.textContent = 'Order #' + orderId;
+        headerStat.textContent = 'Chat';
     }
-    document.getElementById('chatTitle').textContent = 'Order #' + orderId;
-    document.getElementById('chatSubtitle').textContent = 'Rider';
 }
 
-/* ---------- load messages ---------- */
+function setHeaderAvatar(url, name) {
+    headerAv.innerHTML = `<img src="${url}" class="w-full h-full rounded-full object-cover"
+        onerror="this.parentElement.textContent='${(name||'R').charAt(0).toUpperCase()}'">`;
+}
+
+async function discoverOtherPartyFromMessages() {
+    const { data } = await _supabase.from('order_chats')
+        .select('sender_phone, receiver_phone')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+    if (!data) return;
+    for (const m of data) {
+        if (m.sender_phone && m.sender_phone !== myPhone) { otherPartyPhone = m.sender_phone; return; }
+        if (m.receiver_phone && m.receiver_phone !== myPhone) { otherPartyPhone = m.receiver_phone; return; }
+    }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderDateDivider(label) {
+    const d = document.createElement('div');
+    d.className = 'text-center my-2';
+    d.innerHTML = `<span class="bg-white/80 text-gray-500 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">${escapeHtml(label)}</span>`;
+    container.appendChild(d);
+}
+
+function renderMessage(msg) {
+    if (!msg) return;
+    if (msg.id && container.querySelector(`[data-msg-id="${msg.id}"]`)) return; // dedupe
+
+    // Date divider
+    const label = dateLabel(msg.created_at);
+    if (label !== lastDateLabel) {
+        lastDateLabel = label;
+        renderDateDivider(label);
+    }
+
+    const isMe = (msg.sender_phone || '').trim() === myPhone;
+    const bubble = document.createElement('div');
+    bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'} msg-in`;
+    if (msg.id) bubble.dataset.msgId = msg.id;
+
+    /* ---- content per type ---- */
+    const type = (msg.type || 'text').toLowerCase();
+    let inner = '';
+
+    if (type === 'image' && msg.file_url) {
+        inner = `<img src="${escapeHtml(msg.file_url)}" class="max-w-[220px] max-h-64 rounded-xl object-cover cursor-pointer"
+                     onclick="window.open('${escapeHtml(msg.file_url)}','_blank')">`;
+        if (msg.message) inner += `<p class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(msg.message)}</p>`;
+    } else if (type === 'voice' && msg.file_url) {
+        inner = `
+            <div class="flex items-center gap-2">
+                <audio src="${escapeHtml(msg.file_url)}" controls class="max-w-[210px] h-8"></audio>
+            </div>
+            ${msg.message ? `<p class="text-xs mt-1 opacity-80">${escapeHtml(msg.message)}</p>` : ''}`;
+    } else if (type === 'file' && msg.file_url) {
+        inner = `<a href="${escapeHtml(msg.file_url)}" target="_blank"
+                    class="flex items-center gap-2 underline text-xs">
+                    <i class="fas fa-file"></i> Download file
+                </a>`;
+        if (msg.message) inner += `<p class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(msg.message)}</p>`;
+    } else {
+        inner = `<p class="text-sm whitespace-pre-wrap break-words">${escapeHtml(msg.message || '')}</p>`;
+    }
+
+    const isSeen = msg.status === 'seen';
+    const tick = isMe
+        ? `<i class="fas ${isSeen ? 'fa-check-double text-blue-300' : 'fa-check opacity-70'} text-[10px] ml-1"></i>`
+        : '';
+
+    bubble.innerHTML = `
+        <div class="max-w-[78%] px-3 py-2 rounded-2xl shadow-sm ${isMe
+            ? 'bg-[#14508C] text-white rounded-br-sm'
+            : 'bg-gray-100 text-gray-900 rounded-bl-sm'}">
+            ${inner}
+            <div class="text-[10px] ${isMe ? 'text-blue-100' : 'text-gray-500'} mt-1 flex items-center justify-end gap-1">
+                <span>${formatTime(msg.created_at)}</span>
+                ${tick}
+            </div>
+        </div>`;
+
+    container.appendChild(bubble);
+}
+
+/* ============================================================
+   LOAD MESSAGES
+   ============================================================ */
 async function loadMessages() {
-    const { data, error } = await _supabase.from('order_chats')
+    container.innerHTML = '';
+    lastDateLabel = null;
+
+    const { data, error } = await _supabase
+        .from('order_chats')
         .select('*')
         .eq('order_id', orderId)
-        .order('created_at', { ascending: true });
-    if (error) { console.error(error); return; }
-    container.innerHTML = '';
-    (data || []).forEach(renderMessage);
-    scrollBottom();
-    markAsSeen(data || []);
+        .order('created_at', { ascending: true })
+        .limit(300);
+
+    if (error) {
+        container.innerHTML = `<p class="text-center text-red-500 text-sm mt-8">Failed to load messages.</p>`;
+        console.error('loadMessages:', error);
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `<p class="text-center text-gray-400 text-xs mt-8">No messages yet. Say hi 👋</p>`;
+        return;
+    }
+
+    // Clear "empty" message if present
+    if (container.firstChild && container.firstChild.tagName === 'P') container.innerHTML = '';
+
+    data.forEach(renderMessage);
+    scrollBottom(true);
+    markAsSeen(data);
 }
 
+/* ============================================================
+   MARK AS SEEN — status='seen' jahan sender != me
+   ============================================================ */
 async function markAsSeen(messages) {
-    const ids = messages
-        .filter(m => m.sender_phone !== myPhone && m.status !== 'seen')
+    const ids = (messages || [])
+        .filter(m => (m.sender_phone || '').trim() !== myPhone && m.status !== 'seen' && !seenMsgIds.has(m.id))
         .map(m => m.id);
+
     if (!ids.length) return;
-    await _supabase.from('order_chats').update({ status: 'seen' }).in('id', ids);
+    ids.forEach(id => seenMsgIds.add(id));
+
+    const { error } = await _supabase
+        .from('order_chats')
+        .update({ status: 'seen' })
+        .in('id', ids);
+
+    if (error) console.warn('markAsSeen failed:', error);
 }
 
-/* ---------- send ---------- */
+/* ============================================================
+   SEND MESSAGE
+   ============================================================ */
 async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
-    input.value = '';
-    const { data, error } = await _supabase.from('order_chats').insert([{
-        order_id: orderId,
-        sender_phone: myPhone,
-        message: text,
-        status: 'sent'
-    }]).select().single();
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<i class="fas fa-spinner fa-spin text-sm"></i>`;
+
+    const payload = {
+        order_id:       orderId,
+        sender_phone:   myPhone,
+        receiver_phone: otherPartyPhone || null, // rider ka phone agar mila ho
+        message:        text,
+        type:           'text',
+        status:         'sent'
+    };
+
+    const { data, error } = await _supabase.from('order_chats').insert([payload]).select().single();
+
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = `<i class="fas fa-paper-plane text-sm ml-0.5"></i>`;
+
     if (error) {
-        console.error(error);
-        alert('Message send nahi hua');
-        input.value = text;
+        console.error('send error:', error);
+        alert('Message send nahi hua. Internet check karein.');
         return;
     }
-    renderMessage(data);
-    scrollBottom();
+
+    input.value = '';
+    input.style.height = 'auto';
+    if (data) {
+        renderMessage(data);
+        scrollBottom();
+    }
 }
 
-input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+/* ============================================================
+   REALTIME — naye messages + "seen" updates
+   ============================================================ */
+function subscribeRealtime() {
+    if (realtimeChannel) _supabase.removeChannel(realtimeChannel);
 
-/* ---------- realtime ---------- */
-_supabase.channel('order-chat-' + orderId)
-    .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'order_chats',
-        filter: `order_id=eq.${orderId}`
-    }, payload => {
-        if (payload.new.sender_phone === myPhone) return;
-        renderMessage(payload.new);
-        scrollBottom();
-        markAsSeen([payload.new]);
-    })
-    .subscribe();
+    realtimeChannel = _supabase.channel('order-chat-' + orderId)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'order_chats',
+            filter: `order_id=eq.${orderId}`
+        }, (payload) => {
+            const msg = payload.new;
+            if (!msg) return;
+            if ((msg.sender_phone || '').trim() === myPhone) return; // apna hi message
+            // remove "empty" placeholder
+            if (container.firstChild && container.firstChild.tagName === 'P') container.innerHTML = '';
+            renderMessage(msg);
+            scrollBottom();
+            markAsSeen([msg]);
+            ring();
+        })
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'order_chats',
+            filter: `order_id=eq.${orderId}`
+        }, (payload) => {
+            const msg = payload.new;
+            if (!msg || !msg.id) return;
+            // Apne messages pe blue tick update karo
+            if ((msg.sender_phone || '').trim() === myPhone && msg.status === 'seen') {
+                const bubble = container.querySelector(`[data-msg-id="${msg.id}"]`);
+                if (bubble) {
+                    const tick = bubble.querySelector('i.fa-check, i.fa-check-double');
+                    if (tick) {
+                        tick.classList.remove('fa-check', 'opacity-70');
+                        tick.classList.add('fa-check-double', 'text-blue-300');
+                    }
+                }
+            }
+        })
+        .subscribe();
+}
 
-loadOrderInfo();
-loadMessages();
+/* ============================================================
+   TEXTAREA — auto-grow + Enter to send
+   ============================================================ */
+input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 128) + 'px';
+});
+input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+/* ============================================================
+   ONLINE / OFFLINE
+   ============================================================ */
+const banner = document.getElementById('offlineBanner');
+window.addEventListener('online',  () => { banner.style.top = '-50px'; loadMessages(); });
+window.addEventListener('offline', () => { banner.style.top = '0'; });
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(async function init() {
+    await loadOrderInfo();
+    await loadMessages();
+    subscribeRealtime();
+})();
 </script>
 </body>
 </html>
